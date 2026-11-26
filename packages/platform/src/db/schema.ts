@@ -14,9 +14,9 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-const vector1536 = customType<{ data: number[]; driverData: string }>({
+const vector768 = customType<{ data: number[]; driverData: string }>({
   dataType() {
-    return 'vector(1536)'
+    return 'vector(768)'
   },
 })
 
@@ -164,7 +164,7 @@ export const knowledgeBases = pgTable('knowledge_bases', {
   description: text('description').notNull().default(''),
   embeddingProvider: text('embedding_provider').notNull(),
   embeddingModel: text('embedding_model').notNull(),
-  embeddingDimension: integer('embedding_dimension').notNull().default(1536),
+  embeddingDimension: integer('embedding_dimension').notNull().default(768),
   status: text('status').notNull().default('ready'),
   metadata: jsonb('metadata').notNull().default({}),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -200,7 +200,7 @@ export const documentChunks = pgTable('document_chunks', {
   content: text('content').notNull(),
   tokenCount: integer('token_count'),
   metadata: jsonb('metadata').notNull().default({}),
-  embedding: vector1536('embedding'),
+  embedding: vector768('embedding'),
   embeddingModel: text('embedding_model').notNull(),
   embeddingStatus: text('embedding_status').notNull().default('pending'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -228,6 +228,141 @@ export const modelConnections = pgTable('model_connections', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const agents = pgTable('agents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  config: jsonb('config').notNull(),
+  revision: integer('revision').notNull().default(1),
+  status: text('status').notNull().default('active'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_agents_workspace_public').on(table.workspaceId, table.publicId),
+  unique('uq_agents_workspace_name').on(table.workspaceId, table.name),
+])
+
+export const agentConversations = pgTable('agent_conversations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  agentId: uuid('agent_id').notNull(),
+  agentRevision: integer('agent_revision').notNull(),
+  agentSnapshot: jsonb('agent_snapshot').notNull(),
+  threadId: text('thread_id').notNull(),
+  title: text('title').notNull().default('新会话'),
+  status: text('status').notNull().default('active'),
+  metadata: jsonb('metadata').notNull().default({}),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_agent_conversations_workspace_public').on(table.workspaceId, table.publicId),
+  unique('uq_agent_conversations_workspace_thread').on(table.workspaceId, table.threadId),
+])
+
+export const agentMessages = pgTable('agent_messages', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  conversationId: uuid('conversation_id').notNull(),
+  invocationId: uuid('invocation_id'),
+  seq: integer('seq').notNull(),
+  role: text('role').notNull(),
+  content: jsonb('content').notNull(),
+  status: text('status').notNull().default('pending'),
+  citations: jsonb('citations').notNull().default([]),
+  usage: jsonb('usage').notNull().default({}),
+  error: jsonb('error'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_agent_messages_workspace_public').on(table.workspaceId, table.publicId),
+  unique('uq_agent_messages_conversation_seq').on(table.conversationId, table.seq),
+])
+
+export const agentInvocations = pgTable('agent_invocations', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  agentId: uuid('agent_id'),
+  conversationId: uuid('conversation_id'),
+  runId: uuid('run_id'),
+  nodeId: text('node_id'),
+  kind: text('kind').notNull(),
+  status: text('status').notNull().default('queued'),
+  definitionSnapshot: jsonb('definition_snapshot').notNull(),
+  request: jsonb('request').notNull().default({}),
+  result: jsonb('result'),
+  error: jsonb('error'),
+  threadId: text('thread_id').notNull(),
+  resumeCheckpointId: text('resume_checkpoint_id'),
+  idempotencyKey: text('idempotency_key'),
+  cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
+  workerId: text('worker_id'),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  attempts: integer('attempts').notNull().default(0),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  durationMs: integer('duration_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_agent_invocations_workspace_public').on(table.workspaceId, table.publicId),
+])
+
+export const agentInvocationEvents = pgTable('agent_invocation_events', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  invocationId: uuid('invocation_id').notNull(),
+  seq: integer('seq').notNull(),
+  type: text('type').notNull(),
+  payload: jsonb('payload').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_agent_invocation_events_seq').on(table.invocationId, table.seq),
+])
+
+export const agentToolCalls = pgTable('agent_tool_calls', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  invocationId: uuid('invocation_id').notNull(),
+  callId: text('call_id').notNull(),
+  toolName: text('tool_name').notNull(),
+  idempotencyKey: text('idempotency_key').notNull(),
+  status: text('status').notNull().default('started'),
+  argumentsSummary: jsonb('arguments_summary').notNull().default({}),
+  resultSummary: jsonb('result_summary'),
+  error: jsonb('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+}, (table) => [
+  unique('uq_agent_tool_calls_invocation_key').on(table.invocationId, table.idempotencyKey),
+])
+
+export const knowledgeIngestJobs = pgTable('knowledge_ingest_jobs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  documentId: uuid('document_id').notNull(),
+  kind: text('kind').notNull().default('ingest'),
+  status: text('status').notNull().default('queued'),
+  stage: text('stage').notNull().default('parse'),
+  attempt: integer('attempt').notNull().default(0),
+  maxAttempts: integer('max_attempts').notNull().default(3),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
+  errorCode: text('error_code'),
+  errorMessage: text('error_message'),
+  workerId: text('worker_id'),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_knowledge_ingest_jobs_workspace_public').on(table.workspaceId, table.publicId),
+])
 
 export const mcpConnections = pgTable('mcp_connections', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -295,6 +430,13 @@ export const schema = {
   documents,
   documentChunks,
   modelConnections,
+  agents,
+  agentConversations,
+  agentMessages,
+  agentInvocations,
+  agentInvocationEvents,
+  agentToolCalls,
+  knowledgeIngestJobs,
   mcpConnections,
   registryEntries,
   templateCatalog,

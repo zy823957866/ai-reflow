@@ -25,6 +25,30 @@ export {
   type KnowledgeListQuery,
 } from './db/repositories/knowledge-repository'
 export {
+  AgentRepository,
+  AgentConversationRepository,
+  toAgentConversationDto,
+  toAgentDto,
+  toAgentMessageDto,
+  type AgentCreateInput,
+  type AgentUpdateInput,
+} from './db/repositories/agent-repository'
+export {
+  AgentInvocationRepository,
+  appendInvocationEventRecord,
+  isActiveInvocationStatus,
+  toAgentInvocationDto,
+  toAgentInvocationEvent,
+  type ClaimedAgentInvocation,
+} from './db/repositories/agent-invocation-repository'
+export {
+  KnowledgeIngestRepository,
+  assertVectorDimension,
+  nextIngestRetryDelayMs,
+  toKnowledgeIngestJobDto,
+  type ClaimedIngestJob,
+} from './db/repositories/knowledge-ingest-repository'
+export {
   McpRepository,
   type McpServerInput,
 } from './db/repositories/mcp-repository'
