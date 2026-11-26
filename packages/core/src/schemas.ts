@@ -1,4 +1,15 @@
 import { z } from 'zod'
+import type { FileRef } from './types'
+
+export const fileRefSchema: z.ZodType<FileRef> = z
+  .object({
+    id: z.string().trim().min(1),
+    name: z.string().trim().min(1).max(255),
+    mime: z.string().trim().min(1).max(255),
+    size: z.number().int().min(0),
+    sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  })
+  .strict()
 
 const workflowNodeSchema = z.object({
   id: z.string().min(1),

@@ -9,6 +9,16 @@ export {
   type ObjectStorage,
   type ObjectStorageObject,
 } from './storage'
+export {
+  MAX_FILE_SIZE_BYTES,
+  validateUploadFile,
+  type NormalizedUploadFile,
+  type UploadScope,
+} from './files/validation'
+export {
+  validateFileReferences,
+  type FileReferenceResolver,
+} from './files/references'
 export { createDatabase } from './db/client'
 export type { DatabaseClient } from './db/client'
 export { schema } from './db/schema'

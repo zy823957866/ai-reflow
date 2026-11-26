@@ -6,7 +6,12 @@ const inputSchema = {
   properties: {
     question: { type: 'string', title: '问题' },
     locale: { type: 'string', title: '语言', default: 'zh-CN' },
-    files: { type: 'array', title: '附件', default: [] },
+    files: {
+      type: 'array',
+      title: '附件',
+      default: [],
+      items: { type: 'object', format: 'file-ref' },
+    },
   },
 }
 

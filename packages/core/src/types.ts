@@ -197,6 +197,14 @@ export interface RunError {
   details?: Record<string, unknown>
 }
 
+export interface FileRef {
+  id: string
+  name: string
+  mime: string
+  size: number
+  sha256?: string
+}
+
 export interface RunEvent {
   seq: number
   type: string
