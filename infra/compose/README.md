@@ -79,14 +79,14 @@ docker compose --env-file infra/compose/.env \
 浏览器访问：
 
 ```text
-http://<Docker 主机地址>:8080
+http://<Docker 主机地址>:7001
 ```
 
 健康检查：
 
 ```bash
-curl http://<Docker 主机地址>:8080/healthz
-curl http://<Docker 主机地址>:8080/api/health
+curl http://<Docker 主机地址>:7001/healthz
+curl http://<Docker 主机地址>:7001/api/health
 ```
 
 ## 4. 可选：写入演示数据
