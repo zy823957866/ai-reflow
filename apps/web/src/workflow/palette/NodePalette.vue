@@ -3,22 +3,22 @@
     <div class="flex items-start justify-between px-[15px] pb-3 pt-[17px]">
       <div>
         <h2 class="m-0 text-[15px] font-700">添加节点</h2>
-        <p class="mb-0 mt-1 text-[11.5px] text-subtle">{{ registrations.length }} 个节点 · 拖到画布或点击添加</p>
+        <p class="mb-0 mt-1 text-[12px] text-subtle">{{ registrations.length }} 个节点 · 拖到画布或点击添加</p>
       </div>
       <button class="icon-btn" title="关闭节点面板" @click="$emit('close')">
         <X :size="16" />
       </button>
     </div>
-    <div class="mx-3.5 mb-2.5 flex h-[34px] items-center gap-1.5 rounded-[7px] border border-line bg-surface-2 px-[9px] text-subtle">
+    <div class="control-shell mx-3.5 mb-2.5 flex h-[34px] items-center gap-1.5 rounded-[7px] bg-surface-2 px-[9px] text-subtle">
       <Search :size="14" />
-      <input v-model="search" class="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-[10px] shadow-none" placeholder="搜索名称、type 或中文别名" />
-      <button v-if="search" type="button" class="border-0 bg-transparent p-0 text-[11.5px] text-subtle" @click="search = ''">清除</button>
+      <input v-model="search" class="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索名称、type 或中文别名" />
+      <button v-if="search" type="button" class="border-0 bg-transparent p-0 text-[12px] text-subtle" @click="search = ''">清除</button>
     </div>
     <div class="flex gap-1 px-3.5 pb-[9px]">
       <button
         v-for="option in phaseOptions"
         :key="option.value"
-        class="inline-flex h-[26px] items-center gap-1 rounded-[5px] border-0 px-[7px] text-[11.5px]"
+        class="inline-flex h-[26px] items-center gap-1 rounded-[5px] border-0 px-[7px] text-[12px]"
         :class="phase === option.value ? 'bg-primary-soft text-primary' : 'bg-transparent text-subtle'"
         @click="phase = option.value"
       >
@@ -30,7 +30,7 @@
       <button
         v-for="category in categories"
         :key="category"
-        class="h-6 whitespace-nowrap rounded-[5px] border border-line px-[7px] text-[11.5px]"
+        class="h-6 whitespace-nowrap rounded-[5px] border border-line px-[7px] text-[12px]"
         :class="activeCategory === category ? 'border-[#d2cefc] bg-primary-soft text-primary' : 'bg-surface text-subtle'"
         @click="activeCategory = category"
       >
@@ -40,9 +40,9 @@
 
     <div class="flex-1 overflow-y-auto px-[11px] pb-1">
       <section v-for="group in groups" :key="group.category" class="pb-[7px]">
-        <div class="flex items-center gap-1.5 px-[5px] pb-[5px] pt-2 text-[11.5px] font-650 text-subtle">
+        <div class="flex items-center gap-1.5 px-[5px] pb-[5px] pt-2 text-[12px] font-650 text-subtle">
           <span>{{ group.category }}</span>
-          <small class="text-[10.5px] text-subtle">{{ group.items.length }}</small>
+          <small class="text-[12px] text-subtle">{{ group.items.length }}</small>
         </div>
         <button
           v-for="item in group.items"
@@ -62,22 +62,22 @@
             <NodeGlyph :name="item.manifest.icon" :size="17" />
           </span>
           <span class="flex min-w-0 flex-1 flex-col gap-px">
-            <strong class="text-[10px] font-600 text-ink">{{ item.manifest.displayName }}</strong>
-            <small class="font-mono text-[10.5px] text-subtle">{{ item.manifest.type }}</small>
+            <strong class="text-[12px] font-600 text-ink">{{ item.manifest.displayName }}</strong>
+            <small class="font-mono text-[12px] text-subtle">{{ item.manifest.type }}</small>
           </span>
-          <span class="rounded-[3px] px-1 py-0.5 text-[10.5px] font-600" :class="phaseClass(item.manifest.phase)">
+          <span class="rounded-[3px] px-1 py-0.5 text-[12px] font-600" :class="phaseClass(item.manifest.phase)">
             {{ item.manifest.phase }}
           </span>
           <GripVertical :size="13" class="text-subtle opacity-60" />
         </button>
       </section>
-      <div v-if="!groups.length" class="flex flex-col items-center gap-[7px] px-4 py-[50px] text-[10px] text-subtle">
+      <div v-if="!groups.length" class="flex flex-col items-center gap-[7px] px-4 py-[50px] text-[12px] text-subtle">
         <SearchX :size="20" />
         <span>没有匹配节点</span>
-        <button type="button" class="border-0 bg-transparent text-[11.5px] text-primary" @click="clearFilters">清除筛选</button>
+        <button type="button" class="border-0 bg-transparent text-[12px] text-primary" @click="clearFilters">清除筛选</button>
       </div>
     </div>
-    <div class="flex items-center justify-between border-t border-line px-[13px] py-2.5 text-[10.5px] text-subtle">
+    <div class="flex items-center justify-between border-t border-line px-[13px] py-2.5 text-[12px] text-subtle">
       <span class="flex items-center gap-1"><MousePointer2 :size="13" /> 拖到画布后自动创建 nodeId</span>
       <span>注册表驱动</span>
     </div>

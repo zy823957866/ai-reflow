@@ -4,7 +4,7 @@
       <BrandMark />
       <div class="spinner" />
       <strong class="mt-1 text-13px">正在加载工作流</strong>
-      <span class="m-0 text-10px leading-1.55 text-subtle">读取 Manifest、草稿与固定版本...</span>
+      <span class="m-0 text-[12px] leading-1.55 text-subtle">读取 Manifest、草稿与固定版本...</span>
     </div>
   </div>
 
@@ -12,7 +12,7 @@
     <div class="error-card flex w-280px flex-col items-center gap-9px border border-line rounded-8px bg-surface p-28px text-center shadow-[var(--shadow-md)]">
       <CircleAlert :size="25" class="text-danger" />
       <strong class="mt-1 text-13px">{{ loadError.code }}</strong>
-      <p class="m-0 text-10px leading-1.55 text-subtle">{{ loadError.message }}</p>
+      <p class="m-0 text-[12px] leading-1.55 text-subtle">{{ loadError.message }}</p>
       <button class="btn btn-primary" @click="initialize">重新加载</button>
     </div>
   </div>
@@ -24,17 +24,17 @@
           <ArrowLeft :size="18" />
         </button>
         <div class="breadcrumb flex min-w-0 items-center gap-7px">
-          <span class="text-11px text-muted">工作流</span>
+          <span class="text-[12px] text-muted">工作流</span>
           <ChevronRight :size="12" class="text-subtle" />
           <h1 class="m-0 overflow-hidden whitespace-nowrap text-12px font-600 text-ellipsis">{{ draft?.name }}</h1>
           <span
-            class="version-chip rounded-4px px-5px py-3px text-[10.5px] font-600"
+            class="version-chip rounded-4px px-5px py-3px text-[12px] font-600"
             :class="readonlyMode ? 'bg-primary-soft text-primary' : 'bg-warning-soft text-warning'"
           >
             {{ readonlyMode ? `固定版本 v${draft?.publishedVersion}` : `草稿 v${draft?.revision}` }}
           </span>
           <span
-            class="save-state inline-flex items-center gap-4px text-[10.5px]"
+            class="save-state inline-flex items-center gap-4px text-[12px]"
             :class="{
               'text-danger': saveState === 'failed' || saveState === 'conflict',
               'text-primary': saveState === 'saving',
@@ -53,9 +53,9 @@
 
       <div class="header-right flex items-center gap-5px">
         <div class="collaborators mr-4px flex items-center" aria-label="协作者">
-          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[10px] font-600 text-white" style="background: #b74890">林</span>
-          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[10px] font-600 text-white" style="background: #2d6cdf">周</span>
-          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[10px] font-600 text-white" style="background: #0e9f6e">陈</span>
+          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[12px] font-600 text-white" style="background: #b74890">林</span>
+          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[12px] font-600 text-white" style="background: #2d6cdf">周</span>
+          <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[12px] font-600 text-white" style="background: #0e9f6e">陈</span>
         </div>
         <button class="icon-btn" title="撤销 Ctrl+Z" :disabled="!canUndo" @click="undo">
           <Undo2 :size="16" />
@@ -65,7 +65,7 @@
         </button>
         <span class="header-divider mx-4px h-22px w-1px bg-line" />
         <button
-          class="validation-chip inline-flex h-32px items-center gap-5px border-0 rounded-6px px-9px text-[11.5px]"
+          class="validation-chip inline-flex h-32px items-center gap-5px border-0 rounded-6px px-9px text-[12px]"
           :class="validation.valid ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'"
           @click="validateNow"
         >
@@ -73,11 +73,11 @@
           <TriangleAlert v-else :size="14" />
           {{ validation.valid ? `校验通过 · ${definition.nodes.length} 节点` : `${validation.errors.length} 项校验错误` }}
         </button>
-        <button class="btn h-32px px-11px text-10px" :disabled="readonlyMode || activeRun?.status === 'running'" @click="openPreviewDialog">
+        <button class="btn h-32px px-11px text-[12px]" :disabled="readonlyMode || activeRun?.status === 'running'" @click="openPreviewDialog">
           <Play :size="14" />
           草稿预览
         </button>
-        <button class="btn btn-primary h-32px px-11px text-10px" :disabled="readonlyMode" @click="requestPublish">
+        <button class="btn btn-primary h-32px px-11px text-[12px]" :disabled="readonlyMode" @click="requestPublish">
           <Send :size="14" />
           发布
         </button>
@@ -97,23 +97,23 @@
             @click="toggleNodePanel"
           >
             <LayoutGrid :size="18" />
-            <span class="text-[10.5px]">节点</span>
+            <span class="text-[12px]">节点</span>
           </button>
           <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="变量" @click="openPalette">
             <Variable :size="18" />
-            <span class="text-[10.5px]">变量</span>
+            <span class="text-[12px]">变量</span>
           </button>
           <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="知识库" @click="openPalette">
             <BookOpen :size="18" />
-            <span class="text-[10.5px]">知识</span>
+            <span class="text-[12px]">知识</span>
           </button>
           <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="工具" @click="openPalette">
             <Wrench :size="18" />
-            <span class="text-[10.5px]">工具</span>
+            <span class="text-[12px]">工具</span>
           </button>
           <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="运行历史" @click="rightMode = 'run'; rightPanelOpen = true">
             <History :size="18" />
-            <span class="text-[10.5px]">历史</span>
+            <span class="text-[12px]">历史</span>
           </button>
         </div>
         <div class="rail-bottom mt-auto flex flex-col items-center gap-7px py-14px">
@@ -152,15 +152,15 @@
         <div v-if="saveState === 'conflict'" class="conflict-banner absolute bottom-16px left-16px right-16px z-4 flex items-center gap-9px border border-[#f0c27b] rounded-8px bg-[#fff8ec] px-12px py-10px text-warning shadow-[var(--shadow-md)]">
           <TriangleAlert :size="16" />
           <div class="flex min-w-0 flex-1 flex-col gap-2px">
-            <strong class="text-10px">草稿已在其他会话更新</strong>
-            <span class="text-[11.5px] text-muted">本地修改仍保留。可导出本地草稿，或重新加载服务端摘要。</span>
+            <strong class="text-[12px]">草稿已在其他会话更新</strong>
+            <span class="text-[12px] text-muted">本地修改仍保留。可导出本地草稿，或重新加载服务端摘要。</span>
           </div>
-          <button class="btn h-28px px-8px text-[11.5px]" @click="exportLocalDraft">导出本地草稿</button>
-          <button class="btn h-28px px-8px text-[11.5px]" @click="reloadFromServer">重新加载</button>
+          <button class="btn h-28px px-8px text-[12px]" @click="exportLocalDraft">导出本地草稿</button>
+          <button class="btn h-28px px-8px text-[12px]" @click="reloadFromServer">重新加载</button>
         </div>
         <div
           v-if="notification"
-          class="designer-toast absolute left-1/2 top-68px z-10 flex max-w-560px w-[calc(100%-32px)] -translate-x-1/2 items-center gap-7px border border-line rounded-7px bg-surface px-10px py-8px text-[11.5px] shadow-[var(--shadow-md)]"
+          class="designer-toast absolute left-1/2 top-68px z-10 flex max-w-560px w-[calc(100%-32px)] -translate-x-1/2 items-center gap-7px border border-line rounded-7px bg-surface px-10px py-8px text-[12px] shadow-[var(--shadow-md)]"
           :class="notification.level === 'error' ? 'border-[#f0b8ba] text-danger' : ''"
         >
           <Info :size="14" />
@@ -196,23 +196,23 @@
             <div class="run-panel flex min-h-0 flex-1 flex-col border-l border-line bg-surface">
               <div class="run-panel-head flex min-h-72px items-start justify-between border-b border-line px-14px pb-12px pt-15px">
                 <div>
-                  <span class="eyebrow text-[10.5px] font-[650] text-primary">草稿预览</span>
+                  <span class="eyebrow text-[12px] font-[650] text-primary">草稿预览</span>
                   <h2 class="mb-0 ml-0 mr-0 mt-4px text-14px">{{ activeRun ? `运行 ${activeRun.id.slice(-8)}` : '运行控制台' }}</h2>
-                  <p class="mb-0 ml-0 mr-0 mt-3px text-[10.5px] text-subtle">草稿预览不绑定发布版本</p>
+                  <p class="mb-0 ml-0 mr-0 mt-3px text-[12px] text-subtle">草稿预览不绑定发布版本</p>
                 </div>
                 <button class="icon-btn" @click="rightMode = 'inspector'; rightPanelOpen = false"><X :size="16" /></button>
               </div>
               <div v-if="activeRun" class="run-strip mx-13px mt-12px overflow-hidden border border-line rounded-7px">
-                <div class="run-strip-head flex h-38px items-center gap-8px border-b border-line bg-primary-soft px-10px text-[11.5px] text-muted">
+                <div class="run-strip-head flex h-38px items-center gap-8px border-b border-line bg-primary-soft px-10px text-[12px] text-muted">
                   <StatusBadge :status="activeRun.status" />
                   <span class="ml-auto">{{ nodeRunStatusesCount.succeeded }}/{{ definition.nodes.length }} 节点 · {{ elapsedLabel }}</span>
-                  <button v-if="activeRun.status === 'running'" class="border-0 bg-transparent text-[11.5px] text-danger" @click="cancelPreview">取消</button>
+                  <button v-if="activeRun.status === 'running'" class="border-0 bg-transparent text-[12px] text-danger" @click="cancelPreview">取消</button>
                 </div>
                 <div class="node-run-list max-h-160px overflow-y-auto px-10px py-6px">
                   <div
                     v-for="node in definition.nodes"
                     :key="node.id"
-                    class="node-run-row grid h-29px items-center gap-7px border-b border-dashed border-line text-[11.5px] text-muted"
+                    class="node-run-row grid h-29px items-center gap-7px border-b border-dashed border-line text-[12px] text-muted"
                     style="grid-template-columns: 9px minmax(0, 1fr) 78px auto"
                   >
                     <span
@@ -226,7 +226,7 @@
                       }"
                     />
                     <span>{{ node.title }}</span>
-                    <span class="mono text-[10.5px] text-subtle">{{ node.type }}</span>
+                    <span class="mono text-[12px] text-subtle">{{ node.type }}</span>
                     <span
                       :class="{
                         'text-success': nodeRunStatuses[node.id] === 'succeeded',
@@ -243,8 +243,8 @@
               <div v-else class="run-empty m-auto flex flex-col items-center gap-8px px-22px text-center text-subtle">
                 <PlayCircle :size="28" />
                 <strong class="text-12px text-muted">尚未运行草稿</strong>
-                <span class="text-[11.5px] leading-1.55">输入运行参数后，节点状态会实时叠加到画布，不覆盖配置。</span>
-                <button class="btn btn-primary mt-5px h-32px text-10px" @click="openPreviewDialog"><Play :size="14" /> 开始预览</button>
+                <span class="text-[12px] leading-1.55">输入运行参数后，节点状态会实时叠加到画布，不覆盖配置。</span>
+                <button class="btn btn-primary mt-5px h-32px text-[12px]" @click="openPreviewDialog"><Play :size="14" /> 开始预览</button>
               </div>
               <ExecutionTabs
                 v-if="activeRun"
@@ -255,10 +255,10 @@
                 readonly
               />
               <div v-if="activeRun" class="run-actions flex justify-between gap-8px border-t border-line px-13px py-9px">
-                <button class="btn h-31px text-[11.5px]" :disabled="activeRun.status === 'running'" @click="runAgain">
+                <button class="btn h-31px text-[12px]" :disabled="activeRun.status === 'running'" @click="runAgain">
                   <RefreshCw :size="14" /> 原样重跑
                 </button>
-                <button class="btn btn-ghost h-31px text-[11.5px]" @click="rightMode = 'inspector'; rightPanelOpen = true">
+                <button class="btn btn-ghost h-31px text-[12px]" @click="rightMode = 'inspector'; rightPanelOpen = true">
                   查看节点配置
                 </button>
               </div>
@@ -273,12 +273,12 @@
         <DialogOverlay class="dialog-overlay fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
         <DialogContent class="dialog-content small-dialog fixed left-1/2 top-1/2 z-81 w-[min(460px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px shadow-[var(--shadow-lg)]">
           <DialogTitle class="dialog-title m-0 text-17px font-700">草稿预览输入</DialogTitle>
-          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-10px leading-1.6 text-subtle">
+          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             预览使用当前草稿定义，不生成发布版本。表单与 JSON 使用同一份输入。
           </DialogDescription>
           <div class="dialog-field mt-13px flex flex-col gap-6px">
-            <label class="text-10px font-600 text-muted">输入 JSON</label>
-            <textarea v-model="previewInputJson" class="preview-input-json min-h-170px font-mono text-10px" spellcheck="false" />
+            <label class="text-[12px] font-600 text-muted">输入 JSON</label>
+            <textarea v-model="previewInputJson" class="preview-input-json min-h-170px font-mono text-[12px]" spellcheck="false" />
             <div v-if="previewInputError" class="field-error">{{ previewInputError }}</div>
           </div>
           <div class="dialog-actions mt-20px flex justify-end gap-8px">
@@ -294,16 +294,16 @@
         <DialogOverlay class="dialog-overlay fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
         <DialogContent class="dialog-content fixed left-1/2 top-1/2 z-81 w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px shadow-[var(--shadow-lg)]">
           <DialogTitle class="dialog-title m-0 text-17px font-700">发布不可变版本</DialogTitle>
-          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-10px leading-1.6 text-subtle">
+          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             发布前会完成服务端编译校验，并把当前 Manifest 版本与定义固化为快照。
           </DialogDescription>
           <div class="publish-readiness grid gap-1px overflow-hidden border border-line rounded-7px bg-line" style="grid-template-columns: repeat(3, 1fr)">
-            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[10.5px] text-subtle">草稿 revision</span><strong class="text-10px">r{{ draft?.revision }}</strong></div>
-            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[10.5px] text-subtle">节点与端口</span><strong class="text-10px">{{ definition.nodes.length }} / {{ definition.edges.length }}</strong></div>
-            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[10.5px] text-subtle">校验结果</span><strong class="text-10px">{{ validation.valid ? '通过' : `${validation.errors.length} 项错误` }}</strong></div>
+            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[12px] text-subtle">草稿 revision</span><strong class="text-[12px]">r{{ draft?.revision }}</strong></div>
+            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[12px] text-subtle">节点与端口</span><strong class="text-[12px]">{{ definition.nodes.length }} / {{ definition.edges.length }}</strong></div>
+            <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[12px] text-subtle">校验结果</span><strong class="text-[12px]">{{ validation.valid ? '通过' : `${validation.errors.length} 项错误` }}</strong></div>
           </div>
           <div class="dialog-field mt-13px flex flex-col gap-6px">
-            <label class="text-10px font-600 text-muted">版本说明</label>
+            <label class="text-[12px] font-600 text-muted">版本说明</label>
             <textarea v-model="changelog" rows="4" placeholder="说明本次发布的变化，例如：优化低置信度转人工分支。" class="px-10px py-9px leading-1.55" />
           </div>
           <div class="dialog-actions mt-20px flex justify-end gap-8px">
@@ -324,11 +324,11 @@
         <DialogContent class="dialog-content success-dialog fixed left-1/2 top-1/2 z-81 w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px text-center shadow-[var(--shadow-lg)]">
           <div class="success-icon mx-auto mb-12px flex h-54px w-54px items-center justify-center rounded-full bg-success-soft text-success"><CheckCircle2 :size="26" /></div>
           <DialogTitle class="dialog-title m-0 text-17px font-700">版本 v{{ publishedVersion }} 已发布</DialogTitle>
-          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-10px leading-1.6 text-subtle">
+          <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             发布版本不可修改，试运行将始终使用该固定 snapshot。
           </DialogDescription>
-          <div class="success-meta flex flex-col items-center gap-5px rounded-7px bg-surface-3 p-10px text-[10.5px] text-subtle">
-            <span class="mono text-[11.5px] text-muted">{{ publishedVersionId }}</span>
+          <div class="success-meta flex flex-col items-center gap-5px rounded-7px bg-surface-3 p-10px text-[12px] text-subtle">
+            <span class="mono text-[12px] text-muted">{{ publishedVersionId }}</span>
             <span>schemaHash {{ publishedSchemaHash }}</span>
           </div>
           <div class="dialog-actions mt-20px flex justify-center gap-8px">

@@ -1,30 +1,23 @@
 <template>
-  <AppShell>
-    <div class="min-h-screen">
-      <header class="flex min-h-[62px] items-center justify-between gap-[18px] border-b border-line bg-white/96 px-7 max-md:pl-15 max-md:pr-4">
-        <div class="flex min-w-0 items-center gap-[7px] text-[10px] text-subtle">
-          <span>Acme 团队</span>
-          <ChevronRight :size="13" />
-          <strong class="truncate font-600 text-ink">模型与密钥</strong>
-        </div>
-        <div class="flex items-center gap-2 max-md:flex-wrap">
-          <span class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] bg-success-soft px-[9px] text-[10.5px] text-success max-[620px]:hidden"><KeyRound :size="13" /> 密钥仅以 secret_ref 保存</span>
-          <button class="btn btn-primary" @click="openCreate"><Plus :size="14" /> 新建连接</button>
-        </div>
-      </header>
+  <PageHeaderActions>
+    <div class="flex items-center gap-2 max-md:flex-wrap">
+      <span class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] bg-success-soft px-[9px] text-[12px] text-success max-[620px]:hidden"><KeyRound :size="13" /> 密钥仅以 secret_ref 保存</span>
+      <button class="btn btn-primary" @click="openCreate"><Plus :size="14" /> 新建连接</button>
+    </div>
+  </PageHeaderActions>
 
-      <main class="mx-auto max-w-[1380px] px-7 pb-16 pt-[26px] max-md:pl-15 max-md:pr-4">
+  <main class="px-7 pb-16 pt-[26px] max-md:px-4">
         <section class="mb-[18px] flex items-end justify-between gap-[22px] max-md:flex-col max-md:items-start">
           <div>
             <h1 class="m-0 text-[27px] font-[730]">模型与密钥</h1>
-            <p class="mb-0 mt-[7px] text-[10px] leading-[1.55] text-subtle">{{ modelList.length }} 个 Workspace 级连接 · 密钥只在 worker 读取，前端仅展示名称与末四位</p>
+            <p class="mb-0 mt-[7px] text-[12px] leading-[1.55] text-subtle">{{ modelList.length }} 个 Workspace 级连接 · 密钥只在 worker 读取，前端仅展示名称与末四位</p>
           </div>
           <div class="flex items-center gap-2">
-            <select v-model="providerFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[11.5px]" aria-label="按 provider 筛选">
+            <select v-model="providerFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按 provider 筛选">
               <option value="">全部 Provider</option>
               <option v-for="provider in providers" :key="provider" :value="provider">{{ provider }}</option>
             </select>
-            <select v-model="statusFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[11.5px]" aria-label="按连接状态筛选">
+            <select v-model="statusFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按连接状态筛选">
               <option value="">全部状态</option>
               <option value="healthy">健康</option>
               <option value="degraded">降级</option>
@@ -33,12 +26,12 @@
           </div>
         </section>
 
-        <div v-if="loadError" class="mb-3 flex items-start gap-2 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-[11.5px] leading-[1.5] text-danger">
+        <div v-if="loadError" class="mb-3 flex items-start gap-2 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-[12px] leading-[1.5] text-danger">
           <CircleAlert :size="14" />
           <span class="min-w-0 flex-1">{{ loadError }}</span>
-          <button class="border-0 bg-transparent p-0 text-[11.5px] font-600 text-primary" @click="loadModels()">重试</button>
+          <button class="border-0 bg-transparent p-0 text-[12px] font-600 text-primary" @click="loadModels()">重试</button>
         </div>
-        <div v-if="actionError" class="mb-3 flex items-start gap-2 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-[11.5px] leading-[1.5] text-danger">
+        <div v-if="actionError" class="mb-3 flex items-start gap-2 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-[12px] leading-[1.5] text-danger">
           <CircleAlert :size="14" />
           <span class="min-w-0 flex-1">{{ actionError }}</span>
           <button class="icon-btn !h-6 !w-6" title="关闭错误提示" @click="actionError = ''"><X :size="12" /></button>
@@ -46,20 +39,20 @@
 
         <section class="surface mb-3 grid grid-cols-1 gap-px overflow-hidden bg-line sm:grid-cols-2 xl:grid-cols-4">
           <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-            <span class="text-[11.5px] text-subtle">可用连接</span>
-            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">{{ healthyCount }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">共 {{ modelList.length }} 个</em></div>
+            <span class="text-[12px] text-subtle">可用连接</span>
+            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">{{ healthyCount }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">共 {{ modelList.length }} 个</em></div>
           </div>
           <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-            <span class="text-[11.5px] text-subtle">默认模型</span>
-            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="max-w-[110px] truncate text-[14px]">{{ defaultModel?.model ?? '—' }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">{{ defaultModel?.provider }}</em></div>
+            <span class="text-[12px] text-subtle">默认模型</span>
+            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="max-w-[110px] truncate text-[14px]">{{ defaultModel?.model ?? '—' }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">{{ defaultModel?.provider }}</em></div>
           </div>
           <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-            <span class="text-[11.5px] text-subtle">平均测试延迟</span>
-            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">{{ averageLatency }}ms</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">基于最近测试</em></div>
+            <span class="text-[12px] text-subtle">平均测试延迟</span>
+            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">{{ averageLatency }}ms</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">基于最近测试</em></div>
           </div>
           <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-            <span class="text-[11.5px] text-subtle">Usage 聚合</span>
-            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">—</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-subtle">接口尚未接入</em></div>
+            <span class="text-[12px] text-subtle">Usage 聚合</span>
+            <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="text-[19px] tabular-nums">—</strong><em class="whitespace-nowrap text-[12px] not-italic text-subtle">接口尚未接入</em></div>
           </div>
         </section>
 
@@ -67,10 +60,10 @@
           <section class="min-w-0">
             <div class="flex min-h-[38px] items-center justify-between gap-2.5">
               <div class="flex flex-col gap-0.5">
-                <strong class="text-[11px]">模型连接</strong>
-                <span class="text-[10.5px] text-subtle">能力不匹配的连接不能进入 LLM / Agent 节点</span>
+                <strong class="text-[12px]">模型连接</strong>
+                <span class="text-[12px] text-subtle">能力不匹配的连接不能进入 LLM / Agent 节点</span>
               </div>
-              <button class="inline-flex items-center gap-[5px] border-0 bg-transparent p-0 text-[11.5px] text-primary disabled:text-subtle" :disabled="testingAll || loading || !modelList.length" @click="testAll">
+              <button class="inline-flex items-center gap-[5px] border-0 bg-transparent p-0 text-[12px] text-primary disabled:text-subtle" :disabled="testingAll || loading || !modelList.length" @click="testAll">
                 <RefreshCw :size="12" :class="testingAll ? 'animate-spin' : ''" />
                 {{ testingAll ? '测试中' : '测试全部' }}
               </button>
@@ -85,37 +78,37 @@
                 @click="selectedModelId = connection.id"
               >
                 <div class="flex items-start gap-2">
-                  <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px] font-mono text-[10.5px] font-700" :class="providerMarkClass(connection.provider)">
+                  <span class="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[7px] font-mono text-[12px] font-700" :class="providerMarkClass(connection.provider)">
                     {{ providerInitial(connection.provider) }}
                   </span>
                   <div class="flex min-w-0 flex-1 flex-col gap-0.75">
-                    <strong class="truncate text-[11px]">{{ connection.name }}</strong>
-                    <span class="truncate text-[10px] text-subtle">{{ providerLabel(connection.provider) }} · <span class="font-mono">{{ connection.model }}</span></span>
+                    <strong class="truncate text-[12px]">{{ connection.name }}</strong>
+                    <span class="truncate text-[12px] text-subtle">{{ providerLabel(connection.provider) }} · <span class="font-mono">{{ connection.model }}</span></span>
                   </div>
                   <div class="flex items-center gap-1">
-                    <span v-if="connection.isDefault" class="inline-flex h-[18px] items-center rounded-[4px] bg-success-soft px-[5px] text-[10px] font-600 text-success">默认</span>
+                    <span v-if="connection.isDefault" class="inline-flex h-[18px] items-center rounded-[4px] bg-success-soft px-[5px] text-[12px] font-600 text-success">默认</span>
                     <button class="icon-btn !h-[25px] !w-[25px]" title="查看连接详情" @click.stop="openDetail(connection)">
                       <MoreHorizontal :size="15" />
                     </button>
                   </div>
                 </div>
 
-                <div class="mt-[7px] flex min-h-[37px] items-center gap-[7px] text-[10px] text-subtle">
+                <div class="mt-[7px] flex min-h-[37px] items-center gap-[7px] text-[12px] text-subtle">
                   <StatusBadge :status="connection.status" />
                   <span>{{ connection.latencyMs }}ms</span>
                   <span>{{ connection.contextWindow.toLocaleString('zh-CN') }} ctx</span>
-                  <button class="ml-auto border-0 bg-transparent p-0 text-[11.5px] text-primary" :class="connection.testing ? 'text-subtle' : ''" @click.stop="testConnection(connection)">
+                  <button class="ml-auto border-0 bg-transparent p-0 text-[12px] text-primary" :class="connection.testing ? 'text-subtle' : ''" @click.stop="testConnection(connection)">
                     {{ connection.testing ? '测试中…' : '测试连接' }}
                   </button>
                 </div>
 
                 <div class="flex flex-wrap gap-1">
-                  <span v-for="capability in connection.capabilities" :key="capability" class="inline-flex h-5 items-center rounded-[4px] border border-line bg-[var(--surface-2)] px-1.5 text-[10px] text-subtle">
+                  <span v-for="capability in connection.capabilities" :key="capability" class="inline-flex h-5 items-center rounded-[4px] border border-line bg-[var(--surface-2)] px-1.5 text-[12px] text-subtle">
                     {{ capabilityLabel(capability) }}
                   </span>
                 </div>
 
-                <div class="mt-[7px] flex min-h-8 items-center gap-[5px] rounded-[5px] bg-[var(--surface-3)] px-[7px] text-[10px] text-subtle">
+                <div class="mt-[7px] flex min-h-8 items-center gap-[5px] rounded-[5px] bg-[var(--surface-3)] px-[7px] text-[12px] text-subtle">
                   <KeyRound :size="12" />
                   <span class="flex-1 font-mono">{{ connection.credentialMask }}</span>
                   <span :class="connection.credentialStatus === 'valid' ? 'text-success' : 'text-warning'">
@@ -123,17 +116,17 @@
                   </span>
                 </div>
 
-                <div class="mt-[9px] flex min-h-8 items-end justify-between gap-[7px] border-t border-dashed border-line pt-2 text-[10px] text-subtle">
+                <div class="mt-[9px] flex min-h-8 items-end justify-between gap-[7px] border-t border-dashed border-line pt-2 text-[12px] text-subtle">
                   <span>使用量聚合尚未接入</span>
                   <div class="flex gap-[7px]">
-                    <button class="border-0 bg-transparent p-0 text-[10px] text-primary" @click.stop="openDetail(connection)">详情</button>
-                    <button class="border-0 bg-transparent p-0 text-[10px] text-primary" @click.stop="openEdit(connection)">编辑</button>
-                    <button v-if="!connection.isDefault" class="border-0 bg-transparent p-0 text-[10px] text-primary" @click.stop="setDefault(connection)">设为默认</button>
+                    <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click.stop="openDetail(connection)">详情</button>
+                    <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click.stop="openEdit(connection)">编辑</button>
+                    <button v-if="!connection.isDefault" class="border-0 bg-transparent p-0 text-[12px] text-primary" @click.stop="setDefault(connection)">设为默认</button>
                   </div>
                 </div>
               </article>
             </div>
-            <div v-if="!filteredModels.length" class="surface flex min-h-[120px] flex-col items-center justify-center gap-[7px] text-[11.5px] text-subtle">
+            <div v-if="!filteredModels.length" class="surface flex min-h-[120px] flex-col items-center justify-center gap-[7px] text-[12px] text-subtle">
               <SearchX :size="20" />
               <span>{{ loading ? '正在加载模型连接…' : '没有匹配的模型连接。' }}</span>
             </div>
@@ -142,15 +135,15 @@
           <aside class="flex flex-col gap-2.5 max-[1180px]:grid max-[1180px]:grid-cols-2 max-[800px]:grid-cols-1">
             <section class="surface overflow-hidden">
               <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                <div><h2 class="m-0 text-[14px]">Fallback 路由</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">全局默认顺序 · 节点可覆盖</p></div>
+                <div><h2 class="m-0 text-[14px]">Fallback 路由</h2><p class="mb-0 mt-1 text-[12px] text-subtle">全局默认顺序 · 节点可覆盖</p></div>
                 <Info :size="14" />
               </div>
               <div class="flex flex-col">
                 <div v-for="(connection, index) in fallbackConnections" :key="connection.id" class="grid min-h-[42px] grid-cols-[22px_minmax(0,1fr)_24px_24px] items-center gap-1 border-b border-dashed border-line px-[9px]">
-                  <span class="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary-soft text-[10px] text-primary">{{ index + 1 }}</span>
+                  <span class="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-primary-soft text-[12px] text-primary">{{ index + 1 }}</span>
                   <span class="flex min-w-0 flex-col gap-0.5">
-                    <strong class="truncate text-[10.5px]">{{ connection.model }}</strong>
-                    <small class="text-[10px] text-subtle">{{ providerLabel(connection.provider) }} · fallback</small>
+                    <strong class="truncate text-[12px]">{{ connection.model }}</strong>
+                    <small class="text-[12px] text-subtle">{{ providerLabel(connection.provider) }} · fallback</small>
                   </span>
                   <button class="icon-btn !h-[23px] !w-[23px]" :disabled="index === 0" title="上移" @click="moveFallback(connection.id, -1)">
                     <ArrowUp :size="12" />
@@ -160,7 +153,7 @@
                   </button>
                 </div>
               </div>
-              <div class="flex items-start gap-1.5 border-t border-line bg-[var(--surface-2)] px-2.5 py-2 text-[10px] leading-[1.5] text-subtle">
+              <div class="flex items-start gap-1.5 border-t border-line bg-[var(--surface-2)] px-2.5 py-2 text-[12px] leading-[1.5] text-subtle">
                 <CircleAlert :size="13" />
                 <span>fallback 失败会保留每次尝试的错误码；写工具不会自动重试。</span>
               </div>
@@ -168,46 +161,44 @@
 
             <section class="surface overflow-hidden">
               <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                <div><h2 class="m-0 text-[14px]">成本来源</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">手动维护估算价，不伪造实时价格</p></div>
+                <div><h2 class="m-0 text-[14px]">成本来源</h2><p class="mb-0 mt-1 text-[12px] text-subtle">手动维护估算价，不伪造实时价格</p></div>
                 <FileJson :size="14" />
               </div>
               <div class="grid grid-cols-2 gap-px bg-line">
-                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[10px] text-subtle">输入 token</span><strong class="text-[11.5px]">—</strong></div>
-                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[10px] text-subtle">输出 token</span><strong class="text-[11.5px]">—</strong></div>
-                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[10px] text-subtle">估算费用</span><strong class="text-[11.5px]">—</strong></div>
-                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[10px] text-subtle">来源</span><strong class="truncate text-[11.5px]">usage API 待接入</strong></div>
+                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[12px] text-subtle">输入 token</span><strong class="text-[12px]">—</strong></div>
+                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[12px] text-subtle">输出 token</span><strong class="text-[12px]">—</strong></div>
+                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[12px] text-subtle">估算费用</span><strong class="text-[12px]">—</strong></div>
+                <div class="flex min-h-[49px] flex-col justify-center gap-0.5 bg-surface px-2.5 py-[7px]"><span class="text-[12px] text-subtle">来源</span><strong class="truncate text-[12px]">usage API 待接入</strong></div>
               </div>
             </section>
 
             <section class="surface overflow-hidden">
               <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                <div><h2 class="m-0 text-[14px]">Skills <span class="inline-flex h-4 items-center rounded-[3px] bg-warning-soft px-1 text-[10px] text-warning">P1</span></h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">声明式能力包，不改节点 I/O schema</p></div>
+                <div><h2 class="m-0 text-[14px]">Skills <span class="inline-flex h-4 items-center rounded-[3px] bg-warning-soft px-1 text-[12px] text-warning">P1</span></h2><p class="mb-0 mt-1 text-[12px] text-subtle">声明式能力包，不改节点 I/O schema</p></div>
                 <button class="icon-btn" disabled><Plus :size="13" /></button>
               </div>
               <div class="flex flex-col">
                 <div v-for="skill in skills" :key="skill.id" class="flex min-h-[45px] items-center gap-[7px] border-b border-dashed border-line px-2.5">
                   <span class="flex h-7 w-7 items-center justify-center rounded-[6px] bg-primary-soft text-primary"><Sparkles :size="14" /></span>
                   <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <strong class="text-[10.5px]">{{ skill.name }}</strong>
-                    <small class="truncate text-[10px] text-subtle">v{{ skill.version }} · {{ skill.type }} · {{ skill.publisher }}</small>
+                    <strong class="text-[12px]">{{ skill.name }}</strong>
+                    <small class="truncate text-[12px] text-subtle">v{{ skill.version }} · {{ skill.type }} · {{ skill.publisher }}</small>
                   </span>
                   <StatusBadge :status="skill.status" />
                 </div>
               </div>
-              <div class="border-t border-line bg-[var(--surface-2)] px-2.5 py-2 text-[10px] leading-[1.5] text-subtle">Skills 目录与沙箱测试尚未接入；当前仅展示能力契约。</div>
+              <div class="border-t border-line bg-[var(--surface-2)] px-2.5 py-2 text-[12px] leading-[1.5] text-subtle">Skills 目录与沙箱测试尚未接入；当前仅展示能力契约。</div>
             </section>
           </aside>
         </div>
-      </main>
-    </div>
-  </AppShell>
+  </main>
 
   <DialogRoot :open="createOpen" @update:open="createOpen = $event">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
       <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(620px,calc(100vw-28px))] -translate-1/2 rounded-8px border border-line bg-surface p-[22px] shadow-lg">
         <DialogTitle class="m-0 text-[17px] font-700">{{ editingModelId ? '编辑模型连接' : '新建模型连接' }}</DialogTitle>
-        <DialogDescription class="mb-[13px] mt-1.5 text-[10px] leading-[1.6] text-subtle">
+        <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           Workspace 级连接。凭证只接受安全引用，创建后不可回显明文；编辑时留空表示保留现有引用。
         </DialogDescription>
         <div class="flex flex-col gap-[11px]">
@@ -240,7 +231,7 @@
           <label class="flex flex-col gap-[7px]">
             <span class="text-[12px] font-600 text-muted">能力</span>
             <div class="flex flex-wrap gap-[7px]">
-              <label v-for="capability in capabilityOptions" :key="capability" class="flex h-[27px] items-center gap-[5px] rounded-[5px] border border-line px-[7px] text-[10.5px] text-muted">
+              <label v-for="capability in capabilityOptions" :key="capability" class="flex h-[27px] items-center gap-[5px] rounded-[5px] border border-line px-[7px] text-[12px] text-muted">
                 <input v-model="newConnection.capabilities" type="checkbox" :value="capability" />
                 {{ capabilityLabel(capability) }}
               </label>
@@ -249,9 +240,9 @@
           <label class="flex flex-col gap-[7px]">
             <span class="text-[12px] font-600 text-muted">凭证引用</span>
             <input v-model="newConnection.secretRef" :placeholder="editingModelId ? '留空保留现有凭据引用' : 'secret://workspace/openai'" />
-            <span class="text-[11px] leading-[1.55] text-subtle">不接受明文 API Key；实际内容仅 worker 可读。</span>
+            <span class="text-[12px] leading-[1.55] text-subtle">不接受明文 API Key；实际内容仅 worker 可读。</span>
           </label>
-          <div v-if="newConnectionError" class="flex items-center gap-1.5 rounded-[6px] bg-danger-soft p-2 text-[10.5px] text-danger">
+          <div v-if="newConnectionError" class="flex items-center gap-1.5 rounded-[6px] bg-danger-soft p-2 text-[12px] text-danger">
             <CircleAlert :size="14" /> {{ newConnectionError }}
           </div>
         </div>
@@ -268,59 +259,59 @@
       <div class="flex min-h-[62px] items-center justify-between gap-3.5 border-b border-line px-4 py-3">
         <div>
           <h2 class="m-0 text-[16px]">{{ detailModel.name }}</h2>
-          <p class="mb-0 mt-1 text-[11.5px] text-subtle">{{ providerLabel(detailModel.provider) }} · <span class="font-mono">{{ detailModel.model }}</span></p>
+          <p class="mb-0 mt-1 text-[12px] text-subtle">{{ providerLabel(detailModel.provider) }} · <span class="font-mono">{{ detailModel.model }}</span></p>
         </div>
         <button class="icon-btn" @click="detailModelId = ''"><X :size="16" /></button>
       </div>
       <div class="flex-1 overflow-y-auto p-4">
-        <div class="flex min-h-10 items-center gap-2 text-[10.5px] text-subtle">
+        <div class="flex min-h-10 items-center gap-2 text-[12px] text-subtle">
           <StatusBadge :status="detailModel.status" />
           <span>{{ detailModel.latencyMs }}ms</span>
           <span>{{ detailModel.contextWindow.toLocaleString('zh-CN') }} 上下文</span>
-          <button class="ml-auto border-0 bg-transparent p-0 text-[11.5px] text-primary" @click="testConnection(detailModel)">测试连接</button>
+          <button class="ml-auto border-0 bg-transparent p-0 text-[12px] text-primary" @click="testConnection(detailModel)">测试连接</button>
         </div>
 
         <section class="mb-3.5">
-          <div class="mb-[7px] text-[11.5px] font-650 text-muted">能力与约束</div>
+          <div class="mb-[7px] text-[12px] font-650 text-muted">能力与约束</div>
           <div class="mb-2 flex flex-wrap gap-[5px]">
-            <span v-for="capability in detailModel.capabilities" :key="capability" class="inline-flex h-5 items-center rounded-[4px] border border-line bg-[var(--surface-2)] px-1.5 text-[10px] text-subtle">{{ capabilityLabel(capability) }}</span>
+            <span v-for="capability in detailModel.capabilities" :key="capability" class="inline-flex h-5 items-center rounded-[4px] border border-line bg-[var(--surface-2)] px-1.5 text-[12px] text-subtle">{{ capabilityLabel(capability) }}</span>
           </div>
           <div class="overflow-hidden rounded-[6px] border border-line">
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">baseUrl</span><strong class="truncate font-mono text-[10.5px] text-muted">{{ detailModel.baseUrl }}</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">凭证</span><strong class="truncate font-mono text-[10.5px] text-muted">{{ detailModel.credentialMask }}</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">密钥状态</span><strong class="text-[10.5px] text-muted">{{ detailModel.credentialStatus === 'valid' ? '有效' : '需更新' }}</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">默认连接</span><strong class="text-[10.5px] text-muted">{{ detailModel.isDefault ? '是' : '否' }}</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 px-[9px] text-[10.5px]"><span class="text-subtle">最近更新</span><strong class="text-[10.5px] text-muted">{{ formatDateTime(detailModel.updatedAt) }}</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">baseUrl</span><strong class="truncate font-mono text-[12px] text-muted">{{ detailModel.baseUrl }}</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">凭证</span><strong class="truncate font-mono text-[12px] text-muted">{{ detailModel.credentialMask }}</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">密钥状态</span><strong class="text-[12px] text-muted">{{ detailModel.credentialStatus === 'valid' ? '有效' : '需更新' }}</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">默认连接</span><strong class="text-[12px] text-muted">{{ detailModel.isDefault ? '是' : '否' }}</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 px-[9px] text-[12px]"><span class="text-subtle">最近更新</span><strong class="text-[12px] text-muted">{{ formatDateTime(detailModel.updatedAt) }}</strong></div>
           </div>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-[7px] text-[11.5px] font-650 text-muted">已发布工作流引用</div>
+          <div class="mb-[7px] text-[12px] font-650 text-muted">已发布工作流引用</div>
           <div class="overflow-hidden rounded-[6px] border border-line">
             <div v-for="reference in workflowReferences" :key="reference.id" class="flex min-h-[43px] items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] last:border-b-0">
-              <span class="flex flex-col gap-0.5"><strong class="text-[10.5px]">{{ reference.name }}</strong><small class="text-[10px] text-subtle">v{{ reference.version }} · {{ reference.nodes }} 个节点</small></span>
-              <span class="whitespace-nowrap rounded-[4px] bg-success-soft px-[5px] py-0.5 text-[10px] text-success">版本固定</span>
+              <span class="flex flex-col gap-0.5"><strong class="text-[12px]">{{ reference.name }}</strong><small class="text-[12px] text-subtle">v{{ reference.version }} · {{ reference.nodes }} 个节点</small></span>
+              <span class="whitespace-nowrap rounded-[4px] bg-success-soft px-[5px] py-0.5 text-[12px] text-success">版本固定</span>
             </div>
-            <div v-if="referencesLoading" class="flex min-h-[43px] items-center justify-center text-[10.5px] text-subtle">正在读取发布版本引用…</div>
-            <div v-else-if="!workflowReferences.length" class="flex min-h-[43px] items-center justify-center text-[10.5px] text-subtle">发布版本中未找到该连接的节点引用。</div>
+            <div v-if="referencesLoading" class="flex min-h-[43px] items-center justify-center text-[12px] text-subtle">正在读取发布版本引用…</div>
+            <div v-else-if="!workflowReferences.length" class="flex min-h-[43px] items-center justify-center text-[12px] text-subtle">发布版本中未找到该连接的节点引用。</div>
           </div>
-          <p class="mb-0 mt-1.5 text-[10px] leading-[1.5] text-subtle">连接或默认模型变化不会自动修改已发布版本；需显式发布新版本。</p>
+          <p class="mb-0 mt-1.5 text-[12px] leading-[1.5] text-subtle">连接或默认模型变化不会自动修改已发布版本；需显式发布新版本。</p>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-[7px] text-[11.5px] font-650 text-muted">估算成本</div>
+          <div class="mb-[7px] text-[12px] font-650 text-muted">估算成本</div>
           <div class="overflow-hidden rounded-[6px] border border-line">
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">输入 / 1M tokens</span><strong class="text-muted">—</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[10.5px]"><span class="text-subtle">输出 / 1M tokens</span><strong class="text-muted">—</strong></div>
-            <div class="flex min-h-8 items-center justify-between gap-2.5 px-[9px] text-[10.5px]"><span class="text-subtle">价格来源</span><strong class="text-muted">价格接口尚未接入</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">输入 / 1M tokens</span><strong class="text-muted">—</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 border-b border-dashed border-line px-[9px] text-[12px]"><span class="text-subtle">输出 / 1M tokens</span><strong class="text-muted">—</strong></div>
+            <div class="flex min-h-8 items-center justify-between gap-2.5 px-[9px] text-[12px]"><span class="text-subtle">价格来源</span><strong class="text-muted">价格接口尚未接入</strong></div>
           </div>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-[7px] text-[11.5px] font-650 text-muted">最近测试</div>
+          <div class="mb-[7px] text-[12px] font-650 text-muted">最近测试</div>
           <div class="overflow-hidden rounded-[6px] border border-line">
-            <div v-if="testResults[detailModel.id]" class="flex min-h-[33px] items-center gap-1.5 px-[9px] text-[10.5px] text-success"><CheckCircle2 :size="13" /><span class="flex-1 text-muted">供应商模型列表读取成功</span><small class="text-[10px] text-subtle">{{ testResults[detailModel.id].latencyMs }}ms · {{ testResults[detailModel.id].models.length }} 个模型</small></div>
-            <div v-else class="flex min-h-[33px] items-center justify-center px-[9px] text-[10.5px] text-subtle">尚无本次会话的真实测试结果。</div>
+            <div v-if="testResults[detailModel.id]" class="flex min-h-[33px] items-center gap-1.5 px-[9px] text-[12px] text-success"><CheckCircle2 :size="13" /><span class="flex-1 text-muted">供应商模型列表读取成功</span><small class="text-[12px] text-subtle">{{ testResults[detailModel.id].latencyMs }}ms · {{ testResults[detailModel.id].models.length }} 个模型</small></div>
+            <div v-else class="flex min-h-[33px] items-center justify-center px-[9px] text-[12px] text-subtle">尚无本次会话的真实测试结果。</div>
           </div>
         </section>
       </div>
@@ -342,7 +333,6 @@ import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
   FileJson,
   Info,
@@ -363,7 +353,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import AppShell from '@/components/AppShell.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { ApiError } from '@/api/client'
 import { formatDateTime } from '@/shared/format'

@@ -1,48 +1,37 @@
 <template>
-  <AppShell>
-    <div class="min-h-screen">
-      <header
-        class="flex min-h-[62px] items-center justify-between gap-4 border-b border-line bg-white/96 px-6 max-[900px]:pl-[62px] max-[900px]:pr-4 max-[620px]:justify-end max-[620px]:pl-4"
+  <PageHeaderActions>
+    <div v-if="version" class="flex min-w-0 items-center justify-end gap-[7px] max-[620px]:flex-wrap">
+      <span class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] bg-primary-soft px-[9px] text-[12px] font-600 text-primary">
+        <GitCommitHorizontal :size="13" /> 固定版本 v{{ version.version }}
+      </span>
+      <span class="mono inline-flex h-[29px] items-center gap-[5px] rounded-[6px] border border-line px-[9px] text-[12px] text-subtle max-[900px]:hidden">
+        {{ version.schemaHash }}
+      </span>
+      <span
+        class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] px-[9px] text-[12px] font-600"
+        :class="readinessReady ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'"
       >
-        <div class="flex min-w-0 items-center gap-[7px] text-[10px] text-subtle max-[620px]:hidden">
-          <RouterLink to="/" class="shrink-0 hover:text-ink">工作流</RouterLink>
-          <ChevronRight :size="13" />
-          <RouterLink v-if="draft" :to="`/workflows/${workflowId}`" class="min-w-0 truncate hover:text-ink">{{ draft.name }}</RouterLink>
-          <ChevronRight :size="13" />
-          <strong class="shrink-0 text-ink">试运行台</strong>
-        </div>
-        <div v-if="version" class="flex min-w-0 items-center justify-end gap-[7px] max-[620px]:flex-wrap">
-          <span class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] bg-primary-soft px-[9px] text-[11.5px] font-600 text-primary">
-            <GitCommitHorizontal :size="13" /> 固定版本 v{{ version.version }}
-          </span>
-          <span class="mono inline-flex h-[29px] items-center gap-[5px] rounded-[6px] border border-line px-[9px] text-[10.5px] text-subtle max-[900px]:hidden">
-            {{ version.schemaHash }}
-          </span>
-          <span
-            class="inline-flex h-[29px] items-center gap-[5px] rounded-[6px] px-[9px] text-[11.5px] font-600"
-            :class="readinessReady ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'"
-          >
-            <CheckCircle2 v-if="readinessReady" :size="13" />
-            <CircleAlert v-else :size="13" />
-            {{ readinessReady ? '就绪' : `${blockers.length} 项阻断` }}
-          </span>
-          <button class="btn btn-ghost h-[29px] px-[9px] text-[11.5px] max-[900px]:hidden" @click="callInfoOpen = true">
-            <Code2 :size="14" /> 调用信息
-          </button>
-        </div>
-      </header>
+        <CheckCircle2 v-if="readinessReady" :size="13" />
+        <CircleAlert v-else :size="13" />
+        {{ readinessReady ? '就绪' : `${blockers.length} 项阻断` }}
+      </span>
+      <button class="btn btn-ghost h-[29px] px-[9px] text-[12px] max-[900px]:hidden" @click="callInfoOpen = true">
+        <Code2 :size="14" /> 调用信息
+      </button>
+    </div>
+  </PageHeaderActions>
 
-      <main class="mx-auto max-w-[1380px] px-7 pb-[54px] pt-[27px] max-[900px]:pl-[62px] max-[900px]:pr-4 max-[620px]:pl-4">
+  <main class="px-7 pb-[54px] pt-[27px] max-md:px-4">
         <div v-if="loading" class="surface mx-auto my-20 flex max-w-[720px] flex-col items-center gap-2.5 p-[38px] text-center text-subtle">
           <LoaderCircle :size="30" class="animate-spin text-primary" />
           <h1 class="mb-0 mt-[5px] text-[22px] text-ink">正在读取固定版本</h1>
-          <p class="m-0 max-w-[500px] text-[11px] leading-[1.7]">正在加载不可变定义、真实依赖就绪状态和该版本运行历史。</p>
+          <p class="m-0 max-w-[500px] text-[12px] leading-[1.7]">正在加载不可变定义、真实依赖就绪状态和该版本运行历史。</p>
         </div>
 
         <div v-else-if="!versionId" class="surface mx-auto my-20 flex max-w-[720px] flex-col items-center gap-2.5 p-[38px] text-center text-subtle">
           <Link2Off :size="30" class="text-warning" />
           <h1 class="mb-0 mt-[5px] text-[22px] text-ink">缺少固定版本</h1>
-          <p class="m-0 max-w-[500px] text-[11px] leading-[1.7]">试运行必须从发布成功页、版本列表或工作流快捷入口携带 <code>versionId</code> 打开，页面不会隐式使用最新版本。</p>
+          <p class="m-0 max-w-[500px] text-[12px] leading-[1.7]">试运行必须从发布成功页、版本列表或工作流快捷入口携带 <code>versionId</code> 打开，页面不会隐式使用最新版本。</p>
           <div class="mt-[9px] flex gap-2">
             <RouterLink :to="`/workflows/${workflowId}/versions`" class="btn">选择发布版本</RouterLink>
             <RouterLink :to="`/workflows/${workflowId}`" class="btn btn-primary">返回编辑器</RouterLink>
@@ -52,7 +41,7 @@
         <div v-else-if="!version || loadError" class="surface mx-auto my-20 flex max-w-[720px] flex-col items-center gap-2.5 p-[38px] text-center text-subtle">
           <FileQuestion :size="30" class="text-warning" />
           <h1 class="mb-0 mt-[5px] text-[22px] text-ink">{{ loadError ? '固定版本加载失败' : '版本不存在' }}</h1>
-          <p class="m-0 max-w-[520px] text-[11px] leading-[1.7]">{{ loadError || `固定版本 ${versionId} 不存在或当前工作区无权访问。` }}</p>
+          <p class="m-0 max-w-[520px] text-[12px] leading-[1.7]">{{ loadError || `固定版本 ${versionId} 不存在或当前工作区无权访问。` }}</p>
           <RouterLink :to="`/workflows/${workflowId}/versions`" class="btn btn-primary mt-[9px]">返回版本列表</RouterLink>
         </div>
 
@@ -60,9 +49,9 @@
           <section class="mb-[18px] flex items-end justify-between gap-[22px] max-[900px]:flex-col max-[900px]:items-start">
             <div>
               <h1 class="m-0 text-[27px] font-[730]">发布后试运行台</h1>
-              <p class="mb-0 mt-[7px] text-[10px] text-subtle">对固定发布版本做真实执行验证 · 输入 / 执行 / 结果与当前版本历史</p>
+              <p class="mb-0 mt-[7px] text-[12px] text-subtle">对固定发布版本做真实执行验证 · 输入 / 执行 / 结果与当前版本历史</p>
             </div>
-            <div class="flex flex-wrap justify-end gap-1.5 text-[10.5px] text-subtle max-[900px]:justify-start">
+            <div class="flex flex-wrap justify-end gap-1.5 text-[12px] text-subtle max-[900px]:justify-start">
               <span class="inline-flex h-7 items-center gap-[5px] rounded-[5px] border border-line bg-surface px-2"><strong class="font-500 text-muted">版本</strong> v{{ version.version }}</span>
               <span class="inline-flex h-7 items-center gap-[5px] rounded-[5px] border border-line bg-surface px-2"><strong class="font-500 text-muted">发布时间</strong> {{ formatDateTime(version.createdAt) }}</span>
               <span class="inline-flex h-7 items-center gap-[5px] rounded-[5px] border border-line bg-surface px-2"><strong class="font-500 text-muted">schemaHash</strong> <em class="mono not-italic text-muted">{{ version.schemaHash }}</em></span>
@@ -73,15 +62,15 @@
             <div
               v-for="(item, index) in readinessItems"
               :key="item.key"
-              class="flex min-w-0 flex-1 items-center gap-1.5 border-r border-line px-3 py-[13px] text-[11.5px] max-[900px]:min-w-[50%] max-[620px]:min-w-full"
+              class="flex min-w-0 flex-1 items-center gap-1.5 border-r border-line px-3 py-[13px] text-[12px] max-[900px]:min-w-[50%] max-[620px]:min-w-full"
               :class="index >= 3 ? 'max-[1180px]:hidden' : ''"
             >
               <component :is="item.icon" :size="14" class="shrink-0" :class="readinessToneClass(item.tone)" />
               <span class="shrink-0 text-subtle">{{ item.label }}</span>
-              <strong class="truncate text-[11.5px]" :class="readinessToneClass(item.tone)">{{ item.summary }}</strong>
+              <strong class="truncate text-[12px]" :class="readinessToneClass(item.tone)">{{ item.summary }}</strong>
             </div>
             <button
-              class="inline-flex min-h-[45px] items-center gap-[5px] border-0 bg-surface-2 px-[15px] py-[13px] text-[11.5px] text-subtle max-[620px]:w-full max-[620px]:justify-center"
+              class="inline-flex min-h-[45px] items-center gap-[5px] border-0 bg-surface-2 px-[15px] py-[13px] text-[12px] text-subtle max-[620px]:w-full max-[620px]:justify-center"
               @click="readinessOpen = !readinessOpen"
             >
               {{ blockers.length ? `${blockers.length} 项阻断` : '就绪' }}
@@ -94,17 +83,17 @@
             <div v-for="item in [...blockers, ...warnings]" :key="item.key" class="flex items-center gap-[9px] border-b border-dashed border-line py-2 last:border-b-0">
               <TriangleAlert :size="14" :class="item.blocking ? 'text-danger' : 'text-warning'" />
               <div class="flex min-w-0 flex-col gap-0.5">
-                <strong class="text-[11.5px]">{{ item.label }}</strong>
-                <span class="text-[11.5px] text-subtle">{{ item.message }}</span>
+                <strong class="text-[12px]">{{ item.label }}</strong>
+                <span class="text-[12px] text-subtle">{{ item.message }}</span>
               </div>
-              <RouterLink v-if="item.path" :to="item.path" class="ml-auto shrink-0 border-0 bg-transparent p-0 text-[11.5px] text-primary">去配置</RouterLink>
+              <RouterLink v-if="item.path" :to="item.path" class="ml-auto shrink-0 border-0 bg-transparent p-0 text-[12px] text-primary">去配置</RouterLink>
             </div>
-            <div v-if="!blockers.length && !warnings.length" class="flex items-center gap-[7px] text-[11.5px] text-success">
+            <div v-if="!blockers.length && !warnings.length" class="flex items-center gap-[7px] text-[12px] text-success">
               <CheckCircle2 :size="15" /> 模型、知识库、MCP、密钥与节点依赖均已就绪。
             </div>
           </section>
 
-          <section class="my-[11px] flex flex-wrap items-start gap-2 rounded-[7px] border border-[#f3d39f] bg-[#fff9ee] px-3 py-[9px] text-[11.5px] text-warning">
+          <section class="my-[11px] flex flex-wrap items-start gap-2 rounded-[7px] border border-[#f3d39f] bg-[#fff9ee] px-3 py-[9px] text-[12px] text-warning">
             <TriangleAlert :size="15" />
             <span class="min-w-0 flex-1">真实执行：使用生产配置与凭证，可能产生模型费用、HTTP 请求或 MCP 工具副作用。</span>
             <div v-if="hasSideEffect" class="max-sm:w-full max-sm:pl-[22px]">
@@ -120,38 +109,38 @@
               <div class="flex min-h-[65px] items-center justify-between gap-3 border-b border-line px-[15px] py-[13px]">
                 <div>
                   <h2 class="m-0 text-[14px]">输入区</h2>
-                  <p class="mb-0 mt-1 text-[10.5px] text-subtle">固定版本的 <span class="mono">start.inputSchema</span></p>
+                  <p class="mb-0 mt-1 text-[12px] text-subtle">固定版本的 <span class="mono">start.inputSchema</span></p>
                 </div>
                 <div class="inline-flex gap-0.5 rounded-[7px] border border-line bg-surface-2 p-0.75">
-                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[11.5px]" :class="inputMode === 'form' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('form')">表单</button>
-                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[11.5px]" :class="inputMode === 'json' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('json')">JSON</button>
+                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'form' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('form')">表单</button>
+                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'json' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('json')">JSON</button>
                 </div>
               </div>
 
-              <div class="mx-3.5 mt-3 flex items-start gap-[7px] rounded-[6px] bg-info-soft px-[9px] py-2 text-[11.5px] leading-[1.45] text-info">
+              <div class="mx-3.5 mt-3 flex items-start gap-[7px] rounded-[6px] bg-info-soft px-[9px] py-2 text-[12px] leading-[1.45] text-info">
                 <Info :size="13" />
                 <span>表单与 JSON 是同一份输入数据；语法或 Schema 错误会阻止运行。</span>
               </div>
 
               <div v-if="inputMode === 'form'" class="flex flex-col gap-4 px-3.5 pt-[13px]">
                 <label v-for="field in inputFields" :key="field.name" class="flex flex-col gap-1.5">
-                  <span class="flex items-center gap-1.5 text-[10px] font-600 text-muted">
+                  <span class="flex items-center gap-1.5 text-[12px] font-600 text-muted">
                     {{ field.name }}
-                    <i class="font-mono text-[10.5px] not-italic text-primary">{{ field.type }}</i>
-                    <em v-if="field.required" class="rounded-[3px] bg-warning-soft px-1 py-0.25 text-[10.5px] not-italic text-warning">必填</em>
+                    <i class="font-mono text-[12px] not-italic text-primary">{{ field.type }}</i>
+                    <em v-if="field.required" class="rounded-[3px] bg-warning-soft px-1 py-0.25 text-[12px] not-italic text-warning">必填</em>
                   </span>
-                  <p v-if="field.description" class="-mt-0.5 mb-0.25 text-[10.5px] text-subtle">{{ field.description }}</p>
+                  <p v-if="field.description" class="-mt-0.5 mb-0.25 text-[12px] text-subtle">{{ field.description }}</p>
 
                   <input
                     v-if="field.type === 'string'"
                     v-model="inputData[field.name] as string"
-                    class="min-h-9 rounded-[6px] px-2.5 py-2 text-[10px]"
+                    class="min-h-9 rounded-[6px] px-2.5 py-2 text-[12px]"
                     :placeholder="field.description"
                   />
                   <input
                     v-else-if="field.type === 'number'"
                     v-model.number="inputData[field.name]"
-                    class="min-h-9 rounded-[6px] px-2.5 py-2 text-[10px]"
+                    class="min-h-9 rounded-[6px] px-2.5 py-2 text-[12px]"
                     type="number"
                   />
                   <button
@@ -169,39 +158,39 @@
                   <textarea
                     v-else
                     :value="complexFieldText(field.name)"
-                    class="min-h-[78px] resize-y rounded-[6px] px-2.5 py-2 font-mono text-[10px]"
+                    class="min-h-[78px] resize-y rounded-[6px] px-2.5 py-2 font-mono text-[12px]"
                     rows="4"
                     spellcheck="false"
                     @input="updateComplexField(field.name, ($event.target as HTMLTextAreaElement).value)"
                   />
-                  <span v-if="fieldErrors[field.name]" class="text-[11.5px] leading-[1.45] text-danger">{{ fieldErrors[field.name] }}</span>
+                  <span v-if="fieldErrors[field.name]" class="text-[12px] leading-[1.45] text-danger">{{ fieldErrors[field.name] }}</span>
                 </label>
-                <div v-if="!inputFields.length" class="flex items-center gap-[7px] rounded-[6px] border border-dashed border-line p-3 text-[11.5px] text-subtle">
+                <div v-if="!inputFields.length" class="flex items-center gap-[7px] rounded-[6px] border border-dashed border-line p-3 text-[12px] text-subtle">
                   <FileQuestion :size="16" />
                   该固定版本没有可用的 start.inputSchema，无法生成输入表单。
                 </div>
               </div>
 
               <div v-else class="px-3.5 pt-[13px]">
-                <div class="flex h-[27px] items-center justify-between rounded-t-[7px] border border-[#292d39] border-b-0 bg-[#1d202a] px-2 font-mono text-[10.5px] text-[#939bad]">
+                <div class="flex h-[27px] items-center justify-between rounded-t-[7px] border border-[#292d39] border-b-0 bg-[#1d202a] px-2 font-mono text-[12px] text-[#939bad]">
                   <span>input.json</span>
-                  <button class="border-0 bg-transparent p-0 text-[11.5px] text-primary" @click="formatJson">格式化</button>
+                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="formatJson">格式化</button>
                 </div>
                 <textarea
                   v-model="jsonDraft"
-                  class="min-h-[275px] rounded-b-[7px] border-[#292d39] bg-[var(--code-bg)] p-[11px] font-mono text-[11.5px] leading-[1.65] text-[#d8dbe5]"
+                  class="min-h-[275px] rounded-b-[7px] border-[#292d39] bg-[var(--code-bg)] p-[11px] font-mono text-[12px] leading-[1.65] text-[#d8dbe5]"
                   spellcheck="false"
                   @blur="syncJsonInput"
                 />
               </div>
 
-              <div v-if="inputError" class="mx-3.5 mt-[11px] flex items-start gap-[7px] rounded-[6px] bg-danger-soft px-[9px] py-2 text-[11.5px] text-danger">
+              <div v-if="inputError" class="mx-3.5 mt-[11px] flex items-start gap-[7px] rounded-[6px] bg-danger-soft px-[9px] py-2 text-[12px] text-danger">
                 <CircleAlert :size="14" />
                 <span>{{ inputError }}</span>
               </div>
 
               <button
-                class="mx-3.5 mb-2 mt-auto flex h-10 items-center justify-center gap-[7px] rounded-[7px] border border-primary bg-primary text-[11px] font-600 text-white disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-3 disabled:text-subtle"
+                class="mx-3.5 mb-2 mt-auto flex h-10 items-center justify-center gap-[7px] rounded-[7px] border border-primary bg-primary text-[12px] font-600 text-white disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-3 disabled:text-subtle"
                 :disabled="!canRun"
                 @click="startTrial"
               >
@@ -210,9 +199,9 @@
                 {{ isRunning ? '真实执行中' : '运行（真实执行）' }}
               </button>
 
-              <div class="flex min-h-8 items-center justify-between px-3.5 pb-3 text-[10.5px] text-subtle">
+              <div class="flex min-h-8 items-center justify-between px-3.5 pb-3 text-[12px] text-subtle">
                 <span>超时 120s · {{ hasSideEffect ? '写工具需二次确认' : '只读工具' }}</span>
-                <button v-if="isRunning" class="inline-flex items-center gap-1 border-0 bg-transparent text-[11.5px] text-danger" @click="cancelTrial">
+                <button v-if="isRunning" class="inline-flex items-center gap-1 border-0 bg-transparent text-[12px] text-danger" @click="cancelTrial">
                   <Square :size="12" /> 取消运行
                 </button>
               </div>
@@ -222,16 +211,16 @@
               <div class="flex min-h-[58px] items-center justify-between gap-3 border-b border-line px-[15px] py-[13px]">
                 <div>
                   <h2 class="m-0 text-[14px]">执行区</h2>
-                  <p class="mb-0 mt-1 text-[10.5px] text-subtle">{{ activeRun ? shortRunId(activeRun.id) : '等待创建固定版本运行' }}</p>
+                  <p class="mb-0 mt-1 text-[12px] text-subtle">{{ activeRun ? shortRunId(activeRun.id) : '等待创建固定版本运行' }}</p>
                 </div>
-                <span v-if="activeRun" class="inline-flex items-center gap-[5px] text-[10.5px] text-subtle">
+                <span v-if="activeRun" class="inline-flex items-center gap-[5px] text-[12px] text-subtle">
                   <span class="h-1.5 w-1.5 rounded-full bg-success shadow-[0_0_0_3px_var(--success-soft)]" />
                   {{ streamLabel }}
                 </span>
               </div>
 
               <div v-if="activeRun" class="mx-3.5 mt-[11px] overflow-hidden rounded-[7px] border" :class="runStripClass(activeRun.status)">
-                <div class="flex min-h-[39px] items-center gap-2 px-2.5 text-[11.5px] text-muted">
+                <div class="flex min-h-[39px] items-center gap-2 px-2.5 text-[12px] text-muted">
                   <StatusBadge :status="activeRun.status" />
                   <strong class="mono">{{ shortRunId(activeRun.id) }}</strong>
                   <span>{{ completedNodeCount }}/{{ version.definition.nodes.length }} 节点</span>
@@ -246,20 +235,20 @@
                 <div
                   v-for="nodeRun in activeRun.nodeRuns"
                   :key="nodeRun.nodeId"
-                  class="grid min-h-[35px] grid-cols-[8px_minmax(100px,1fr)_90px_60px_50px] items-center gap-2 border-b border-dashed border-line text-[11.5px] text-muted"
+                  class="grid min-h-[35px] grid-cols-[8px_minmax(100px,1fr)_90px_60px_50px] items-center gap-2 border-b border-dashed border-line text-[12px] text-muted"
                 >
                   <span class="h-1.5 w-1.5 rounded-full" :class="nodeStatusDotClass(nodeRun.status)" />
                   <strong>{{ nodeRun.title }}</strong>
-                  <span class="mono text-[10.5px] text-subtle">{{ nodeRun.type }}</span>
-                  <span class="text-right text-[10.5px] text-subtle">{{ formatDuration(nodeRun.durationMs) }}</span>
+                  <span class="mono text-[12px] text-subtle">{{ nodeRun.type }}</span>
+                  <span class="text-right text-[12px] text-subtle">{{ formatDuration(nodeRun.durationMs) }}</span>
                   <span class="text-right" :class="nodeStatusLabelClass(nodeRun.status)">{{ nodeStatusLabel(nodeRun.status) }}</span>
                 </div>
               </div>
 
               <div v-else class="flex min-h-[285px] flex-col items-center justify-center gap-2 text-subtle">
                 <PlayCircle :size="27" />
-                <strong class="text-[11px] text-muted">尚未运行固定版本</strong>
-                <span class="max-w-[300px] text-center text-[11.5px] leading-[1.55]">完成输入并确认依赖后，节点状态会通过事件流实时叠加。</span>
+                <strong class="text-[12px] text-muted">尚未运行固定版本</strong>
+                <span class="max-w-[300px] text-center text-[12px] leading-[1.55]">完成输入并确认依赖后，节点状态会通过事件流实时叠加。</span>
               </div>
 
               <ExecutionTabs
@@ -278,21 +267,21 @@
             <div class="flex min-h-[62px] items-center justify-between gap-3 border-b border-line px-3.5 py-[11px]">
               <div>
                 <h2 class="m-0 text-[14px]">当前版本试运行历史</h2>
-                <p class="mb-0 mt-1 text-[10.5px] text-subtle">固定版本 v{{ version.version }} · 默认仅显示 <span class="mono">manual_trial</span></p>
+                <p class="mb-0 mt-1 text-[12px] text-subtle">固定版本 v{{ version.version }} · 默认仅显示 <span class="mono">manual_trial</span></p>
               </div>
               <div class="inline-flex gap-0.5 rounded-[7px] border border-line bg-surface-2 p-0.75">
-                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[11.5px]" :class="!allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = false">本版本试运行</button>
-                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[11.5px]" :class="allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = true">全部 trigger</button>
+                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="!allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = false">本版本试运行</button>
+                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = true">全部 trigger</button>
               </div>
             </div>
 
             <div v-if="versionRuns.length" class="max-[900px]:overflow-x-auto">
-              <div class="grid min-w-[760px] grid-cols-[80px_116px_76px_64px_minmax(130px,1fr)_82px_118px] items-center gap-[9px] border-b border-line bg-surface-2 px-3.5 text-[10.5px] text-subtle max-[900px]:h-8">
+              <div class="grid min-w-[760px] grid-cols-[80px_116px_76px_64px_minmax(130px,1fr)_82px_118px] items-center gap-[9px] border-b border-line bg-surface-2 px-3.5 text-[12px] text-subtle max-[900px]:h-8">
                 <span>状态</span><span>运行 ID</span><span>触发</span><span>耗时</span><span>结果</span><span>时间</span><span />
               </div>
-              <div v-for="run in versionRuns" :key="run.id" class="grid min-h-[43px] min-w-[760px] grid-cols-[80px_116px_76px_64px_minmax(130px,1fr)_82px_118px] items-center gap-[9px] border-b border-line px-3.5 text-[11.5px] text-muted last:border-b-0">
+              <div v-for="run in versionRuns" :key="run.id" class="grid min-h-[43px] min-w-[760px] grid-cols-[80px_116px_76px_64px_minmax(130px,1fr)_82px_118px] items-center gap-[9px] border-b border-line px-3.5 text-[12px] text-muted last:border-b-0">
                 <StatusBadge :status="run.status" />
-                <button class="mono w-fit border-0 bg-transparent p-0 text-[10.5px] text-muted" @click="router.push(`/runs/${run.id}`)">{{ shortRunId(run.id) }}</button>
+                <button class="mono w-fit border-0 bg-transparent p-0 text-[12px] text-muted" @click="router.push(`/runs/${run.id}`)">{{ shortRunId(run.id) }}</button>
                 <span>{{ triggerLabel(run.trigger) }}</span>
                 <span>{{ formatRunDuration(run) }}</span>
                 <span class="min-w-0 truncate">
@@ -302,38 +291,36 @@
                 </span>
                 <span>{{ formatTime(run.createdAt) }}</span>
                 <div class="flex justify-end gap-2">
-                  <button class="border-0 bg-transparent p-0 text-[11.5px] text-primary" @click="router.push(`/runs/${run.id}`)">打开运行</button>
-                  <button class="border-0 bg-transparent p-0 text-[11.5px] text-primary" @click="replayHistoryRun(run)">重跑</button>
+                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="router.push(`/runs/${run.id}`)">打开运行</button>
+                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="replayHistoryRun(run)">重跑</button>
                 </div>
               </div>
             </div>
-            <div v-else class="flex min-h-24 items-center justify-center gap-[7px] text-[11.5px] text-subtle">
+            <div v-else class="flex min-h-24 items-center justify-center gap-[7px] text-[12px] text-subtle">
               <History :size="20" />
               <span>当前固定版本还没有试运行记录。</span>
             </div>
           </section>
         </template>
-      </main>
-    </div>
-  </AppShell>
+  </main>
 
   <DialogRoot :open="callInfoOpen" @update:open="callInfoOpen = $event">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)]" />
       <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(540px,calc(100vw-32px))] -translate-1/2 rounded-8px border border-line bg-surface p-[22px] shadow-lg">
         <DialogTitle class="m-0 text-[17px] font-700">固定版本调用信息</DialogTitle>
-        <DialogDescription class="mb-[15px] mt-1.5 text-[10px] leading-[1.6] text-subtle">
+        <DialogDescription class="mb-[15px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           外部调用只运行当前发布版本，不会读取草稿。凭证以掩码或 secret_ref 展示。
         </DialogDescription>
         <div class="mt-[9px] flex flex-col gap-1.5 rounded-[7px] border border-line bg-surface-2 p-2.5">
-          <div class="flex items-center justify-between text-[10.5px] text-subtle"><span>HTTP</span><button class="border-0 bg-transparent p-0 text-[11.5px] text-primary" @click="copyText('http-endpoint')">复制</button></div>
-          <code id="http-endpoint" class="break-words font-mono text-[11.5px]">POST http://127.0.0.1:8787/api/workflows/{{ workflowId }}/runs</code>
-          <small class="text-[10.5px] text-subtle">body.workflowVersionId = {{ versionId }}</small>
+          <div class="flex items-center justify-between text-[12px] text-subtle"><span>HTTP</span><button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyText('http-endpoint')">复制</button></div>
+          <code id="http-endpoint" class="break-words font-mono text-[12px]">POST http://127.0.0.1:8787/api/workflows/{{ workflowId }}/runs</code>
+          <small class="text-[12px] text-subtle">body.workflowVersionId = {{ versionId }}</small>
         </div>
         <div class="mt-[9px] flex flex-col gap-1.5 rounded-[7px] border border-[#292d39] bg-[var(--code-bg)] p-2.5 text-[#d8dbe5]">
-          <div class="flex items-center justify-between text-[10.5px] text-[#939bad]"><span>MCP / Streamable HTTP</span><span class="text-warning">尚未接入</span></div>
-          <code class="break-words font-mono text-[11.5px]">入站暴露与 POST /mcp 完成联调后显示真实 endpoint</code>
-          <small class="text-[10.5px] text-[#939bad]">当前页面不会伪造 MCP 工具名或访问凭证。</small>
+          <div class="flex items-center justify-between text-[12px] text-[#939bad]"><span>MCP / Streamable HTTP</span><span class="text-warning">尚未接入</span></div>
+          <code class="break-words font-mono text-[12px]">入站暴露与 POST /mcp 完成联调后显示真实 endpoint</code>
+          <small class="text-[12px] text-[#939bad]">当前页面不会伪造 MCP 工具名或访问凭证。</small>
         </div>
         <div class="mt-[18px] flex justify-end">
           <DialogClose as-child><button class="btn">关闭</button></DialogClose>
@@ -350,7 +337,6 @@ import {
   Braces,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   CircleAlert,
   Code2,
   Database,
@@ -376,7 +362,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import AppShell from '@/components/AppShell.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import ExecutionTabs from '@/workflow/shared/ExecutionTabs.vue'
 import { subscribeRunEvents } from '@/api/client'

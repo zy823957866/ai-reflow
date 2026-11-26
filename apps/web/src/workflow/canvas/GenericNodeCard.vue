@@ -27,7 +27,7 @@
           <XCircle v-else-if="data.runStatus === 'failed'" class="shrink-0 text-danger" :size="13" />
           <CircleAlert v-else-if="data.hasError" class="shrink-0 text-warning" :size="13" />
         </div>
-        <div class="mt-0.75 flex items-center gap-1.5 text-[10.5px] text-subtle">
+        <div class="mt-0.75 flex items-center gap-1.5 text-[12px] text-subtle">
           <span class="mono">{{ data.node.type }}</span>
           <span class="max-w-[70px] truncate">{{ modeSummary }}</span>
         </div>
@@ -35,12 +35,12 @@
       <MoreHorizontal :size="14" class="shrink-0 self-start text-subtle" />
     </div>
 
-    <div class="mt-[7px] truncate text-[11.5px] leading-[1.35] text-subtle">{{ summary }}</div>
+    <div class="mt-[7px] truncate text-[12px] leading-[1.35] text-subtle">{{ summary }}</div>
 
     <div
       v-for="output in outputs"
       :key="`output-label-${output.id}`"
-      class="pointer-events-none absolute right-[9px] z-1 max-w-[62px] overflow-hidden truncate font-mono text-[10px] leading-none text-subtle"
+      class="pointer-events-none absolute right-[9px] z-1 max-w-[62px] overflow-hidden truncate font-mono text-[12px] leading-none text-subtle"
       :style="{ top: `${28 + outputs.indexOf(output) * 20}px` }"
     >
       {{ output.id }}

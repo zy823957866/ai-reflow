@@ -4,48 +4,48 @@
       <button
         v-for="tab in tabs"
         :key="tab.key"
-        class="flex h-[38px] items-center gap-[5px] border-0 border-b-2 border-transparent bg-transparent px-px text-[10px]"
+        class="flex h-[38px] items-center gap-[5px] border-0 border-b-2 border-transparent bg-transparent px-px text-[12px]"
         :class="activeTab === tab.key ? 'border-b-primary font-600 text-ink' : 'text-subtle'"
         @click="activeTab = tab.key"
       >
         {{ tab.label }}
-        <span v-if="tab.badge !== undefined" class="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-surface-3 text-[10.5px]">{{ tab.badge }}</span>
+        <span v-if="tab.badge !== undefined" class="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-surface-3 text-[12px]">{{ tab.badge }}</span>
       </button>
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
       <template v-if="activeTab === 'input'">
-        <div class="mb-3 flex items-start gap-1.5 rounded-[6px] bg-info-soft p-2 text-[11.5px] leading-[1.45] text-info">
+        <div class="mb-3 flex items-start gap-1.5 rounded-[6px] bg-info-soft p-2 text-[12px] leading-[1.45] text-info">
           <Info :size="13" />
           <span>由 <strong>start.inputSchema</strong> 生成，表单与 JSON 使用同一份数据。</span>
         </div>
         <div class="flex flex-col gap-3">
           <label v-for="field in inputFields" :key="field.name" class="flex flex-col gap-1.5">
-            <span class="flex items-center gap-1.5 text-[10px] font-550 text-muted">
+            <span class="flex items-center gap-1.5 text-[12px] font-550 text-muted">
               {{ field.name }}
-              <i class="font-mono text-[10.5px] not-italic text-primary">{{ field.type }}</i>
-              <em v-if="field.required" class="rounded-[3px] bg-warning-soft px-1 py-0.25 text-[10.5px] not-italic text-warning">必填</em>
+              <i class="font-mono text-[12px] not-italic text-primary">{{ field.type }}</i>
+              <em v-if="field.required" class="rounded-[3px] bg-warning-soft px-1 py-0.25 text-[12px] not-italic text-warning">必填</em>
             </span>
             <input
               v-if="field.type === 'string'"
-              class="min-h-[35px] rounded-[8px] px-2.5 py-2 text-[10px]"
+              class="min-h-[35px] rounded-[8px] px-2.5 py-2 text-[12px]"
               :value="String(input[field.name] ?? '')"
               :disabled="readonly"
               @input="updateInput(field.name, ($event.target as HTMLInputElement).value)"
             />
             <textarea
               v-else
-              class="min-h-[76px] resize-y rounded-[8px] px-2.5 py-2 font-mono text-[10px]"
+              class="min-h-[76px] resize-y rounded-[8px] px-2.5 py-2 font-mono text-[12px]"
               :value="formatValue(input[field.name])"
               :disabled="readonly"
               @input="updateJsonInput(field.name, ($event.target as HTMLTextAreaElement).value)"
             />
           </label>
-          <div v-if="!inputFields.length" class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[11.5px] text-subtle">当前运行没有输入字段。</div>
+          <div v-if="!inputFields.length" class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[12px] text-subtle">当前运行没有输入字段。</div>
         </div>
       </template>
       <template v-else-if="activeTab === 'output'">
-        <pre v-if="run?.output" class="m-0 overflow-auto rounded-[7px] bg-[var(--code-bg)] p-[11px] font-mono text-[11.5px] leading-[1.6] text-[#d8dbe5]">{{ pretty(run.output) }}</pre>
-        <div v-else class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[11.5px] text-subtle">
+        <pre v-if="run?.output" class="m-0 overflow-auto rounded-[7px] bg-[var(--code-bg)] p-[11px] font-mono text-[12px] leading-[1.6] text-[#d8dbe5]">{{ pretty(run.output) }}</pre>
+        <div v-else class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[12px] text-subtle">
           <LoaderCircle v-if="running" :size="17" class="animate-spin text-primary" />
           <span>{{ running ? '运行中，等待最终输出。' : '暂无输出。' }}</span>
         </div>
@@ -56,26 +56,26 @@
           <p>{{ run.error.message }}</p>
           <span v-if="run.error.nodeId">nodeId: {{ run.error.nodeId }}</span>
         </div>
-        <div v-else class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[11.5px] text-success">
+        <div v-else class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[12px] text-success">
           <CheckCircle2 :size="17" />
           <span>本次运行没有错误。</span>
         </div>
       </template>
       <template v-else>
         <div class="grid grid-cols-2 gap-px overflow-hidden rounded-[7px] border border-line bg-line">
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">运行 ID</span><strong class="mono truncate text-[11.5px] text-muted">{{ run?.id ?? '-' }}</strong></div>
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">固定版本</span><strong class="truncate text-[11.5px] text-muted">{{ run?.version ? `v${run.version}` : '草稿预览' }}</strong></div>
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">runKind</span><strong class="mono truncate text-[11.5px] text-muted">{{ run?.runKind ?? 'preview' }}</strong></div>
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">trigger</span><strong class="mono truncate text-[11.5px] text-muted">{{ run?.trigger ?? 'manual_preview' }}</strong></div>
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">Token</span><strong class="truncate text-[11.5px] text-muted">{{ run?.metadata.tokens ?? '-' }}</strong></div>
-          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[10.5px] text-subtle">费用</span><strong class="truncate text-[11.5px] text-muted">{{ run?.metadata.cost !== undefined ? `¥${run.metadata.cost.toFixed(2)}` : '-' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">运行 ID</span><strong class="mono truncate text-[12px] text-muted">{{ run?.id ?? '-' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">固定版本</span><strong class="truncate text-[12px] text-muted">{{ run?.version ? `v${run.version}` : '草稿预览' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">runKind</span><strong class="mono truncate text-[12px] text-muted">{{ run?.runKind ?? 'preview' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">trigger</span><strong class="mono truncate text-[12px] text-muted">{{ run?.trigger ?? 'manual_preview' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">Token</span><strong class="truncate text-[12px] text-muted">{{ run?.metadata.tokens ?? '-' }}</strong></div>
+          <div class="flex min-h-[50px] flex-col gap-1 bg-surface-2 p-[9px]"><span class="text-[12px] text-subtle">费用</span><strong class="truncate text-[12px] text-muted">{{ run?.metadata.cost !== undefined ? `¥${run.metadata.cost.toFixed(2)}` : '-' }}</strong></div>
         </div>
         <div class="mt-[13px]">
-          <span class="text-[10.5px] text-subtle">事件</span>
-          <div v-for="event in events.slice(-6)" :key="event.seq" class="grid grid-cols-[22px_1fr_auto] items-center gap-1.5 border-b border-dashed border-line py-1.5 text-[10.5px] text-muted">
+          <span class="text-[12px] text-subtle">事件</span>
+          <div v-for="event in events.slice(-6)" :key="event.seq" class="grid grid-cols-[22px_1fr_auto] items-center gap-1.5 border-b border-dashed border-line py-1.5 text-[12px] text-muted">
             <i class="not-italic text-subtle">{{ event.seq }}</i>
             <span class="mono">{{ event.type }}</span>
-            <time class="font-mono text-[10px] text-subtle">{{ formatTime(event.at) }}</time>
+            <time class="font-mono text-[12px] text-subtle">{{ formatTime(event.at) }}</time>
           </div>
         </div>
       </template>

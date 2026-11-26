@@ -1,31 +1,24 @@
 <template>
-  <AppShell>
-    <div class="min-h-screen">
-      <header class="flex min-h-62px items-center justify-between gap-4 border-b border-line bg-white/96 px-7">
-        <div class="flex min-w-0 items-center gap-2 text-10px text-subtle">
-          <span>Acme 团队</span>
-          <ChevronRight :size="13" />
-          <strong class="truncate text-ink">插件市场</strong>
-        </div>
-        <div class="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <label class="flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px border border-line bg-surface px-3">
+  <PageHeaderActions>
+    <div class="flex min-w-0 items-center justify-end gap-2">
+      <label class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
             <Search :size="14" class="shrink-0 text-subtle" />
             <input
               v-model="searchInput"
-              class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-10px shadow-none outline-none"
+              class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none outline-none"
               placeholder="搜索插件、能力、发布者..."
             />
-            <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[10.5px] text-subtle">⌘K</kbd>
+            <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[12px] text-subtle">⌘K</kbd>
           </label>
           <button class="icon-btn" title="市场设置" @click="settingsOpen = true"><Settings :size="15" /></button>
-        </div>
-      </header>
+    </div>
+  </PageHeaderActions>
 
-      <main class="mx-auto max-w-1380px px-7 pt-7 pb-16">
+  <main class="px-7 pt-7 pb-16 max-md:px-4">
         <section class="mb-4 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 class="m-0 text-27px font-730 leading-tight text-ink">插件市场</h1>
-            <p class="mb-0 mt-2 text-10px leading-1.6 text-subtle">
+            <p class="mb-0 mt-2 text-[12px] leading-1.6 text-subtle">
               官方种子目录与已验证插件 · 安装前展示依赖、权限与影响 · 不自动升级
             </p>
           </div>
@@ -49,49 +42,49 @@
           <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-primary-soft text-primary"><Store :size="18" /></span>
             <span>
-              <span class="block text-[10.5px] text-subtle">官方目录</span>
+              <span class="block text-[12px] text-subtle">官方目录</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ pluginEntries.length }}</strong>
             </span>
           </button>
           <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('all')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-success-soft text-success"><PackageCheck :size="18" /></span>
             <span>
-              <span class="block text-[10.5px] text-subtle">已安装</span>
+              <span class="block text-[12px] text-subtle">已安装</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ installs.length }}</strong>
             </span>
           </button>
           <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('update_available')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-primary-soft text-primary"><RefreshCw :size="18" /></span>
             <span>
-              <span class="block text-[10.5px] text-subtle">可更新</span>
+              <span class="block text-[12px] text-subtle">可更新</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ updateCount }}</strong>
             </span>
           </button>
           <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('config_required')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-warning-soft text-warning"><KeyRound :size="18" /></span>
             <span>
-              <span class="block text-[10.5px] text-subtle">待配置</span>
+              <span class="block text-[12px] text-subtle">待配置</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ configRequiredCount }}</strong>
             </span>
           </button>
           <button class="surface col-span-2 flex min-h-76px items-center gap-3 p-4 text-left md:col-span-1" @click="openInstalledFilter('failed')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-danger-soft text-danger"><TriangleAlert :size="18" /></span>
             <span>
-              <span class="block text-[10.5px] text-subtle">异常</span>
+              <span class="block text-[12px] text-subtle">异常</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ failedCount }}</strong>
             </span>
           </button>
         </section>
 
-        <div v-if="pluginError" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-7px border border-danger/30 bg-danger-soft px-3 py-2 text-[11.5px] text-danger">
+        <div v-if="pluginError" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-7px border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
           <span>{{ pluginError }}</span>
-          <button class="border-0 bg-transparent p-0 text-[11.5px] text-danger underline" @click="loadPage">重试</button>
+          <button class="border-0 bg-transparent p-0 text-[12px] text-danger underline" @click="loadPage">重试</button>
         </div>
 
         <section class="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-1.5">
             <button
-              class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[11.5px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
+              class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
               :class="{ '!border-ink !bg-ink !text-white': kindFilter === 'all' }"
               @click="kindFilter = 'all'"
             >
@@ -100,7 +93,7 @@
             <button
               v-for="kind in pluginKinds"
               :key="kind.value"
-              class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[11.5px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
+              class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
               :class="{ '!border-ink !bg-ink !text-white': kindFilter === kind.value }"
               @click="kindFilter = kind.value"
             >
@@ -137,7 +130,7 @@
         >
           <SearchX :size="23" />
           <strong class="text-12px text-ink">{{ loading ? '正在加载插件目录' : '没有匹配插件' }}</strong>
-          <span class="text-[11.5px]">{{ loading ? '正在读取 registry 与安装记录…' : viewMode === 'installed' ? '当前筛选下没有已安装插件。' : '调整关键词或切换类别。' }}</span>
+          <span class="text-[12px]">{{ loading ? '正在读取 registry 与安装记录…' : viewMode === 'installed' ? '当前筛选下没有已安装插件。' : '调整关键词或切换类别。' }}</span>
           <button class="btn" @click="clearFilters">清除筛选</button>
         </div>
 
@@ -163,33 +156,33 @@
                   <h2 class="m-0 truncate text-14px font-700 text-ink">{{ entry.name }}</h2>
                   <ShieldCheck v-if="entry.verified" :size="13" class="shrink-0 text-success" />
                 </div>
-                <span class="mt-1 block truncate text-[10.5px] text-subtle">
+                <span class="mt-1 block truncate text-[12px] text-subtle">
                   {{ kindLabel(entry.kind) }} · {{ entry.publisher }} · {{ entry.latestVersion }}
                 </span>
               </div>
               <div class="flex flex-col items-end gap-1">
-                <span class="rounded-5px px-2 py-1 text-[10.5px] font-600" :class="entryAction(entry).badgeClass">
+                <span class="rounded-5px px-2 py-1 text-[12px] font-600" :class="entryAction(entry).badgeClass">
                   {{ entryAction(entry).badge }}
                 </span>
-                <span v-if="!entry.verified" class="rounded-5px bg-warning-soft px-2 py-1 text-[10.5px] text-warning">未签名</span>
+                <span v-if="!entry.verified" class="rounded-5px bg-warning-soft px-2 py-1 text-[12px] text-warning">未签名</span>
               </div>
             </div>
-            <p class="mb-0 mt-3 line-clamp-2 min-h-30px text-[11.5px] leading-1.65 text-muted">{{ entry.summary }}</p>
+            <p class="mb-0 mt-3 line-clamp-2 min-h-30px text-[12px] leading-1.65 text-muted">{{ entry.summary }}</p>
             <div class="mt-3 flex flex-wrap gap-1">
               <span
                 v-for="capability in entry.capabilities"
                 :key="capability"
-                class="rounded-4px border border-line bg-[var(--surface-2)] px-1.5 py-1 text-[10.5px] text-subtle"
+                class="rounded-4px border border-line bg-[var(--surface-2)] px-1.5 py-1 text-[12px] text-subtle"
               >
                 {{ capability }}
               </span>
             </div>
             <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-              <span class="text-[10.5px] text-subtle">
+              <span class="text-[12px] text-subtle">
                 {{ latestVersion(entry)?.verification.license }} · {{ compactNumber(entry.installs) }} 次安装
               </span>
               <button
-                class="inline-flex h-7 items-center gap-1 rounded-5px px-2 text-[10.5px] font-600"
+                class="inline-flex h-7 items-center gap-1 rounded-5px px-2 text-[12px] font-600"
                 :class="entryAction(entry).buttonClass"
                 @click.stop="runEntryAction(entry)"
               >
@@ -206,9 +199,9 @@
           <div class="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3">
             <div>
               <h2 class="m-0 text-13px font-700 text-ink">已安装生命周期</h2>
-              <p class="mb-0 mt-1 text-[10.5px] text-subtle">禁用与卸载不会删除凭据、历史权限、运行记录或审计事件。</p>
+              <p class="mb-0 mt-1 text-[12px] text-subtle">禁用与卸载不会删除凭据、历史权限、运行记录或审计事件。</p>
             </div>
-            <span class="text-[10.5px] text-subtle">workspace: Acme demo</span>
+            <span class="text-[12px] text-subtle">workspace: Acme demo</span>
           </div>
           <div class="divide-y divide-line">
             <div
@@ -218,59 +211,57 @@
             >
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <strong class="text-10px text-ink">{{ getEntry(install.entryId)?.name ?? install.entryId }}</strong>
+                  <strong class="text-[12px] text-ink">{{ getEntry(install.entryId)?.name ?? install.entryId }}</strong>
                   <StatusBadge :status="install.status" />
-                  <span class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 text-[10.5px] text-subtle">v{{ install.version }}</span>
+                  <span class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 text-[12px] text-subtle">v{{ install.version }}</span>
                 </div>
-                <span class="mt-1 block text-[10.5px] text-subtle">
+                <span class="mt-1 block text-[12px] text-subtle">
                   {{ install.credentials.length }} 个凭据 · {{ install.affectedWorkflows.length }} 个引用工作流 · 更新 {{ relativeTime(install.updatedAt) }}
                 </span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
-                <button class="btn h-7 px-2 text-[10.5px]" @click="openDetail(getEntry(install.entryId)!)">详情</button>
+                <button class="btn h-7 px-2 text-[12px]" @click="openDetail(getEntry(install.entryId)!)">详情</button>
                 <button
                   v-if="hasUpdate(install)"
-                  class="btn btn-primary h-7 px-2 text-[10.5px]"
+                  class="btn btn-primary h-7 px-2 text-[12px]"
                   @click="openPlan(getEntry(install.entryId)!, 'upgrade')"
                 >
                   查看升级计划
                 </button>
                 <button
                   v-if="install.status === 'config_required'"
-                  class="btn btn-primary h-7 px-2 text-[10.5px]"
+                  class="btn btn-primary h-7 px-2 text-[12px]"
                   @click="openCredential(getEntry(install.entryId)!)"
                 >
                   配置凭据
                 </button>
                 <button
                   v-if="install.enabled"
-                  class="btn h-7 px-2 text-[10.5px]"
+                  class="btn h-7 px-2 text-[12px]"
                   @click="togglePlugin(install.installId, false)"
                 >
                   禁用
                 </button>
                 <button
                   v-else-if="install.status !== 'failed'"
-                  class="btn h-7 px-2 text-[10.5px]"
+                  class="btn h-7 px-2 text-[12px]"
                   @click="togglePlugin(install.installId, true)"
                 >
                   启用
                 </button>
                 <button
                   v-if="install.previousVersion"
-                  class="btn h-7 px-2 text-[10.5px]"
+                  class="btn h-7 px-2 text-[12px]"
                   @click="openPlan(getEntry(install.entryId)!, 'rollback')"
                 >
                   回滚
                 </button>
-                <button class="btn btn-danger h-7 px-2 text-[10.5px]" @click="uninstall(install.installId)">卸载</button>
+                <button class="btn btn-danger h-7 px-2 text-[12px]" @click="uninstall(install.installId)">卸载</button>
               </div>
             </div>
           </div>
         </section>
-      </main>
-    </div>
-  </AppShell>
+  </main>
 
   <DialogRoot :open="Boolean(detailEntry)" @update:open="(open) => !open && (detailEntry = null)">
     <DialogPortal>
@@ -286,7 +277,7 @@
             </span>
             <div class="min-w-0">
               <DialogTitle class="truncate text-17px font-700 text-ink">{{ detailEntry?.name }}</DialogTitle>
-              <DialogDescription class="mt-1 block truncate text-[11.5px] text-subtle">
+              <DialogDescription class="mt-1 block truncate text-[12px] text-subtle">
                 {{ detailEntry?.publisher }} · {{ kindLabel(detailEntry?.kind ?? 'tool') }} · 最新 v{{ detailEntry?.latestVersion }}
               </DialogDescription>
             </div>
@@ -296,23 +287,23 @@
         <div v-if="detailEntry" class="flex-1 overflow-y-auto px-5 py-4">
           <div class="flex flex-wrap items-center gap-2">
             <span
-              class="inline-flex items-center gap-1 rounded-5px px-2 py-1 text-[10.5px] font-600"
+              class="inline-flex items-center gap-1 rounded-5px px-2 py-1 text-[12px] font-600"
               :class="detailEntry.verified ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'"
             >
               <ShieldCheck :size="11" />
               {{ detailEntry.verified ? '签名已验证' : '签名缺失' }}
             </span>
-            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[10.5px] text-subtle">
+            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[12px] text-subtle">
               checksum {{ latestVersion(detailEntry)?.verification.checksum }}
             </span>
-            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[10.5px] text-subtle">
+            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[12px] text-subtle">
               {{ latestVersion(detailEntry)?.verification.license }}
             </span>
-            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[10.5px] text-subtle">
+            <span class="rounded-5px bg-[var(--surface-3)] px-2 py-1 text-[12px] text-subtle">
               {{ latestVersion(detailEntry)?.compatibility }}
             </span>
           </div>
-          <p class="mb-0 mt-4 text-10px leading-1.7 text-muted">{{ detailEntry.description }}</p>
+          <p class="mb-0 mt-4 text-[12px] leading-1.7 text-muted">{{ detailEntry.description }}</p>
 
           <div class="management-segment mt-4">
             <button
@@ -332,7 +323,7 @@
                 <span
                   v-for="capability in detailEntry.capabilities"
                   :key="capability"
-                  class="rounded-5px bg-surface px-2 py-1 text-[11.5px] text-muted"
+                  class="rounded-5px bg-surface px-2 py-1 text-[12px] text-muted"
                 >
                   {{ capability }}
                 </span>
@@ -347,12 +338,12 @@
                   class="rounded-7px border border-line p-3"
                 >
                   <div class="flex items-center justify-between gap-2">
-                    <strong class="font-mono text-[11.5px] text-ink">{{ tool.name }}</strong>
-                    <span v-if="tool.nodeType" class="rounded-4px bg-primary-soft px-1.5 py-0.5 text-[10.5px] text-primary">Palette</span>
+                    <strong class="font-mono text-[12px] text-ink">{{ tool.name }}</strong>
+                    <span v-if="tool.nodeType" class="rounded-4px bg-primary-soft px-1.5 py-0.5 text-[12px] text-primary">Palette</span>
                   </div>
-                  <p class="mb-0 mt-1 text-[11.5px] leading-1.55 text-muted">{{ tool.description }}</p>
+                  <p class="mb-0 mt-1 text-[12px] leading-1.55 text-muted">{{ tool.description }}</p>
                 </div>
-                <p v-if="!detailEntry.tools.length" class="text-[11.5px] text-subtle">该条目不提供工具或节点。</p>
+                <p v-if="!detailEntry.tools.length" class="text-[12px] text-subtle">该条目不提供工具或节点。</p>
               </div>
             </section>
             <section class="mt-4">
@@ -363,11 +354,11 @@
                   :key="event.id"
                   class="grid gap-1 border-b border-line px-3 py-2.5 last:border-b-0 sm:grid-cols-[82px_1fr_110px]"
                 >
-                  <strong class="text-[11.5px] text-ink">{{ event.action }}</strong>
-                  <span class="text-[10.5px] text-muted">{{ formatAudit(event.metadata) }}</span>
-                  <span class="text-[10.5px] text-subtle">{{ formatDateTime(event.at) }}</span>
+                  <strong class="text-[12px] text-ink">{{ event.action }}</strong>
+                  <span class="text-[12px] text-muted">{{ formatAudit(event.metadata) }}</span>
+                  <span class="text-[12px] text-subtle">{{ formatDateTime(event.at) }}</span>
                 </div>
-                <p v-if="!detailAudit.length" class="m-0 px-3 py-4 text-[11.5px] text-subtle">尚无安装审计事件。</p>
+                <p v-if="!detailAudit.length" class="m-0 px-3 py-4 text-[12px] text-subtle">尚无安装审计事件。</p>
               </div>
             </section>
           </div>
@@ -381,14 +372,14 @@
               >
                 <div class="flex flex-wrap items-center justify-between gap-2">
                   <div class="flex items-center gap-2">
-                    <strong class="font-mono text-10px text-ink">v{{ version.version }}</strong>
-                    <span v-if="version.deprecated" class="rounded-4px bg-warning-soft px-1.5 py-0.5 text-[10.5px] text-warning">已弃用</span>
-                    <span v-if="version.version === detailEntry.latestVersion" class="rounded-4px bg-primary-soft px-1.5 py-0.5 text-[10.5px] text-primary">最新</span>
+                    <strong class="font-mono text-[12px] text-ink">v{{ version.version }}</strong>
+                    <span v-if="version.deprecated" class="rounded-4px bg-warning-soft px-1.5 py-0.5 text-[12px] text-warning">已弃用</span>
+                    <span v-if="version.version === detailEntry.latestVersion" class="rounded-4px bg-primary-soft px-1.5 py-0.5 text-[12px] text-primary">最新</span>
                   </div>
-                  <span class="text-[10.5px] text-subtle">{{ formatDate(version.releasedAt) }} · {{ version.size }}</span>
+                  <span class="text-[12px] text-subtle">{{ formatDate(version.releasedAt) }} · {{ version.size }}</span>
                 </div>
-                <p class="mb-0 mt-2 text-[11.5px] leading-1.6 text-muted">{{ version.changelog }}</p>
-                <div class="mt-2 flex flex-wrap gap-2 text-[10.5px] text-subtle">
+                <p class="mb-0 mt-2 text-[12px] leading-1.6 text-muted">{{ version.changelog }}</p>
+                <div class="mt-2 flex flex-wrap gap-2 text-[12px] text-subtle">
                   <span>{{ version.compatibility }}</span>
                   <span>{{ version.engine }}</span>
                   <span>schema {{ version.schemaVersion }}</span>
@@ -401,12 +392,12 @@
           <div v-else-if="detailTab === 'capabilities'" class="mt-4">
             <div class="grid gap-2 sm:grid-cols-2">
               <div class="rounded-7px border border-line p-3">
-                <span class="text-[10.5px] font-600 text-subtle">CAPABILITIES</span>
-                <p class="mb-0 mt-2 text-10px leading-1.7 text-muted">{{ detailEntry.capabilities.join(' · ') }}</p>
+                <span class="text-[12px] font-600 text-subtle">CAPABILITIES</span>
+                <p class="mb-0 mt-2 text-[12px] leading-1.7 text-muted">{{ detailEntry.capabilities.join(' · ') }}</p>
               </div>
               <div class="rounded-7px border border-line p-3">
-                <span class="text-[10.5px] font-600 text-subtle">TOOLS</span>
-                <p class="mb-0 mt-2 text-10px leading-1.7 text-muted">{{ detailEntry.tools.map((tool) => tool.name).join(' · ') || '无' }}</p>
+                <span class="text-[12px] font-600 text-subtle">TOOLS</span>
+                <p class="mb-0 mt-2 text-[12px] leading-1.7 text-muted">{{ detailEntry.tools.map((tool) => tool.name).join(' · ') || '无' }}</p>
               </div>
             </div>
           </div>
@@ -420,14 +411,14 @@
                 :class="{ 'border-warning/30 bg-warning-soft': permission.highRisk }"
               >
                 <div class="flex items-center justify-between gap-2">
-                  <strong class="text-10px text-ink">{{ permission.label }}</strong>
-                  <span v-if="permission.highRisk" class="rounded-4px bg-warning-soft px-1.5 py-0.5 text-[10.5px] text-warning">高风险</span>
+                  <strong class="text-[12px] text-ink">{{ permission.label }}</strong>
+                  <span v-if="permission.highRisk" class="rounded-4px bg-warning-soft px-1.5 py-0.5 text-[12px] text-warning">高风险</span>
                 </div>
                 <div class="mt-2 flex flex-wrap gap-1">
                   <span
                     v-for="value in permission.values"
                     :key="value"
-                    class="rounded-4px bg-surface px-1.5 py-1 font-mono text-[10.5px] text-muted"
+                    class="rounded-4px bg-surface px-1.5 py-1 font-mono text-[12px] text-muted"
                   >
                     {{ value }}
                   </span>
@@ -444,9 +435,9 @@
                 class="rounded-7px border border-line p-3"
               >
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                  <strong class="text-10px text-ink">{{ dependency.name }}</strong>
+                  <strong class="text-[12px] text-ink">{{ dependency.name }}</strong>
                   <span
-                    class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[10.5px] text-subtle"
+                    class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[12px] text-subtle"
                   >
                     {{ dependency.version }}
                   </span>
@@ -454,7 +445,7 @@
               </div>
               <p
                 v-if="!(latestVersion(detailEntry)?.dependencies ?? []).length"
-                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[11.5px] text-subtle"
+                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[12px] text-subtle"
               >
                 该版本没有额外插件依赖。
               </p>
@@ -462,7 +453,7 @@
           </div>
         </div>
         <footer class="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-[var(--surface-2)] px-5 py-3">
-          <span class="text-[10.5px] text-subtle">
+          <span class="text-[12px] text-subtle">
             {{ installFor(detailEntry?.id ?? '') ? `已安装 v${installFor(detailEntry?.id ?? '')?.version}` : '尚未安装' }}
           </span>
           <div class="flex flex-wrap gap-2">
@@ -496,7 +487,7 @@
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">安装计划 · {{ planEntry?.name }}</DialogTitle>
-            <DialogDescription class="mt-1 block text-[11.5px] text-subtle">
+            <DialogDescription class="mt-1 block text-[12px] text-subtle">
               {{ activePlan?.action }} · {{ activePlan?.fromVersion ?? '未安装' }} → v{{ activePlan?.toVersion }}
             </DialogDescription>
           </div>
@@ -508,12 +499,12 @@
             <button
               v-for="(step, index) in planSteps"
               :key="step"
-              class="flex min-w-0 items-center gap-1.5 rounded-5px px-1 py-1.5 text-left text-[10.5px]"
+              class="flex min-w-0 items-center gap-1.5 rounded-5px px-1 py-1.5 text-left text-[12px]"
               :class="planStep === index ? 'bg-surface text-ink shadow-sm' : 'text-subtle'"
               @click="planStep = index"
             >
               <span
-                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10.5px] font-650"
+                class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[12px] font-650"
                 :class="planStep >= index ? 'bg-primary text-white' : 'bg-[var(--surface-3)] text-subtle'"
               >
                 {{ index + 1 }}
@@ -528,13 +519,13 @@
           class="flex flex-1 flex-col items-center justify-center gap-3 px-5 py-8 text-muted"
         >
           <LoaderCircle :size="24" class="animate-spin text-primary" />
-          <strong class="text-11px text-ink">正在计算插件计划</strong>
-          <span class="text-[11.5px] text-subtle">正在读取依赖、权限、凭据与受影响工作流。</span>
+          <strong class="text-[12px] text-ink">正在计算插件计划</strong>
+          <span class="text-[12px] text-subtle">正在读取依赖、权限、凭据与受影响工作流。</span>
         </div>
 
         <div
           v-else-if="planEntry && !activePlan"
-          class="m-5 rounded-7px border border-danger/30 bg-danger-soft p-4 text-[11.5px] text-danger"
+          class="m-5 rounded-7px border border-danger/30 bg-danger-soft p-4 text-[12px] text-danger"
         >
           {{ pluginError || '插件计划没有返回有效结果，请关闭后重试。' }}
         </div>
@@ -544,18 +535,18 @@
             <h3 class="m-0 text-14px font-700 text-ink">版本与影响</h3>
             <div class="mt-3 grid grid-cols-2 gap-2">
               <div class="rounded-7px border border-line bg-[var(--surface-2)] p-3">
-                <span class="text-[10.5px] text-subtle">动作</span>
+                <span class="text-[12px] text-subtle">动作</span>
                 <strong class="mt-1 block text-12px text-ink">{{ actionLabel(activePlan.action) }}</strong>
               </div>
               <div class="rounded-7px border border-line bg-[var(--surface-2)] p-3">
-                <span class="text-[10.5px] text-subtle">版本变化</span>
-                <strong class="mt-1 block font-mono text-10px text-ink">{{ activePlan.fromVersion ?? 'none' }} → {{ activePlan.toVersion }}</strong>
+                <span class="text-[12px] text-subtle">版本变化</span>
+                <strong class="mt-1 block font-mono text-[12px] text-ink">{{ activePlan.fromVersion ?? 'none' }} → {{ activePlan.toVersion }}</strong>
               </div>
             </div>
             <div class="mt-3 rounded-7px border border-line p-3">
               <div class="flex items-center justify-between gap-2">
-                <strong class="text-10px text-ink">受影响工作流</strong>
-                <span class="text-[11.5px] text-subtle">{{ activePlan.affectedWorkflowIds.length }} 个</span>
+                <strong class="text-[12px] text-ink">受影响工作流</strong>
+                <span class="text-[12px] text-subtle">{{ activePlan.affectedWorkflowIds.length }} 个</span>
               </div>
               <div class="mt-2 space-y-1">
                 <div
@@ -563,17 +554,17 @@
                   :key="workflowId"
                   class="flex items-center justify-between gap-2 rounded-5px bg-[var(--surface-2)] px-2 py-1.5"
                 >
-                  <span class="text-[11.5px] text-muted">{{ workflowName(workflowId) }}</span>
-                  <span class="font-mono text-[10.5px] text-subtle">{{ workflowId }}</span>
+                  <span class="text-[12px] text-muted">{{ workflowName(workflowId) }}</span>
+                  <span class="font-mono text-[12px] text-subtle">{{ workflowId }}</span>
                 </div>
-                <p v-if="!activePlan.affectedWorkflowIds.length" class="m-0 text-[11.5px] text-subtle">没有已发布工作流锁定该版本。</p>
+                <p v-if="!activePlan.affectedWorkflowIds.length" class="m-0 text-[12px] text-subtle">没有已发布工作流锁定该版本。</p>
               </div>
             </div>
           </section>
 
           <section v-else-if="planStep === 1">
             <h3 class="m-0 text-14px font-700 text-ink">依赖解析</h3>
-            <p class="mb-0 mt-1 text-[11.5px] text-subtle">冲突链会直接阻断计划，不允许静默降级。</p>
+            <p class="mb-0 mt-1 text-[12px] text-subtle">冲突链会直接阻断计划，不允许静默降级。</p>
             <div class="mt-3 space-y-2">
               <div
                 v-for="dependency in activePlan.dependencies"
@@ -581,19 +572,19 @@
                 class="rounded-7px border border-line p-3"
               >
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                  <strong class="text-10px text-ink">{{ dependency.name }}</strong>
+                  <strong class="text-[12px] text-ink">{{ dependency.name }}</strong>
                   <span
-                    class="rounded-4px px-1.5 py-0.5 text-[10.5px]"
+                    class="rounded-4px px-1.5 py-0.5 text-[12px]"
                     :class="dependency.state === 'available' ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'"
                   >
                     {{ dependency.state }} · {{ dependency.version }}
                   </span>
                 </div>
-                <p class="mb-0 mt-1 text-[11.5px] text-muted">{{ dependency.chain ?? '无需额外操作。' }}</p>
+                <p class="mb-0 mt-1 text-[12px] text-muted">{{ dependency.chain ?? '无需额外操作。' }}</p>
               </div>
               <p
                 v-if="!activePlan.dependencies.length"
-                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[11.5px] text-subtle"
+                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[12px] text-subtle"
               >
                 该版本没有插件依赖。
               </p>
@@ -602,7 +593,7 @@
 
           <section v-else-if="planStep === 2">
             <h3 class="m-0 text-14px font-700 text-ink">权限清单</h3>
-            <p class="mb-0 mt-1 text-[11.5px] text-subtle">权限按安装快照固定，高风险权限必须显式确认。</p>
+            <p class="mb-0 mt-1 text-[12px] text-subtle">权限按安装快照固定，高风险权限必须显式确认。</p>
             <div class="mt-3 space-y-2">
               <div
                 v-for="permission in activePlan.permissions"
@@ -611,14 +602,14 @@
                 :class="permission.highRisk ? 'border-warning/30 bg-warning-soft' : 'border-line'"
               >
                 <div class="flex items-center justify-between gap-2">
-                  <strong class="text-10px text-ink">{{ permission.label }}</strong>
-                  <span v-if="permission.highRisk" class="rounded-4px bg-white/65 px-1.5 py-0.5 text-[10.5px] text-warning">高风险</span>
+                  <strong class="text-[12px] text-ink">{{ permission.label }}</strong>
+                  <span v-if="permission.highRisk" class="rounded-4px bg-white/65 px-1.5 py-0.5 text-[12px] text-warning">高风险</span>
                 </div>
                 <div class="mt-2 flex flex-wrap gap-1">
                   <span
                     v-for="value in permission.values"
                     :key="value"
-                    class="rounded-4px bg-surface px-1.5 py-1 font-mono text-[10.5px] text-muted"
+                    class="rounded-4px bg-surface px-1.5 py-1 font-mono text-[12px] text-muted"
                   >
                     {{ value }}
                   </span>
@@ -629,7 +620,7 @@
 
           <section v-else-if="planStep === 3">
             <h3 class="m-0 text-14px font-700 text-ink">凭据检查</h3>
-            <p class="mb-0 mt-1 text-[11.5px] text-subtle">前端只显示 secret_ref 掩码；缺失凭据会阻止插件启用。</p>
+            <p class="mb-0 mt-1 text-[12px] text-subtle">前端只显示 secret_ref 掩码；缺失凭据会阻止插件启用。</p>
             <div class="mt-3 space-y-2">
               <div
                 v-for="credential in activePlan.credentials"
@@ -637,21 +628,21 @@
                 class="rounded-7px border border-line p-3"
               >
                 <div class="flex flex-wrap items-center justify-between gap-2">
-                  <strong class="font-mono text-[11.5px] text-ink">{{ credential.key }}</strong>
+                  <strong class="font-mono text-[12px] text-ink">{{ credential.key }}</strong>
                   <span
-                    class="rounded-4px px-1.5 py-0.5 text-[10.5px]"
+                    class="rounded-4px px-1.5 py-0.5 text-[12px]"
                     :class="credential.state === 'missing' ? 'bg-warning-soft text-warning' : 'bg-success-soft text-success'"
                   >
                     {{ credential.state }}
                   </span>
                 </div>
-                <p class="mb-0 mt-1 font-mono text-[10.5px] text-subtle">
+                <p class="mb-0 mt-1 font-mono text-[12px] text-subtle">
                   {{ credential.masked ?? `secret_ref://••••••••${credential.key.slice(-4)}` }}
                 </p>
               </div>
               <div
                 v-if="!activePlan.credentials.length"
-                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[11.5px] text-subtle"
+                class="rounded-7px border border-line bg-[var(--surface-2)] p-4 text-[12px] text-subtle"
               >
                 该插件不需要额外凭据。
               </div>
@@ -662,20 +653,20 @@
             <h3 class="m-0 text-14px font-700 text-ink">确认安装</h3>
             <div class="mt-3 grid gap-2 sm:grid-cols-3">
               <div class="rounded-7px border border-line p-3">
-                <span class="text-[10.5px] text-subtle">Checksum</span>
-                <strong class="mt-1 block text-10px" :class="activePlan.verification.checksum === 'ok' ? 'text-success' : 'text-danger'">
+                <span class="text-[12px] text-subtle">Checksum</span>
+                <strong class="mt-1 block text-[12px]" :class="activePlan.verification.checksum === 'ok' ? 'text-success' : 'text-danger'">
                   {{ activePlan.verification.checksum }}
                 </strong>
               </div>
               <div class="rounded-7px border border-line p-3">
-                <span class="text-[10.5px] text-subtle">签名</span>
-                <strong class="mt-1 block text-10px" :class="activePlan.verification.signature === 'verified' ? 'text-success' : 'text-danger'">
+                <span class="text-[12px] text-subtle">签名</span>
+                <strong class="mt-1 block text-[12px]" :class="activePlan.verification.signature === 'verified' ? 'text-success' : 'text-danger'">
                   {{ activePlan.verification.signature }}
                 </strong>
               </div>
               <div class="rounded-7px border border-line p-3">
-                <span class="text-[10.5px] text-subtle">许可证</span>
-                <strong class="mt-1 block text-10px" :class="activePlan.verification.licenseBlocked ? 'text-danger' : 'text-success'">
+                <span class="text-[12px] text-subtle">许可证</span>
+                <strong class="mt-1 block text-[12px]" :class="activePlan.verification.licenseBlocked ? 'text-danger' : 'text-success'">
                   {{ activePlan.verification.license }}
                 </strong>
               </div>
@@ -684,23 +675,23 @@
             <div v-if="activePlan.blockers.length" class="mt-3 rounded-7px border border-danger/30 bg-danger-soft p-3">
               <div class="flex items-center gap-2 text-danger">
                 <Ban :size="14" />
-                <strong class="text-10px">计划被阻断</strong>
+                <strong class="text-[12px]">计划被阻断</strong>
               </div>
-              <ul class="mb-0 mt-2 list-disc pl-5 text-[11.5px] leading-1.65 text-muted">
+              <ul class="mb-0 mt-2 list-disc pl-5 text-[12px] leading-1.65 text-muted">
                 <li v-for="blocker in activePlan.blockers" :key="blocker">{{ blocker }}</li>
               </ul>
             </div>
 
             <div v-if="activePlan.warnings.length" class="mt-3 rounded-7px border border-warning/30 bg-warning-soft p-3">
-              <strong class="text-10px text-warning">安装前注意</strong>
-              <ul class="mb-0 mt-2 list-disc pl-5 text-[11.5px] leading-1.65 text-muted">
+              <strong class="text-[12px] text-warning">安装前注意</strong>
+              <ul class="mb-0 mt-2 list-disc pl-5 text-[12px] leading-1.65 text-muted">
                 <li v-for="warning in activePlan.warnings" :key="warning">{{ warning }}</li>
               </ul>
             </div>
 
             <label
               v-if="activePlan.highRisk"
-              class="mt-3 flex items-start gap-2 rounded-7px border border-warning/30 bg-warning-soft p-3 text-[11.5px] text-muted"
+              class="mt-3 flex items-start gap-2 rounded-7px border border-warning/30 bg-warning-soft p-3 text-[12px] text-muted"
             >
               <input v-model="highRiskConfirmed" type="checkbox" />
               <span>我已审查网络、文件、代码、MCP 与资源权限，并确认继续安装。</span>
@@ -708,21 +699,21 @@
 
             <div class="mt-3 rounded-7px border border-line bg-[var(--surface-2)] p-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
-                <span class="text-[10.5px] text-subtle">planId</span>
-                <span class="font-mono text-[10.5px] text-ink">{{ activePlan.planId }}</span>
+                <span class="text-[12px] text-subtle">planId</span>
+                <span class="font-mono text-[12px] text-ink">{{ activePlan.planId }}</span>
               </div>
               <div class="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                <span class="text-[10.5px] text-subtle">幂等键</span>
-                <span class="font-mono text-[10.5px] text-ink">{{ activePlan.idempotencyKey }}</span>
+                <span class="text-[12px] text-subtle">幂等键</span>
+                <span class="font-mono text-[12px] text-ink">{{ activePlan.idempotencyKey }}</span>
               </div>
               <div class="mt-1.5 flex flex-wrap items-center justify-between gap-2">
-                <span class="text-[10.5px] text-subtle">计划过期</span>
-                <span class="text-[10.5px]" :class="planExpired ? 'text-danger' : 'text-muted'">{{ formatDateTime(activePlan.expiresAt) }}</span>
+                <span class="text-[12px] text-subtle">计划过期</span>
+                <span class="text-[12px]" :class="planExpired ? 'text-danger' : 'text-muted'">{{ formatDateTime(activePlan.expiresAt) }}</span>
               </div>
             </div>
           </section>
 
-          <div v-if="pluginError" class="mt-4 rounded-7px border border-danger/30 bg-danger-soft p-3 text-[11.5px] text-danger">
+          <div v-if="pluginError" class="mt-4 rounded-7px border border-danger/30 bg-danger-soft p-3 text-[12px] text-danger">
             {{ pluginError }}
           </div>
         </div>
@@ -734,7 +725,7 @@
             <button v-if="planExpired" class="btn" :disabled="planLoading" @click="refreshPlan">重新计算</button>
           </div>
           <div class="flex items-center gap-2">
-            <span v-if="!activePlan?.canInstall" class="text-[10.5px] text-danger">缺少有效 checksum、签名、许可证或依赖</span>
+            <span v-if="!activePlan?.canInstall" class="text-[12px] text-danger">缺少有效 checksum、签名、许可证或依赖</span>
             <button
               class="btn btn-primary"
               :disabled="planLoading || !activePlan?.planId || !activePlan.canInstall || planExpired || installing || (activePlan.highRisk && !highRiskConfirmed)"
@@ -757,7 +748,7 @@
         <div class="flex items-start justify-between gap-3">
           <div>
             <DialogTitle class="text-15px font-700 text-ink">配置插件凭据</DialogTitle>
-            <DialogDescription class="mt-1 block text-[11.5px] text-subtle">只接受 secret_ref；明文不会发送到前端或日志。</DialogDescription>
+            <DialogDescription class="mt-1 block text-[12px] text-subtle">只接受 secret_ref；明文不会发送到前端或日志。</DialogDescription>
           </div>
           <DialogClose as-child><button class="icon-btn" title="关闭凭据配置"><X :size="15" /></button></DialogClose>
         </div>
@@ -769,7 +760,7 @@
             class="mt-2 font-mono"
             placeholder="secret_ref://workspace/key"
           />
-          <p class="mb-0 mt-2 text-[10.5px] leading-1.55 text-subtle">
+          <p class="mb-0 mt-2 text-[12px] leading-1.55 text-subtle">
             配置后凭据仍只显示掩码；禁用或卸载不会删除 secret_ref 和历史权限。
           </p>
         </div>
@@ -788,7 +779,7 @@
         <header class="flex min-h-64px items-center justify-between border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">市场设置</DialogTitle>
-            <DialogDescription class="mt-1 block text-[11.5px] text-subtle">目录、签名策略和网络 allowlist</DialogDescription>
+            <DialogDescription class="mt-1 block text-[12px] text-subtle">目录、签名策略和网络 allowlist</DialogDescription>
           </div>
           <DialogClose as-child><button class="icon-btn"><X :size="15" /></button></DialogClose>
         </header>
@@ -799,12 +790,12 @@
           </div>
           <div class="mt-4 grid grid-cols-2 gap-2">
             <div class="rounded-7px border border-line p-3">
-              <span class="text-[10.5px] text-subtle">同步状态</span>
-              <strong class="mt-1 block text-10px" :class="syncStatus?.state === 'ready' ? 'text-success' : 'text-warning'">{{ syncStatus?.state ?? 'unavailable' }}</strong>
+              <span class="text-[12px] text-subtle">同步状态</span>
+              <strong class="mt-1 block text-[12px]" :class="syncStatus?.state === 'ready' ? 'text-success' : 'text-warning'">{{ syncStatus?.state ?? 'unavailable' }}</strong>
             </div>
             <div class="rounded-7px border border-line p-3">
-              <span class="text-[10.5px] text-subtle">默认策略</span>
-              <strong class="mt-1 block text-10px text-ink">{{ syncStatus?.entries ?? 0 }} 条目 · {{ syncStatus?.versions ?? 0 }} 版本</strong>
+              <span class="text-[12px] text-subtle">默认策略</span>
+              <strong class="mt-1 block text-[12px] text-ink">{{ syncStatus?.entries ?? 0 }} 条目 · {{ syncStatus?.versions ?? 0 }} 版本</strong>
             </div>
           </div>
           <div class="mt-4 field">
@@ -863,7 +854,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import AppShell from '@/components/AppShell.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import {
   configurePluginCredentials,

@@ -118,7 +118,7 @@ const defaultEdgeOptions = computed(() => {
   return {
     type: 'default',
     style: registration.style,
-    labelStyle: { fill: '#7A8292', fontSize: 11.5, fontFamily: 'var(--font-mono)' },
+    labelStyle: { fill: '#7A8292', fontSize: 12, fontFamily: 'var(--font-mono)' },
     labelBgStyle: { fill: '#FFFFFF', stroke: '#E4E7EC' },
     labelBgPadding: [5, 3] as [number, number],
     labelBgBorderRadius: 4,
@@ -183,7 +183,7 @@ function buildEdges(): FlowEdge[] {
       label: edge.label,
       animated: registration.animated,
       style: registration.style,
-      labelStyle: { fill: '#6E7687', fontSize: 11.5, fontFamily: 'var(--font-mono)' },
+      labelStyle: { fill: '#6E7687', fontSize: 12, fontFamily: 'var(--font-mono)' },
       labelBgStyle: { fill: '#FBFAFF', stroke: '#DAD5FF' },
       labelBgPadding: [5, 3],
       labelBgBorderRadius: 4,
@@ -361,7 +361,7 @@ defineExpose({
   width: 38px;
   color: var(--ink-2);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -375,7 +375,7 @@ defineExpose({
   border-radius: 6px;
   background: var(--ink);
   color: #fff;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .canvas-help {
@@ -385,7 +385,7 @@ defineExpose({
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.88);
   color: var(--ink-3);
-  font-size: 11.5px;
+  font-size: 12px;
   backdrop-filter: blur(8px);
 }
 

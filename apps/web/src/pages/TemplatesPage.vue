@@ -1,45 +1,38 @@
 <template>
-  <AppShell>
-    <div class="min-h-screen">
-      <header class="flex min-h-62px items-center justify-between gap-4 border-b border-line bg-white/96 px-7">
-        <div class="flex min-w-0 items-center gap-2 text-10px text-subtle">
-          <span>Acme 团队</span>
-          <ChevronRight :size="13" />
-          <strong class="truncate text-ink">模板市场</strong>
-        </div>
-        <div class="flex min-w-0 flex-1 items-center justify-end gap-2 sm:max-w-130">
-          <label class="flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px border border-line bg-surface px-3">
+  <PageHeaderActions>
+    <div class="flex min-w-0 items-center justify-end gap-2 sm:max-w-130">
+          <label class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
             <Search :size="14" class="shrink-0 text-subtle" />
             <input
               v-model="searchInput"
-              class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-10px shadow-none outline-none"
+              class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none outline-none"
               placeholder="搜索模板、节点组合、作者..."
             />
-            <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[10.5px] text-subtle">⌘K</kbd>
+            <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[12px] text-subtle">⌘K</kbd>
           </label>
           <button class="icon-btn" title="刷新目录" @click="reloadCatalog"><RefreshCw :size="15" /></button>
-        </div>
-      </header>
+    </div>
+  </PageHeaderActions>
 
-      <main class="mx-auto max-w-1380px px-7 pt-7 pb-16">
+  <main class="px-7 pt-7 pb-16 max-md:px-4">
         <section class="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 class="m-0 text-27px font-730 leading-tight text-ink">模板市场</h1>
-            <p class="mb-0 mt-2 text-10px leading-1.6 text-subtle">
+            <p class="mb-0 mt-2 text-[12px] leading-1.6 text-subtle">
               {{ templateEntries.length }} 个可克隆模板 · 依赖状态由服务端实时校验 · 克隆前始终展示计划
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <label class="management-select flex items-center">
+            <label class="management-select control-shell flex items-center">
               <ArrowUpDown :size="12" />
-              <select v-model="sortMode" class="h-8 border-0 bg-transparent py-0 pl-1.5 text-[11.5px] shadow-none">
+              <select v-model="sortMode" class="h-8 border-0 bg-transparent py-0 pl-1.5 text-[12px] shadow-none">
                 <option value="recommended">最多克隆</option>
                 <option value="updated">最近更新</option>
                 <option value="name">名称</option>
                 <option value="nodes">节点数</option>
               </select>
             </label>
-            <span class="rounded-6px border border-line bg-surface px-2.5 py-1.5 font-mono text-[10.5px] text-subtle">
+            <span class="rounded-6px border border-line bg-surface px-2.5 py-1.5 font-mono text-[12px] text-subtle">
               catalog: {{ loadingCatalog ? 'loading' : `${templateEntries.length} templates` }}
             </span>
           </div>
@@ -49,7 +42,7 @@
           <button
             v-for="category in templateCategories"
             :key="category"
-            class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[11.5px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
+            class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
             :class="{ '!border-primary !bg-primary !text-white': activeCategory === category }"
             @click="activeCategory = category"
           >
@@ -62,14 +55,14 @@
           class="mb-6 grid min-h-196px overflow-hidden rounded-8px border border-[#30265f] bg-[#211846] text-white shadow-md lg:grid-cols-[1.05fr_0.95fr]"
         >
           <div class="flex flex-col justify-center p-6">
-            <span class="mb-auto inline-flex w-fit items-center gap-1.5 rounded-5px bg-white/12 px-2 py-1 text-[10.5px] text-white/85">
+            <span class="mb-auto inline-flex w-fit items-center gap-1.5 rounded-5px bg-white/12 px-2 py-1 text-[12px] text-white/85">
               <Sparkles :size="11" /> 官方精选 · 本周
             </span>
             <div class="mt-5">
               <h2 class="m-0 max-w-480px text-24px font-750 leading-tight">{{ featuredTemplate.name }}</h2>
-              <p class="mb-0 mt-2 max-w-540px text-10px leading-1.65 text-white/72">{{ featuredTemplate.description }}</p>
+              <p class="mb-0 mt-2 max-w-540px text-[12px] leading-1.65 text-white/72">{{ featuredTemplate.description }}</p>
             </div>
-            <div class="mt-4 flex flex-wrap items-center gap-3 text-[11.5px] text-white/70">
+            <div class="mt-4 flex flex-wrap items-center gap-3 text-[12px] text-white/70">
               <span><Workflow :size="12" class="inline" /> {{ featuredTemplate.definition.nodes.length }} 节点</span>
               <span><Download :size="12" class="inline" /> {{ compactNumber(featuredTemplate.installs) }}</span>
               <span><PackageCheck :size="12" class="inline" /> v{{ featuredTemplate.latestVersion }}</span>
@@ -92,9 +85,9 @@
         <section class="mb-3 flex items-end justify-between gap-3">
           <div>
             <h2 class="m-0 text-15px font-700 text-ink">模板目录</h2>
-            <p class="mb-0 mt-1 text-[11.5px] text-subtle">{{ filteredTemplates.length }} 个结果 · 依赖和版本在克隆前校验</p>
+            <p class="mb-0 mt-1 text-[12px] text-subtle">{{ filteredTemplates.length }} 个结果 · 依赖和版本在克隆前校验</p>
           </div>
-          <span class="text-[10.5px] text-subtle">点击卡片查看依赖清单</span>
+          <span class="text-[12px] text-subtle">点击卡片查看依赖清单</span>
         </section>
 
         <div
@@ -103,7 +96,7 @@
         >
           <SearchX :size="23" />
           <strong class="text-12px text-ink">没有匹配模板</strong>
-            <span class="text-[11.5px]">{{ loadingCatalog ? '正在加载模板目录…' : templateError || '试试清除关键词或切换其他类别。' }}</span>
+            <span class="text-[12px]">{{ loadingCatalog ? '正在加载模板目录…' : templateError || '试试清除关键词或切换其他类别。' }}</span>
           <button class="btn" @click="clearFilters">清除筛选</button>
         </div>
 
@@ -116,11 +109,11 @@
           >
             <div class="relative h-26 overflow-hidden border-b border-line bg-[var(--surface-2)]">
               <WorkflowThumbnail :graph="thumbnailGraph(template)" />
-              <span class="absolute left-3 top-3 rounded-5px border border-line bg-white/92 px-2 py-1 text-[10.5px] font-600 text-muted">
+              <span class="absolute left-3 top-3 rounded-5px border border-line bg-white/92 px-2 py-1 text-[12px] font-600 text-muted">
                 {{ template.category }}
               </span>
               <span
-                class="absolute right-3 top-3 rounded-5px px-2 py-1 text-[10.5px] font-600"
+                class="absolute right-3 top-3 rounded-5px px-2 py-1 text-[12px] font-600"
                 :class="dependencyBadge(template).className"
               >
                 {{ dependencyBadge(template).label }}
@@ -130,7 +123,7 @@
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
                   <h3 class="m-0 truncate text-13px font-700 text-ink">{{ template.name }}</h3>
-                  <p class="mb-0 mt-1 line-clamp-2 min-h-30px text-[11.5px] leading-1.65 text-muted">{{ template.description }}</p>
+                  <p class="mb-0 mt-1 line-clamp-2 min-h-30px text-[12px] leading-1.65 text-muted">{{ template.description }}</p>
                 </div>
                 <ArrowUpRight :size="14" class="shrink-0 text-subtle" />
               </div>
@@ -138,12 +131,12 @@
                 <span
                   v-for="tag in template.tags"
                   :key="tag"
-                  class="rounded-4px border border-line bg-[var(--surface-2)] px-1.5 py-1 text-[10.5px] text-subtle"
+                  class="rounded-4px border border-line bg-[var(--surface-2)] px-1.5 py-1 text-[12px] text-subtle"
                 >
                   {{ tag }}
                 </span>
               </div>
-              <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[10.5px] text-subtle">
+              <div class="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-[12px] text-subtle">
                 <span>v{{ template.latestVersion }} · {{ template.license }} · {{ template.author }}</span>
                 <span class="flex items-center gap-2">
                   <span><Download :size="10" class="inline" /> {{ compactNumber(template.installs) }}</span>
@@ -155,9 +148,7 @@
             </div>
           </article>
         </section>
-      </main>
-    </div>
-  </AppShell>
+  </main>
 
   <DialogRoot :open="Boolean(detailTemplate)" @update:open="(open) => !open && (detailTemplate = null)">
     <DialogPortal>
@@ -166,14 +157,14 @@
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div class="min-w-0">
             <DialogTitle class="truncate text-17px font-700 text-ink">{{ detailTemplate?.name }}</DialogTitle>
-            <DialogDescription class="mt-1 block text-[11.5px] text-subtle">
+            <DialogDescription class="mt-1 block text-[12px] text-subtle">
               v{{ detailTemplate?.latestVersion }} · {{ detailTemplate?.author }} · {{ detailTemplate?.license }}
             </DialogDescription>
           </div>
           <DialogClose as-child><button class="icon-btn" title="关闭模板详情"><X :size="16" /></button></DialogClose>
         </header>
         <div v-if="detailTemplate" class="flex-1 overflow-y-auto px-5 py-4">
-          <p class="m-0 text-10px leading-1.7 text-muted">{{ detailTemplate.description }}</p>
+          <p class="m-0 text-[12px] leading-1.7 text-muted">{{ detailTemplate.description }}</p>
           <div class="mt-4 flex flex-wrap gap-2">
             <button class="btn btn-primary" @click="openPreview(detailTemplate)">
               <Eye :size="14" /> 只读预览节点图
@@ -186,23 +177,23 @@
           <section class="mt-5 rounded-7px border border-line bg-[var(--surface-2)] p-4">
             <div class="flex items-center justify-between gap-2">
               <h3 class="m-0 text-12px font-650 text-ink">示例输入与输出</h3>
-              <span class="text-[10.5px] text-subtle">只读 · 不写运行历史</span>
+              <span class="text-[12px] text-subtle">只读 · 不写运行历史</span>
             </div>
             <div class="mt-3 grid gap-2 sm:grid-cols-2">
               <div class="rounded-6px border border-line bg-surface p-3">
-                <span class="text-[10.5px] font-600 text-subtle">INPUT</span>
-                <pre class="mb-0 mt-2 max-h-150px overflow-auto whitespace-pre-wrap font-mono text-[11.5px] leading-1.55 text-muted">{{ prettyJson(detailTemplate.examples.input) }}</pre>
+                <span class="text-[12px] font-600 text-subtle">INPUT</span>
+                <pre class="mb-0 mt-2 max-h-150px overflow-auto whitespace-pre-wrap font-mono text-[12px] leading-1.55 text-muted">{{ prettyJson(detailTemplate.examples.input) }}</pre>
               </div>
               <div class="rounded-6px border border-line bg-surface p-3">
-                <span class="text-[10.5px] font-600 text-subtle">EXPECTED OUTPUT</span>
-                <pre class="mb-0 mt-2 max-h-150px overflow-auto whitespace-pre-wrap font-mono text-[11.5px] leading-1.55 text-muted">{{ prettyJson(detailTemplate.examples.output) }}</pre>
+                <span class="text-[12px] font-600 text-subtle">EXPECTED OUTPUT</span>
+                <pre class="mb-0 mt-2 max-h-150px overflow-auto whitespace-pre-wrap font-mono text-[12px] leading-1.55 text-muted">{{ prettyJson(detailTemplate.examples.output) }}</pre>
               </div>
             </div>
           </section>
 
           <section class="mt-5">
             <h3 class="mb-2 text-12px font-650 text-ink">依赖清单</h3>
-            <div v-if="loadingDetail" class="flex items-center gap-2 rounded-7px border border-line p-3 text-[11.5px] text-subtle">
+            <div v-if="loadingDetail" class="flex items-center gap-2 rounded-7px border border-line p-3 text-[12px] text-subtle">
               <LoaderCircle :size="13" class="animate-spin" /> 正在计算服务端依赖计划
             </div>
             <div class="space-y-2">
@@ -220,10 +211,10 @@
                 </span>
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center justify-between gap-2">
-                    <strong class="text-10px text-ink">{{ dependency.label }}</strong>
-                    <span class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 text-[10.5px] text-subtle">{{ dependency.type }} · {{ dependency.required }}</span>
+                    <strong class="text-[12px] text-ink">{{ dependency.label }}</strong>
+                    <span class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 text-[12px] text-subtle">{{ dependency.type }} · {{ dependency.required }}</span>
                   </div>
-                  <p class="mb-0 mt-1 text-[11.5px] leading-1.55 text-muted">{{ dependency.detail }}</p>
+                  <p class="mb-0 mt-1 text-[12px] leading-1.55 text-muted">{{ dependency.detail }}</p>
                 </div>
               </div>
             </div>
@@ -237,9 +228,9 @@
                 :key="version.version"
                 class="grid gap-2 border-b border-line px-3 py-2.5 last:border-b-0 sm:grid-cols-[72px_110px_1fr]"
               >
-                <strong class="font-mono text-[11.5px] text-ink">v{{ version.version }}</strong>
-                <span class="text-[10.5px] text-subtle">{{ formatDate(version.createdAt) }}</span>
-                <span class="text-[11.5px] text-muted">{{ version.changelog || `schema ${version.schemaVersion}` }}</span>
+                <strong class="font-mono text-[12px] text-ink">v{{ version.version }}</strong>
+                <span class="text-[12px] text-subtle">{{ formatDate(version.createdAt) }}</span>
+                <span class="text-[12px] text-muted">{{ version.changelog || `schema ${version.schemaVersion}` }}</span>
               </div>
             </div>
           </section>
@@ -255,14 +246,14 @@
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">Clone plan</DialogTitle>
-            <DialogDescription class="mt-1 block text-[11.5px] text-subtle">
+            <DialogDescription class="mt-1 block text-[12px] text-subtle">
               {{ cloneTemplateEntry?.name }} · v{{ clonePlan?.version ?? cloneTemplateEntry?.latestVersion }}
             </DialogDescription>
           </div>
           <DialogClose as-child><button class="icon-btn" title="关闭克隆计划"><X :size="16" /></button></DialogClose>
         </header>
         <div v-if="cloneTemplateEntry" class="flex-1 overflow-y-auto px-5 py-4">
-          <div v-if="!clonePlan && !cloneError" class="flex items-center justify-center gap-2 py-12 text-[11.5px] text-subtle">
+          <div v-if="!clonePlan && !cloneError" class="flex items-center justify-center gap-2 py-12 text-[12px] text-subtle">
             <LoaderCircle :size="15" class="animate-spin" /> 正在计算 clone plan
           </div>
           <template v-if="clonePlan">
@@ -279,21 +270,21 @@
 
           <div class="mt-4 rounded-7px border border-line bg-[var(--surface-2)] p-3">
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <span class="text-[11.5px] font-600 text-ink">{{ clonePlan.missingDependencies.length }} 项需关注</span>
-              <span class="font-mono text-[10.5px] text-subtle">{{ clonePlan.planId }}</span>
+              <span class="text-[12px] font-600 text-ink">{{ clonePlan.missingDependencies.length }} 项需关注</span>
+              <span class="font-mono text-[12px] text-subtle">{{ clonePlan.planId }}</span>
             </div>
             <div class="mt-2 grid grid-cols-3 gap-2">
               <div class="rounded-6px border border-line bg-surface p-2">
-                <span class="text-[10.5px] text-subtle">自动安装插件</span>
-                <strong class="mt-1 block text-10px text-danger">否</strong>
+                <span class="text-[12px] text-subtle">自动安装插件</span>
+                <strong class="mt-1 block text-[12px] text-danger">否</strong>
               </div>
               <div class="rounded-6px border border-line bg-surface p-2">
-                <span class="text-[10.5px] text-subtle">写入真实密钥</span>
-                <strong class="mt-1 block text-10px text-danger">否</strong>
+                <span class="text-[12px] text-subtle">写入真实密钥</span>
+                <strong class="mt-1 block text-[12px] text-danger">否</strong>
               </div>
               <div class="rounded-6px border border-line bg-surface p-2">
-                <span class="text-[10.5px] text-subtle">覆盖现有工作流</span>
-                <strong class="mt-1 block text-10px text-danger">否</strong>
+                <span class="text-[12px] text-subtle">覆盖现有工作流</span>
+                <strong class="mt-1 block text-[12px] text-danger">否</strong>
               </div>
             </div>
           </div>
@@ -307,10 +298,10 @@
                 class="rounded-7px border border-warning/30 bg-warning-soft p-3"
               >
                 <div class="flex items-center justify-between gap-2">
-                  <strong class="text-10px text-ink">{{ dependency.label }}</strong>
-                  <span class="rounded-4px bg-white/70 px-1.5 py-0.5 text-[10.5px] text-warning">{{ dependency.state }}</span>
+                  <strong class="text-[12px] text-ink">{{ dependency.label }}</strong>
+                  <span class="rounded-4px bg-white/70 px-1.5 py-0.5 text-[12px] text-warning">{{ dependency.state }}</span>
                 </div>
-                <p class="mb-0 mt-1 text-[11.5px] leading-1.55 text-muted">{{ dependency.detail }}</p>
+                <p class="mb-0 mt-1 text-[12px] leading-1.55 text-muted">{{ dependency.detail }}</p>
               </div>
             </div>
           </section>
@@ -318,26 +309,26 @@
           <section v-if="clonePlan.blockingReasons.length" class="mt-4 rounded-7px border border-danger/30 bg-danger-soft p-3">
             <div class="flex items-center gap-2 text-danger">
               <Ban :size="14" />
-              <strong class="text-10px">克隆被阻断</strong>
+              <strong class="text-[12px]">克隆被阻断</strong>
             </div>
-            <ul class="mb-0 mt-2 list-disc pl-5 text-[11.5px] leading-1.65 text-muted">
+            <ul class="mb-0 mt-2 list-disc pl-5 text-[12px] leading-1.65 text-muted">
               <li v-for="reason in clonePlan.blockingReasons" :key="reason">{{ reason }}</li>
             </ul>
           </section>
 
           <section class="mt-4">
             <h3 class="mb-2 text-12px font-650 text-ink">克隆说明</h3>
-            <ul class="m-0 list-disc pl-5 text-[11.5px] leading-1.7 text-muted">
+            <ul class="m-0 list-disc pl-5 text-[12px] leading-1.7 text-muted">
               <li v-for="warning in clonePlan.warnings" :key="warning">{{ warning }}</li>
             </ul>
           </section>
 
           <div v-if="cloneResult" class="mt-4 rounded-7px border border-success/30 bg-success-soft p-3">
-            <strong class="text-10px text-success">已创建新草稿：{{ cloneResult.workflow.name }}</strong>
-            <p class="mb-0 mt-1 text-[11.5px] text-muted">forkOf {{ cloneResult.workflow.forkOf?.templateId }} · v{{ cloneResult.workflow.forkOf?.version }}</p>
+            <strong class="text-[12px] text-success">已创建新草稿：{{ cloneResult.workflow.name }}</strong>
+            <p class="mb-0 mt-1 text-[12px] text-muted">forkOf {{ cloneResult.workflow.forkOf?.templateId }} · v{{ cloneResult.workflow.forkOf?.version }}</p>
           </div>
           </template>
-          <div v-if="cloneError" class="rounded-7px border border-danger/30 bg-danger-soft p-3 text-[11.5px] text-danger">
+          <div v-if="cloneError" class="rounded-7px border border-danger/30 bg-danger-soft p-3 text-[12px] text-danger">
             {{ cloneError }}
           </div>
         </div>
@@ -390,7 +381,6 @@ import {
   ArrowUpRight,
   Ban,
   Check,
-  ChevronRight,
   Copy,
   Download,
   Eye,
@@ -412,7 +402,7 @@ import {
   DialogRoot,
   DialogTitle,
 } from 'reka-ui'
-import AppShell from '@/components/AppShell.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import WorkflowThumbnail from '@/components/WorkflowThumbnail.vue'
 import WorkflowDesigner from '@/workflow/WorkflowDesigner.vue'
 import {

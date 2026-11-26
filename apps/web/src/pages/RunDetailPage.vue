@@ -1,53 +1,44 @@
 <template>
-  <AppShell>
-    <div class="min-h-screen">
-      <header class="flex min-h-[62px] items-center justify-between gap-[18px] border-b border-line bg-white/96 px-7 max-md:pl-15 max-md:pr-4">
-        <div class="flex min-w-0 items-center gap-[7px] text-[10px] text-subtle">
-          <RouterLink to="/" class="hover:text-ink">工作流</RouterLink>
-          <ChevronRight :size="13" />
-          <RouterLink to="/runs" class="hover:text-ink">运行记录</RouterLink>
-          <ChevronRight :size="13" />
-          <strong class="truncate font-mono text-ink">{{ runId }}</strong>
-        </div>
-        <div class="flex items-center gap-2 max-md:flex-wrap">
-          <button class="btn btn-ghost" @click="router.push('/runs')">
-            <ArrowLeft :size="14" /> 返回列表
-          </button>
-          <button class="btn" @click="copyDiagnostics">
-            <Copy :size="14" /> 复制诊断包
-          </button>
-          <button class="btn" :disabled="actionPending" @click="replay">
-            <RotateCcw :size="14" /> 原样重跑
-          </button>
-        </div>
-      </header>
+  <PageHeaderActions>
+    <div class="flex items-center gap-2 max-md:flex-wrap">
+      <button class="btn btn-ghost" @click="router.push('/runs')">
+        <ArrowLeft :size="14" /> 返回列表
+      </button>
+      <button class="btn" @click="copyDiagnostics">
+        <Copy :size="14" /> 复制诊断包
+      </button>
+      <button class="btn" :disabled="actionPending" @click="replay">
+        <RotateCcw :size="14" /> 原样重跑
+      </button>
+    </div>
+  </PageHeaderActions>
 
-      <main class="mx-auto max-w-[1380px] px-7 pb-16 pt-[26px] max-md:pl-15 max-md:pr-4">
+  <main class="px-7 pb-16 pt-[26px] max-md:px-4">
         <section v-if="loading" class="surface flex min-h-[420px] flex-col items-center justify-center gap-3 p-10 text-center text-subtle">
           <LoaderCircle :size="28" class="animate-spin text-primary" />
           <h1 class="m-0 text-[20px]">正在读取运行详情</h1>
-          <p class="m-0 text-[10px]">正在加载 definition_snapshot、节点记录与已脱敏事件。</p>
+          <p class="m-0 text-[12px]">正在加载 definition_snapshot、节点记录与已脱敏事件。</p>
         </section>
 
         <section v-else-if="loadError" class="surface flex min-h-[420px] flex-col items-center justify-center gap-3 p-10 text-center">
           <CircleAlert :size="30" class="text-danger" />
           <h1 class="m-0 text-[20px]">运行详情加载失败</h1>
-          <p class="m-0 max-w-[520px] text-[10px] leading-[1.6] text-subtle">{{ loadError }}</p>
+          <p class="m-0 max-w-[520px] text-[12px] leading-[1.6] text-subtle">{{ loadError }}</p>
           <button class="btn btn-primary" @click="refreshRun()">重试</button>
         </section>
 
         <section v-else-if="!run" class="surface flex min-h-[420px] flex-col items-center justify-center gap-3 p-10 text-center">
           <FileQuestion :size="30" />
           <h1 class="m-0 text-[24px]">运行记录不存在</h1>
-          <p class="m-0 text-[10px] text-subtle"><span class="font-mono">{{ runId }}</span> 不存在或当前工作区无权访问。</p>
+          <p class="m-0 text-[12px] text-subtle"><span class="font-mono">{{ runId }}</span> 不存在或当前工作区无权访问。</p>
           <RouterLink to="/runs" class="btn btn-primary">返回运行记录</RouterLink>
         </section>
 
         <template v-else>
           <div v-if="actionError" class="mb-3 flex items-start justify-between gap-3 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-danger">
             <div class="min-w-0">
-              <strong class="text-[10px]">运行操作失败</strong>
-              <p class="mb-0 mt-1 text-[11.5px] leading-[1.55] text-[#9c4045]">{{ actionError }}</p>
+              <strong class="text-[12px]">运行操作失败</strong>
+              <p class="mb-0 mt-1 text-[12px] leading-[1.55] text-[#9c4045]">{{ actionError }}</p>
             </div>
             <button class="icon-btn !h-[30px] !w-[30px] shrink-0" title="关闭错误提示" @click="actionError = ''"><X :size="13" /></button>
           </div>
@@ -57,11 +48,11 @@
               <div class="flex flex-wrap items-center gap-2.5">
                 <h1 class="m-0 font-mono text-[27px] tracking-0">{{ shortRunId(run.id, 12) }}</h1>
                 <StatusBadge :status="run.status" />
-                <span class="rounded-[4px] px-1.5 py-0.5 text-[10.5px]" :class="run.runKind === 'production' ? 'bg-primary-soft text-primary' : 'bg-[var(--surface-3)] text-subtle'">
+                <span class="rounded-[4px] px-1.5 py-0.5 text-[12px]" :class="run.runKind === 'production' ? 'bg-primary-soft text-primary' : 'bg-[var(--surface-3)] text-subtle'">
                   {{ run.runKind === 'production' ? '正式运行' : '草稿预览' }}
                 </span>
               </div>
-              <p class="mb-0 mt-[7px] text-[10px] text-subtle">
+              <p class="mb-0 mt-[7px] text-[12px] text-subtle">
                 {{ run.workflowName }} · {{ triggerLabel(run.trigger) }} ·
                 <span class="font-mono">{{ run.versionId ?? 'definition_snapshot' }}</span>
               </p>
@@ -87,30 +78,30 @@
 
           <section class="surface mb-3 grid grid-cols-1 gap-px overflow-hidden bg-line sm:grid-cols-2 xl:grid-cols-4">
             <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-              <span class="text-[11.5px] text-subtle">总耗时</span>
-              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ durationLabel(run) }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">含节点重试</em></div>
+              <span class="text-[12px] text-subtle">总耗时</span>
+              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ durationLabel(run) }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">含节点重试</em></div>
             </div>
             <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-              <span class="text-[11.5px] text-subtle">节点完成</span>
-              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ completedNodes }}/{{ run.nodeRuns.length }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic" :class="failedNodes ? 'text-danger' : 'text-success'">{{ failedNodes }} 失败</em></div>
+              <span class="text-[12px] text-subtle">节点完成</span>
+              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ completedNodes }}/{{ run.nodeRuns.length }}</strong><em class="whitespace-nowrap text-[12px] not-italic" :class="failedNodes ? 'text-danger' : 'text-success'">{{ failedNodes }} 失败</em></div>
             </div>
             <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-              <span class="text-[11.5px] text-subtle">Token 用量</span>
-              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ run.metadata.tokens?.toLocaleString('zh-CN') ?? '—' }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">服务端 usage</em></div>
+              <span class="text-[12px] text-subtle">Token 用量</span>
+              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ run.metadata.tokens?.toLocaleString('zh-CN') ?? '—' }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">服务端 usage</em></div>
             </div>
             <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
-              <span class="text-[11.5px] text-subtle">估算费用</span>
-              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ run.metadata.cost ? `¥${run.metadata.cost.toFixed(2)}` : '—' }}</strong><em class="whitespace-nowrap text-[10.5px] not-italic text-success">来源可追溯</em></div>
+              <span class="text-[12px] text-subtle">估算费用</span>
+              <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ run.metadata.cost ? `¥${run.metadata.cost.toFixed(2)}` : '—' }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">来源可追溯</em></div>
             </div>
           </section>
 
           <div v-if="run.error" class="mb-3 flex items-start gap-2.5 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-danger">
             <CircleAlert :size="15" />
             <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-              <strong class="font-mono text-[11.5px]">{{ run.error.code }}</strong>
-              <span class="text-[10.5px] leading-[1.45] text-[#9c4045]">{{ run.error.message }}</span>
+              <strong class="font-mono text-[12px]">{{ run.error.code }}</strong>
+              <span class="text-[12px] leading-[1.45] text-[#9c4045]">{{ run.error.message }}</span>
             </div>
-            <button class="border-0 bg-transparent p-0 text-[10.5px] text-danger" @click="openNode(run.error.nodeId)">定位失败节点</button>
+            <button class="border-0 bg-transparent p-0 text-[12px] text-danger" @click="openNode(run.error.nodeId)">定位失败节点</button>
           </div>
 
           <div class="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-3 max-[1120px]:grid-cols-1">
@@ -119,7 +110,7 @@
                 <button
                   v-for="tab in mainTabs"
                   :key="tab.key"
-                  class="inline-flex h-[31px] shrink-0 items-center gap-[5px] rounded-[5px] border-0 px-2.5 text-[11.5px]"
+                  class="inline-flex h-[31px] shrink-0 items-center gap-[5px] rounded-[5px] border-0 px-2.5 text-[12px]"
                   :class="activeTab === tab.key ? 'bg-primary-soft text-primary' : 'bg-transparent text-muted hover:bg-[var(--surface-2)]'"
                   @click="activeTab = tab.key"
                 >
@@ -132,10 +123,10 @@
               <div v-if="activeTab === 'nodes'" class="p-3">
                 <div class="mb-2.5 flex min-h-[38px] items-center justify-between gap-2.5">
                   <div>
-                    <strong class="block text-[10px]">节点执行</strong>
-                    <span class="text-[10.5px] text-subtle">点击行查看输入、输出、attempt 与错误。</span>
+                    <strong class="block text-[12px]">节点执行</strong>
+                    <span class="text-[12px] text-subtle">点击行查看输入、输出、attempt 与错误。</span>
                   </div>
-                  <select v-model="nodeStatusFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[11.5px]" aria-label="按节点状态筛选">
+                  <select v-model="nodeStatusFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按节点状态筛选">
                     <option value="">全部状态</option>
                     <option value="succeeded">成功</option>
                     <option value="failed">失败</option>
@@ -146,7 +137,7 @@
                   </select>
                 </div>
                 <div class="overflow-auto rounded-[6px] border border-line">
-                  <table class="w-full min-w-[720px] border-collapse [&_th]:h-[35px] [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-line [&_th]:bg-[var(--surface-2)] [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[10.5px] [&_th]:font-500 [&_th]:text-subtle [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-[11.5px] [&_td]:text-muted [&_tbody_tr:last-child_td]:border-b-0">
+                  <table class="w-full min-w-[720px] border-collapse [&_th]:h-[35px] [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-line [&_th]:bg-[var(--surface-2)] [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-500 [&_th]:text-subtle [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-[12px] [&_td]:text-muted [&_tbody_tr:last-child_td]:border-b-0">
                     <thead>
                       <tr>
                         <th>节点</th>
@@ -168,7 +159,7 @@
                         <td>
                           <div class="flex items-center gap-[7px]">
                             <span class="h-[7px] w-[7px] rounded-full" :class="nodeRun.status === 'succeeded' ? 'bg-success' : nodeRun.status === 'running' ? 'bg-primary animate-pulse' : nodeRun.status === 'failed' ? 'bg-danger' : 'bg-[#c7ccd6]'" />
-                            <strong class="text-[11.5px]">{{ nodeRun.title }}</strong>
+                            <strong class="text-[12px]">{{ nodeRun.title }}</strong>
                           </div>
                         </td>
                         <td><span class="font-mono">{{ nodeRun.type }}</span></td>
@@ -183,7 +174,7 @@
                       </tr>
                     </tbody>
                   </table>
-                  <div v-if="!filteredNodeRuns.length" class="flex min-h-[120px] flex-col items-center justify-center gap-[7px] text-center text-[11.5px] text-subtle">
+                  <div v-if="!filteredNodeRuns.length" class="flex min-h-[120px] flex-col items-center justify-center gap-[7px] text-center text-[12px] text-subtle">
                     <SearchX :size="20" />
                     <span>当前筛选没有节点记录。</span>
                   </div>
@@ -193,10 +184,10 @@
               <div v-else-if="activeTab === 'events'" class="p-3">
                 <div class="mb-2.5 flex min-h-[38px] items-center justify-between gap-2.5">
                   <div>
-                    <strong class="block text-[10px]">事件时间线</strong>
-                    <span class="text-[10.5px] text-subtle">按 seq 排序，服务端事件已脱敏。</span>
+                    <strong class="block text-[12px]">事件时间线</strong>
+                    <span class="text-[12px] text-subtle">按 seq 排序，服务端事件已脱敏。</span>
                   </div>
-                  <select v-model="eventTypeFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[11.5px]" aria-label="按事件类型筛选">
+                  <select v-model="eventTypeFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按事件类型筛选">
                     <option value="">全部事件</option>
                     <option value="run">运行生命周期</option>
                     <option value="node">节点事件</option>
@@ -210,95 +201,93 @@
                     class="grid min-h-[42px] w-full grid-cols-[34px_7px_minmax(0,1fr)_58px_46px] items-center gap-2 border-0 border-b border-line bg-transparent px-2.5 text-left hover:bg-[#fbfcfe] last:border-b-0"
                     @click="openNode(event.nodeId)"
                   >
-                    <span class="font-mono text-[10px] text-subtle">{{ String(event.seq).padStart(3, '0') }}</span>
+                    <span class="font-mono text-[12px] text-subtle">{{ String(event.seq).padStart(3, '0') }}</span>
                     <span class="h-[7px] w-[7px] rounded-full" :class="eventTone(event.type) === 'success' ? 'bg-success' : eventTone(event.type) === 'danger' ? 'bg-danger' : 'bg-primary'" />
                     <span class="flex min-w-0 flex-col gap-0.5">
-                      <strong class="truncate font-mono text-[10.5px] text-muted">{{ event.type }}</strong>
-                      <small class="truncate text-[10px] text-subtle">{{ eventDescription(event) }}</small>
+                      <strong class="truncate font-mono text-[12px] text-muted">{{ event.type }}</strong>
+                      <small class="truncate text-[12px] text-subtle">{{ eventDescription(event) }}</small>
                     </span>
-                    <span class="text-right text-[10px] text-subtle">{{ formatEventTime(event.at) }}</span>
-                    <span class="text-right text-[10px] text-subtle">{{ eventDuration(event) }}</span>
+                    <span class="text-right text-[12px] text-subtle">{{ formatEventTime(event.at) }}</span>
+                    <span class="text-right text-[12px] text-subtle">{{ eventDuration(event) }}</span>
                   </button>
-                  <div v-if="!filteredEvents.length" class="flex min-h-[120px] items-center justify-center text-[11.5px] text-subtle">当前筛选没有事件。</div>
+                  <div v-if="!filteredEvents.length" class="flex min-h-[120px] items-center justify-center text-[12px] text-subtle">当前筛选没有事件。</div>
                 </div>
               </div>
 
               <div v-else class="p-3">
                 <div class="mb-2.5 flex items-center justify-between gap-2.5">
                   <div>
-                    <strong class="block text-[10px]">原始 JSON</strong>
-                    <span class="text-[10.5px] text-subtle">展示服务端脱敏版本，大输出请从 artifact 下载。</span>
+                    <strong class="block text-[12px]">原始 JSON</strong>
+                    <span class="text-[12px] text-subtle">展示服务端脱敏版本，大输出请从 artifact 下载。</span>
                   </div>
-                  <button class="border-0 bg-transparent p-0 text-[10.5px] text-primary" @click="copyText(rawJson)">复制完整 JSON</button>
+                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyText(rawJson)">复制完整 JSON</button>
                 </div>
-                <pre class="m-0 max-h-[620px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-3 font-mono text-[11.5px] leading-[1.65] text-[#d8dbe5]">{{ rawJson }}</pre>
+                <pre class="m-0 max-h-[620px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-3 font-mono text-[12px] leading-[1.65] text-[#d8dbe5]">{{ rawJson }}</pre>
               </div>
             </section>
 
             <aside class="flex flex-col gap-3">
               <section class="surface overflow-hidden">
                 <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                  <div><h2 class="m-0 text-[14px]">运行信息</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">definition_snapshot 固定执行计划</p></div>
+                  <div><h2 class="m-0 text-[14px]">运行信息</h2><p class="mb-0 mt-1 text-[12px] text-subtle">definition_snapshot 固定执行计划</p></div>
                 </div>
                 <div class="flex flex-col">
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0"><span class="text-subtle">runId</span><strong class="max-w-[160px] truncate font-mono text-muted">{{ run.id }}</strong></div>
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0"><span class="text-subtle">工作流</span><RouterLink :to="`/workflows/${run.workflowId}`" class="max-w-[160px] truncate text-primary">{{ run.workflowName }}</RouterLink></div>
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0"><span class="text-subtle">版本</span><strong class="text-muted">v{{ run.version ?? '预览快照' }}</strong></div>
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0"><span class="text-subtle">触发</span><strong class="text-muted">{{ triggerLabel(run.trigger) }}</strong></div>
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0"><span class="text-subtle">执行者</span><strong class="text-muted">{{ run.metadata.actor ?? '系统' }}</strong></div>
-                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 px-2.5 text-[10.5px]"><span class="text-subtle">创建时间</span><strong class="text-muted">{{ formatDateTime(run.createdAt) }}</strong></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0"><span class="text-subtle">runId</span><strong class="max-w-[160px] truncate font-mono text-muted">{{ run.id }}</strong></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0"><span class="text-subtle">工作流</span><RouterLink :to="`/workflows/${run.workflowId}`" class="max-w-[160px] truncate text-primary">{{ run.workflowName }}</RouterLink></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0"><span class="text-subtle">版本</span><strong class="text-muted">v{{ run.version ?? '预览快照' }}</strong></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0"><span class="text-subtle">触发</span><strong class="text-muted">{{ triggerLabel(run.trigger) }}</strong></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0"><span class="text-subtle">执行者</span><strong class="text-muted">{{ run.metadata.actor ?? '系统' }}</strong></div>
+                  <div class="flex min-h-[34px] items-center justify-between gap-2.5 px-2.5 text-[12px]"><span class="text-subtle">创建时间</span><strong class="text-muted">{{ formatDateTime(run.createdAt) }}</strong></div>
                 </div>
               </section>
 
               <section class="surface overflow-hidden">
                 <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                  <div><h2 class="m-0 text-[14px]">最终输出</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">{{ run.output ? 'run snapshot' : '尚无终态输出' }}</p></div>
+                  <div><h2 class="m-0 text-[14px]">最终输出</h2><p class="mb-0 mt-1 text-[12px] text-subtle">{{ run.output ? 'run snapshot' : '尚无终态输出' }}</p></div>
                 </div>
                 <div v-if="run.output" class="bg-[var(--code-bg)]">
-                  <pre class="m-0 max-h-[260px] overflow-auto p-2.5 font-mono text-[10.5px] leading-[1.6] text-[#d8dbe5]">{{ JSON.stringify(run.output, null, 2) }}</pre>
+                  <pre class="m-0 max-h-[260px] overflow-auto p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]">{{ JSON.stringify(run.output, null, 2) }}</pre>
                 </div>
-                <div v-else class="flex min-h-[88px] items-center justify-center px-4 text-center text-[10.5px] text-subtle">运行尚未产生最终输出。</div>
+                <div v-else class="flex min-h-[88px] items-center justify-center px-4 text-center text-[12px] text-subtle">运行尚未产生最终输出。</div>
               </section>
 
               <section class="surface overflow-hidden">
                 <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                  <div><h2 class="m-0 text-[14px]">Artifacts</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">{{ artifacts.length }} 个可下载文件</p></div>
+                  <div><h2 class="m-0 text-[14px]">Artifacts</h2><p class="mb-0 mt-1 text-[12px] text-subtle">{{ artifacts.length }} 个可下载文件</p></div>
                 </div>
                 <div class="p-2">
                   <button v-for="artifact in artifacts" :key="artifact.name" class="flex min-h-[50px] w-full items-center gap-2 border-0 border-b border-dashed border-line bg-transparent px-2 text-left last:border-b-0 hover:bg-[var(--surface-2)]" @click="downloadArtifact(artifact)">
                     <FileText :size="15" />
-                    <span class="flex min-w-0 flex-1 flex-col gap-0.5"><strong class="truncate text-[11.5px]">{{ artifact.name }}</strong><small class="text-[10px] text-subtle">{{ artifact.meta }}</small></span>
+                    <span class="flex min-w-0 flex-1 flex-col gap-0.5"><strong class="truncate text-[12px]">{{ artifact.name }}</strong><small class="text-[12px] text-subtle">{{ artifact.meta }}</small></span>
                     <Download :size="13" />
                   </button>
-                  <div v-if="!artifacts.length" class="flex min-h-[80px] items-center justify-center text-[10.5px] text-subtle">本次运行没有 artifact。</div>
+                  <div v-if="!artifacts.length" class="flex min-h-[80px] items-center justify-center text-[12px] text-subtle">本次运行没有 artifact。</div>
                 </div>
               </section>
 
               <section class="surface overflow-hidden pb-[11px]">
                 <div class="flex min-h-14 items-center justify-between gap-3.5 border-b border-line px-3.5 py-2.5">
-                  <div><h2 class="m-0 text-[14px]">诊断信息</h2><p class="mb-0 mt-1 text-[10.5px] text-subtle">不包含明文凭证或完整敏感输入。</p></div>
+                  <div><h2 class="m-0 text-[14px]">诊断信息</h2><p class="mb-0 mt-1 text-[12px] text-subtle">不包含明文凭证或完整敏感输入。</p></div>
                 </div>
-                <code class="mx-[11px] mb-[9px] mt-2 block break-all rounded-[5px] bg-[var(--surface-2)] p-2 font-mono text-[10px] leading-[1.5] text-muted">{{ diagnosticText }}</code>
-                <button class="btn ml-[11px] !h-[31px] text-[11.5px]" @click="copyDiagnostics"><Copy :size="13" /> 复制诊断包</button>
+                <code class="mx-[11px] mb-[9px] mt-2 block break-all rounded-[5px] bg-[var(--surface-2)] p-2 font-mono text-[12px] leading-[1.5] text-muted">{{ diagnosticText }}</code>
+                <button class="btn ml-[11px] !h-[31px] text-[12px]" @click="copyDiagnostics"><Copy :size="13" /> 复制诊断包</button>
               </section>
             </aside>
           </div>
         </template>
-      </main>
-    </div>
-  </AppShell>
+  </main>
 
   <div v-if="nodeDrawerOpen && selectedNode" class="fixed inset-0 z-70 bg-[rgba(18,20,26,0.26)]" @click.self="nodeDrawerOpen = false">
     <aside class="absolute inset-y-0 right-0 flex w-[min(640px,100vw)] flex-col bg-surface shadow-lg">
       <div class="flex min-h-[62px] items-center justify-between gap-3.5 border-b border-line px-4 py-3">
         <div>
           <h2 class="m-0 text-[16px]">{{ selectedNode.title }}</h2>
-          <p class="mb-0 mt-1 text-[11.5px] text-subtle"><span class="font-mono">{{ selectedNode.nodeId }}</span> · {{ selectedNode.type }}</p>
+          <p class="mb-0 mt-1 text-[12px] text-subtle"><span class="font-mono">{{ selectedNode.nodeId }}</span> · {{ selectedNode.type }}</p>
         </div>
         <button class="icon-btn" @click="nodeDrawerOpen = false"><X :size="16" /></button>
       </div>
       <div class="flex-1 overflow-y-auto px-4 pb-4">
-        <div class="flex min-h-[42px] items-center gap-2 text-[10.5px] text-subtle">
+        <div class="flex min-h-[42px] items-center gap-2 text-[12px] text-subtle">
           <StatusBadge :status="selectedNode.status" />
           <span>{{ formatDuration(selectedNode.durationMs) }}</span>
           <span class="font-mono">attempt {{ activeAttempt?.attempt ?? 1 }}</span>
@@ -308,7 +297,7 @@
           <button
             v-for="attempt in attempts"
             :key="attempt.attempt"
-            class="rounded-[5px] border-0 px-2 py-1 text-[10.5px]"
+            class="rounded-[5px] border-0 px-2 py-1 text-[12px]"
             :class="activeAttempt?.attempt === attempt.attempt ? 'bg-surface text-ink shadow-sm' : 'bg-transparent text-subtle'"
             @click="selectedAttemptNumber = attempt.attempt"
           >
@@ -320,50 +309,50 @@
         <div v-if="activeAttempt?.error" class="mb-2.5 flex items-start gap-2 rounded-[6px] border border-[#efbfc1] bg-danger-soft p-2.5 text-danger">
           <CircleAlert :size="14" />
           <div>
-            <strong class="font-mono text-[10.5px]">{{ activeAttempt.error.code }}</strong>
-            <p class="mb-0 mt-[3px] text-[10.5px] leading-[1.45] text-[#9c4045]">{{ activeAttempt.error.message }}</p>
+            <strong class="font-mono text-[12px]">{{ activeAttempt.error.code }}</strong>
+            <p class="mb-0 mt-[3px] text-[12px] leading-[1.45] text-[#9c4045]">{{ activeAttempt.error.message }}</p>
           </div>
         </div>
 
         <section class="mb-3">
-          <div class="mb-2 text-[11.5px] font-650 text-muted">执行 trace <small class="font-400 text-subtle">validate / resolve / execute / output</small></div>
+          <div class="mb-2 text-[12px] font-650 text-muted">执行 trace <small class="font-400 text-subtle">validate / resolve / execute / output</small></div>
           <div class="flex flex-col rounded-[6px] border border-line bg-[var(--surface-2)] p-2">
-            <div v-for="phase in tracePhases" :key="phase.name" class="grid min-h-[28px] grid-cols-[7px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line text-[10.5px] last:border-b-0">
+            <div v-for="phase in tracePhases" :key="phase.name" class="grid min-h-[28px] grid-cols-[7px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line text-[12px] last:border-b-0">
               <span class="h-[7px] w-[7px] rounded-full" :class="phase.status === 'succeeded' ? 'bg-success' : phase.status === 'running' ? 'bg-primary animate-pulse' : phase.status === 'failed' ? 'bg-danger' : 'bg-[#c7ccd6]'" />
               <strong class="text-muted">{{ phase.name }}</strong>
-              <span class="text-[10px] text-subtle">{{ phase.duration }}</span>
+              <span class="text-[12px] text-subtle">{{ phase.duration }}</span>
             </div>
           </div>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-2 text-[11.5px] font-650 text-muted">输入 <small class="font-400 text-subtle">运行态只读</small></div>
-          <pre class="m-0 max-h-[260px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[10.5px] leading-[1.6] text-[#d8dbe5]">{{ pretty(activeAttempt?.input ?? selectedNode.input ?? run?.input) }}</pre>
+          <div class="mb-2 text-[12px] font-650 text-muted">输入 <small class="font-400 text-subtle">运行态只读</small></div>
+          <pre class="m-0 max-h-[260px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]">{{ pretty(activeAttempt?.input ?? selectedNode.input ?? run?.input) }}</pre>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-2 text-[11.5px] font-650 text-muted">输出</div>
-          <pre class="m-0 max-h-[260px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[10.5px] leading-[1.6] text-[#d8dbe5]">{{ pretty(activeAttempt?.output ?? selectedNode.output ?? {}) }}</pre>
+          <div class="mb-2 text-[12px] font-650 text-muted">输出</div>
+          <pre class="m-0 max-h-[260px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]">{{ pretty(activeAttempt?.output ?? selectedNode.output ?? {}) }}</pre>
         </section>
 
         <section v-if="branchEdges.length" class="mb-3.5">
-          <div class="mb-2 text-[11.5px] font-650 text-muted">分支信息</div>
+          <div class="mb-2 text-[12px] font-650 text-muted">分支信息</div>
           <div class="overflow-hidden rounded-[6px] border border-line">
-            <div v-for="edge in branchEdges" :key="edge.id" class="grid min-h-[34px] grid-cols-[7px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0">
+            <div v-for="edge in branchEdges" :key="edge.id" class="grid min-h-[34px] grid-cols-[7px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0">
               <span class="h-[6px] w-[6px] rounded-full bg-primary" />
               <strong class="truncate text-muted">{{ edge.label ?? edge.sourceHandle ?? '默认分支' }}</strong>
-              <span class="font-mono text-[10px] text-subtle">{{ edge.target }}</span>
+              <span class="font-mono text-[12px] text-subtle">{{ edge.target }}</span>
             </div>
           </div>
         </section>
 
         <section class="mb-3.5">
-          <div class="mb-2 text-[11.5px] font-650 text-muted">相关事件</div>
+          <div class="mb-2 text-[12px] font-650 text-muted">相关事件</div>
           <div class="overflow-hidden rounded-[6px] border border-line">
-            <div v-for="event in nodeEvents" :key="event.seq" class="grid min-h-[32px] grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line px-2.5 text-[10.5px] last:border-b-0">
-              <span class="font-mono text-[10px] text-subtle">{{ event.seq }}</span>
+            <div v-for="event in nodeEvents" :key="event.seq" class="grid min-h-[32px] grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-2 border-b border-dashed border-line px-2.5 text-[12px] last:border-b-0">
+              <span class="font-mono text-[12px] text-subtle">{{ event.seq }}</span>
               <strong class="truncate font-mono text-muted">{{ event.type }}</strong>
-              <span class="text-[10px] text-subtle">{{ formatEventTime(event.at) }}</span>
+              <span class="text-[12px] text-subtle">{{ formatEventTime(event.at) }}</span>
             </div>
           </div>
         </section>
@@ -378,7 +367,7 @@
 
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Activity,
   ArrowLeft,
@@ -397,7 +386,7 @@ import {
   TerminalSquare,
   X,
 } from 'lucide-vue-next'
-import AppShell from '@/components/AppShell.vue'
+import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { subscribeRunEvents } from '@/api/client'
 import {

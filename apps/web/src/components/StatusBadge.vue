@@ -1,5 +1,5 @@
 <template>
-  <span class="inline-flex h-[21px] items-center gap-[5px] whitespace-nowrap rounded-[4px] px-[7px] text-[10px] font-600" :class="toneClass(tone)">
+  <span class="inline-flex h-[21px] items-center gap-[5px] whitespace-nowrap rounded-[4px] px-[7px] text-[12px] font-600" :class="toneClass(tone)">
     <span class="h-[5px] w-[5px] rounded-full bg-current" />
     {{ label }}
   </span>
