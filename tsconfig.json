@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "skipLibCheck": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "baseUrl": ".",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "paths": {
+      "@/*": ["apps/web/src/*"],
+      "@workflow/*": ["apps/web/src/workflow/*"],
+      "@ai-reflow/core": ["packages/core/src/index.ts"],
+      "@ai-reflow/core/*": ["packages/core/src/*"],
+      "@ai-reflow/platform": ["packages/platform/src/index.ts"],
+      "@ai-reflow/platform/*": ["packages/platform/src/*"],
+      "@ai-reflow/engine": ["packages/engine/src/index.ts"],
+      "@ai-reflow/engine/*": ["packages/engine/src/*"],
+      "@ai-reflow/capabilities": ["packages/capabilities/src/index.ts"],
+      "@ai-reflow/capabilities/*": ["packages/capabilities/src/*"]
+    }
+  },
+  "include": [
+    "apps/web/src/**/*.ts",
+    "apps/web/src/**/*.vue",
+    "vite.config.ts",
+    "packages/core/src/**/*.ts",
+    "packages/platform/src/**/*.ts",
+    "packages/engine/src/**/*.ts",
+    "packages/capabilities/src/**/*.ts"
+  ]
+}

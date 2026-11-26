@@ -1,0 +1,16 @@
+{
+  "name": "@ai-reflow/platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*/index.ts"
+  },
+  "dependencies": {
+    "@ai-reflow/core": "workspace:*",
+    "drizzle-orm": "^0.44.7",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.12"
+  }
+}

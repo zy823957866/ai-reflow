@@ -1,0 +1,14 @@
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.env
+infra/compose/.env
+.artifacts/
+artifacts/
+coverage/
+*.log
+.git/
+.idea/
+.vscode/
+

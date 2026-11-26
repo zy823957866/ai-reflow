@@ -1,0 +1,301 @@
+import {
+  bigint,
+  bigserial,
+  boolean,
+  customType,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+  uuid,
+} from 'drizzle-orm/pg-core'
+
+const vector1536 = customType<{ data: number[]; driverData: string }>({
+  dataType() {
+    return 'vector(1536)'
+  },
+})
+
+export const workspaces = pgTable('workspaces', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  slug: text('slug').notNull(),
+  name: text('name').notNull(),
+  settings: jsonb('settings').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => [unique('uq_workspaces_slug').on(table.slug)])
+
+export const workflows = pgTable('workflows', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  description: text('description').notNull().default(''),
+  status: text('status').notNull().default('draft'),
+  tags: jsonb('tags').notNull().default([]),
+  owner: jsonb('owner').notNull(),
+  draftDefinition: jsonb('draft_definition').notNull(),
+  revision: integer('revision').notNull().default(1),
+  publishedVersionId: uuid('published_version_id'),
+  publishedVersion: integer('published_version'),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_workflows_workspace_public').on(table.workspaceId, table.publicId),
+  unique('uq_workflows_workspace_slug').on(table.workspaceId, table.slug),
+  index('ix_workflows_workspace_updated').on(table.workspaceId, table.updatedAt),
+])
+
+export const workflowVersions = pgTable('workflow_versions', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  workflowId: uuid('workflow_id').notNull(),
+  version: integer('version').notNull(),
+  definition: jsonb('definition').notNull(),
+  schemaHash: text('schema_hash').notNull(),
+  manifestSnapshot: jsonb('manifest_snapshot').notNull().default([]),
+  nodeCount: integer('node_count').notNull(),
+  changelog: text('changelog').notNull().default(''),
+  createdBy: text('created_by').notNull().default('Demo'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_workflow_versions_workspace_public').on(table.workspaceId, table.publicId),
+  unique('uq_workflow_versions_workflow_version').on(table.workflowId, table.version),
+])
+
+export const runs = pgTable('runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  workflowId: uuid('workflow_id').notNull(),
+  workflowVersionId: uuid('workflow_version_id'),
+  definitionSnapshot: jsonb('definition_snapshot').notNull(),
+  runKind: text('run_kind').notNull(),
+  trigger: text('trigger').notNull(),
+  status: text('status').notNull().default('queued'),
+  input: jsonb('input').notNull().default({}),
+  output: jsonb('output'),
+  error: jsonb('error'),
+  metadata: jsonb('metadata').notNull().default({}),
+  externalClientId: text('external_client_id'),
+  idempotencyKey: text('idempotency_key'),
+  cancelRequestedAt: timestamp('cancel_requested_at', { withTimezone: true }),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  durationMs: integer('duration_ms'),
+  workerId: text('worker_id'),
+  leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_runs_workspace_public').on(table.workspaceId, table.publicId),
+  index('ix_runs_workspace_workflow_created').on(table.workspaceId, table.workflowId, table.createdAt),
+])
+
+export const nodeRuns = pgTable('node_runs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  runId: uuid('run_id').notNull(),
+  nodeId: text('node_id').notNull(),
+  nodeType: text('node_type').notNull(),
+  title: text('title').notNull(),
+  attempt: integer('attempt').notNull().default(1),
+  status: text('status').notNull().default('pending'),
+  input: jsonb('input'),
+  output: jsonb('output'),
+  error: jsonb('error'),
+  trace: jsonb('trace').notNull().default([]),
+  usage: jsonb('usage').notNull().default({}),
+  branch: text('branch'),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  durationMs: integer('duration_ms'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_node_runs_run_node_attempt').on(table.runId, table.nodeId, table.attempt),
+  index('ix_node_runs_workspace_run').on(table.workspaceId, table.runId),
+])
+
+export const runEvents = pgTable('run_events', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  runId: uuid('run_id').notNull(),
+  seq: integer('seq').notNull(),
+  type: text('type').notNull(),
+  nodeId: text('node_id'),
+  attempt: integer('attempt'),
+  status: text('status'),
+  payload: jsonb('payload').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_run_events_run_seq').on(table.runId, table.seq),
+  index('ix_run_events_run_seq').on(table.runId, table.seq),
+])
+
+export const artifacts = pgTable('artifacts', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  runId: uuid('run_id'),
+  nodeRunId: uuid('node_run_id'),
+  storageKey: text('storage_key').notNull(),
+  fileName: text('file_name').notNull(),
+  mime: text('mime').notNull(),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+  sha256: text('sha256').notNull(),
+  metadata: jsonb('metadata').notNull().default({}),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const knowledgeBases = pgTable('knowledge_bases', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  embeddingProvider: text('embedding_provider').notNull(),
+  embeddingModel: text('embedding_model').notNull(),
+  embeddingDimension: integer('embedding_dimension').notNull().default(1536),
+  status: text('status').notNull().default('ready'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_knowledge_bases_workspace_public').on(table.workspaceId, table.publicId),
+])
+
+export const documents = pgTable('documents', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  kbId: uuid('kb_id').notNull(),
+  name: text('name').notNull(),
+  mime: text('mime').notNull(),
+  extension: text('extension').notNull(),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
+  sha256: text('sha256').notNull(),
+  storageKey: text('storage_key').notNull(),
+  status: text('status').notNull().default('queued'),
+  previewStatus: text('preview_status').notNull().default('none'),
+  stageError: jsonb('stage_error'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const documentChunks = pgTable('document_chunks', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  workspaceId: uuid('workspace_id').notNull(),
+  documentId: uuid('document_id').notNull(),
+  chunkIndex: integer('chunk_index').notNull(),
+  content: text('content').notNull(),
+  tokenCount: integer('token_count'),
+  metadata: jsonb('metadata').notNull().default({}),
+  embedding: vector1536('embedding'),
+  embeddingModel: text('embedding_model').notNull(),
+  embeddingStatus: text('embedding_status').notNull().default('pending'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_document_chunks_document_index').on(table.documentId, table.chunkIndex),
+])
+
+export const modelConnections = pgTable('model_connections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  name: text('name').notNull(),
+  provider: text('provider').notNull(),
+  baseUrl: text('base_url'),
+  defaultModel: text('default_model').notNull(),
+  capabilities: jsonb('capabilities').notNull().default([]),
+  credentialId: uuid('credential_id'),
+  fallbackOrder: jsonb('fallback_order').notNull().default([]),
+  contextWindow: integer('context_window').notNull().default(0),
+  status: text('status').notNull().default('healthy'),
+  latencyMs: integer('latency_ms'),
+  isDefault: boolean('is_default').notNull().default(false),
+  enabled: boolean('enabled').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const mcpConnections = pgTable('mcp_connections', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  scopeType: text('scope_type').notNull().default('workspace'),
+  scopeId: uuid('scope_id'),
+  name: text('name').notNull(),
+  slug: text('slug').notNull(),
+  transport: text('transport').notNull(),
+  endpoint: text('endpoint'),
+  command: text('command'),
+  args: jsonb('args').notNull().default([]),
+  headers: jsonb('headers').notNull().default({}),
+  authType: text('auth_type').notNull().default('none'),
+  credentialId: uuid('credential_id'),
+  allowedHosts: jsonb('allowed_hosts').notNull().default([]),
+  toolAllowlist: jsonb('tool_allowlist').notNull().default([]),
+  timeouts: jsonb('timeouts').notNull().default({}),
+  retryPolicy: jsonb('retry_policy').notNull().default({}),
+  enabled: boolean('enabled').notNull().default(true),
+  healthStatus: text('health_status').notNull().default('healthy'),
+  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const registryEntries = pgTable('registry_entries', {
+  id: text('id').primaryKey(),
+  kind: text('kind').notNull(),
+  name: text('name').notNull(),
+  publisher: text('publisher').notNull(),
+  summary: text('summary').notNull().default(''),
+  visibility: text('visibility').notNull().default('verified'),
+  verified: boolean('verified').notNull().default(false),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const templateCatalog = pgTable('template_catalog', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  author: text('author').notNull(),
+  summary: text('summary').notNull().default(''),
+  category: text('category').notNull().default(''),
+  tags: jsonb('tags').notNull().default([]),
+  license: text('license').notNull().default('MIT'),
+  preview: jsonb('preview').notNull().default({}),
+  visibility: text('visibility').notNull().default('verified'),
+  usageCount: integer('usage_count').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const schema = {
+  workspaces,
+  workflows,
+  workflowVersions,
+  runs,
+  nodeRuns,
+  runEvents,
+  artifacts,
+  knowledgeBases,
+  documents,
+  documentChunks,
+  modelConnections,
+  mcpConnections,
+  registryEntries,
+  templateCatalog,
+}
