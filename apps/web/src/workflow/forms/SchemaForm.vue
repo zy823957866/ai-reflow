@@ -5,13 +5,13 @@
         <button
           v-if="isCollapsible(group.name)"
           type="button"
-          class="group-header mb-13px flex items-center gap-5px border-0 bg-transparent p-0 text-10px font-[650] uppercase tracking-[0.02em] text-subtle"
+          class="group-header mb-13px flex items-center gap-5px border-0 bg-transparent p-0 text-[12px] font-[650] uppercase tracking-[0.02em] text-subtle"
           @click="toggleGroup(group.name)"
         >
           <ChevronDown :size="14" class="transition-transform duration-150" :class="isCollapsed(group.name) ? '-rotate-90' : ''" />
           <span>{{ group.name }}</span>
         </button>
-        <div v-else class="group-title mb-13px text-10px font-[650] uppercase tracking-[0.02em] text-subtle">{{ group.name }}</div>
+        <div v-else class="group-title mb-13px text-[12px] font-[650] uppercase tracking-[0.02em] text-subtle">{{ group.name }}</div>
         <div v-show="!isCollapsed(group.name)" class="group-fields flex flex-col gap-16px">
           <div
             v-for="field in group.fields"
@@ -23,7 +23,7 @@
             <div class="flex items-center gap-5px">
               <span>{{ field.label }}</span>
               <span v-if="field.required" class="text-danger">*</span>
-              <span v-if="field.sensitive" class="ml-1px rounded-3px bg-warning-soft px-4px py-1px text-[10.5px] font-600 text-warning">敏感</span>
+              <span v-if="field.sensitive" class="ml-1px rounded-3px bg-warning-soft px-4px py-1px text-[12px] font-600 text-warning">敏感</span>
               <button
                 v-if="field.variable"
                 type="button"
@@ -61,7 +61,7 @@
             <template v-else-if="field.widget === 'number'">
               <div class="relative flex items-center">
                 <input
-                  class="h-35px pl-10px pr-68px font-mono text-11px"
+                  class="h-35px pl-10px pr-68px font-mono text-[12px]"
                   type="number"
                   :value="value(field.key)"
                   :min="field.min"
@@ -71,7 +71,7 @@
                   @input="update(field.key, Number(($event.target as HTMLInputElement).value))"
                   @blur="$emit('flush')"
                 />
-                <span v-if="field.max" class="absolute right-10px text-[11.5px] text-subtle">{{ value(field.key) }} / {{ field.max }}</span>
+                <span v-if="field.max" class="absolute right-10px text-[12px] text-subtle">{{ value(field.key) }} / {{ field.max }}</span>
               </div>
             </template>
 
@@ -114,7 +114,7 @@
                   v-for="option in optionsFor(field)"
                   :key="option.value"
                   type="button"
-                  class="h-27px border rounded-5px bg-surface px-8px text-10px text-muted"
+                  class="h-27px border rounded-5px bg-surface px-8px text-[12px] text-muted"
                   :class="isSelected(field.key, option.value) ? 'border-[#c3bdf9] bg-primary-soft text-primary' : 'border-line'"
                   :disabled="disabled"
                   @click="toggleMulti(field, option.value)"
@@ -122,19 +122,19 @@
                   {{ option.label }}
                 </button>
               </div>
-              <button v-if="!optionsFor(field).length && field.widget === 'multiselect'" type="button" class="h-28px w-full border border-dashed border-border-strong rounded-6px bg-transparent text-10px text-subtle" disabled>
+              <button v-if="!optionsFor(field).length && field.widget === 'multiselect'" type="button" class="h-28px w-full border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" disabled>
                 未接入选项服务
               </button>
             </template>
 
             <template v-else-if="field.widget === 'json' || field.widget === 'schema'">
               <div class="code-control overflow-hidden border border-line rounded-7px bg-[#fbfbfd]">
-                <div class="code-toolbar flex h-30px items-center justify-between border-b border-line px-9px font-mono text-[11.5px] text-subtle">
+                <div class="code-toolbar flex h-30px items-center justify-between border-b border-line px-9px font-mono text-[12px] text-subtle">
                   <span>{{ field.widget === 'schema' ? 'JSON Schema' : 'JSON' }}</span>
-                  <button type="button" class="border-0 bg-transparent text-[11.5px] text-subtle" :disabled="disabled" @click="formatJson(field.key)">格式化</button>
+                  <button type="button" class="border-0 bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="formatJson(field.key)">格式化</button>
                 </div>
                 <textarea
-                  class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-10px leading-1.6 text-muted"
+                  class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-[12px] leading-1.6 text-muted"
                   spellcheck="false"
                   :value="jsonText(field.key)"
                   :disabled="disabled"
@@ -146,12 +146,12 @@
 
             <template v-else-if="field.widget === 'code'">
               <div class="code-control dark overflow-hidden border border-[#252937] rounded-7px bg-[var(--code-bg)]">
-                <div class="code-toolbar flex h-30px items-center justify-between border-b border-[#2a2e3a] px-9px font-mono text-[11.5px] text-[#9199aa]">
+                <div class="code-toolbar flex h-30px items-center justify-between border-b border-[#2a2e3a] px-9px font-mono text-[12px] text-[#9199aa]">
                   <span>{{ field.language === 'sql' ? 'SQL' : 'JavaScript' }}</span>
                   <span class="h-1.5 w-1.5 rounded-full bg-success" />
                 </div>
                 <textarea
-                  class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-10px leading-1.6 text-[#d8dbe5]"
+                  class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-[12px] leading-1.6 text-[#d8dbe5]"
                   spellcheck="false"
                   :value="textValue(field.key)"
                   :placeholder="field.placeholder"
@@ -166,14 +166,14 @@
               <div class="kv-list flex flex-col gap-6px">
                 <div v-for="(item, index) in keyValueRows(field.key)" :key="index" class="kv-row flex items-center gap-5px">
                   <input
-                    class="h-30px min-w-0 px-8px font-mono text-[11.5px]"
+                    class="h-30px min-w-0 px-8px font-mono text-[12px]"
                     :value="item.key"
                     placeholder="key"
                     :disabled="disabled"
                     @input="updateKeyValue(field.key, index, 'key', ($event.target as HTMLInputElement).value)"
                   />
                   <input
-                    class="h-30px min-w-0 px-8px font-mono text-[11.5px]"
+                    class="h-30px min-w-0 px-8px font-mono text-[12px]"
                     :value="item.value"
                     placeholder="value"
                     :disabled="disabled"
@@ -183,7 +183,7 @@
                     <X :size="13" />
                   </button>
                 </div>
-                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-10px text-subtle" :disabled="disabled" @click="addKeyValue(field.key)">
+                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="addKeyValue(field.key)">
                   <Plus :size="13" /> 添加字段
                 </button>
               </div>
@@ -201,10 +201,10 @@
             </template>
 
             <template v-else-if="field.widget === 'file'">
-              <div class="file-control flex h-40px items-center gap-8px border border-dashed border-border-strong rounded-7px bg-surface-2 px-10px text-10px text-subtle">
+              <div class="file-control flex h-40px items-center gap-8px border border-dashed border-border-strong rounded-7px bg-surface-2 px-10px text-[12px] text-subtle">
                 <FileUp :size="15" />
                 <span class="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">{{ fileName(field.key) || '选择一个文件' }}</span>
-                <button type="button" class="border-0 bg-transparent text-[11.5px] text-primary" :disabled="disabled || !services?.uploadFile" @click="chooseFile(field.key)">
+                <button type="button" class="border-0 bg-transparent text-[12px] text-primary" :disabled="disabled || !services?.uploadFile" @click="chooseFile(field.key)">
                   {{ services?.uploadFile ? '上传' : '未接入' }}
                 </button>
                 <input
@@ -219,9 +219,9 @@
             <template v-else-if="field.widget === 'conditions' || field.widget === 'list'">
               <div class="structured-list flex flex-col gap-6px">
                 <div v-for="(item, index) in listRows(field.key)" :key="index" class="list-row flex items-center gap-5px">
-                  <span class="list-index mono inline-flex h-20px w-20px shrink-0 items-center justify-center rounded-4px bg-surface-3 text-[10.5px] text-subtle">{{ index + 1 }}</span>
+                  <span class="list-index mono inline-flex h-20px w-20px shrink-0 items-center justify-center rounded-4px bg-surface-3 text-[12px] text-subtle">{{ index + 1 }}</span>
                   <input
-                    class="h-30px min-w-0 px-8px font-mono text-[11.5px]"
+                    class="h-30px min-w-0 px-8px font-mono text-[12px]"
                     :value="listLabel(item)"
                     :disabled="disabled"
                     @input="updateList(field.key, index, ($event.target as HTMLInputElement).value)"
@@ -230,7 +230,7 @@
                     <X :size="13" />
                   </button>
                 </div>
-                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-10px text-subtle" :disabled="disabled" @click="addList(field.key)">
+                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="addList(field.key)">
                   <Plus :size="13" /> 添加项
                 </button>
               </div>
@@ -276,13 +276,13 @@
               />
             </template>
 
-            <div v-if="field.help" class="text-11px leading-1.55 text-subtle">{{ field.help }}</div>
-            <div v-if="errorFor(field.key)" class="text-11px leading-1.45 text-danger">{{ errorFor(field.key) }}</div>
+            <div v-if="field.help" class="text-[12px] leading-1.55 text-subtle">{{ field.help }}</div>
+            <div v-if="errorFor(field.key)" class="text-[12px] leading-1.45 text-danger">{{ errorFor(field.key) }}</div>
           </div>
         </div>
       </section>
     </template>
-    <div v-if="!fields.length" class="readonly-fallback m-16px flex items-start gap-8px rounded-7px bg-surface-3 p-10px text-11px leading-1.55 text-subtle">
+    <div v-if="!fields.length" class="readonly-fallback m-16px flex items-start gap-8px rounded-7px bg-surface-3 p-10px text-[12px] leading-1.55 text-subtle">
       <Info :size="15" />
       <span>未注册表单。当前只展示 Manifest 只读信息。</span>
     </div>

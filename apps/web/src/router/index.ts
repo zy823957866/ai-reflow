@@ -5,28 +5,26 @@ import VersionsPage from '@/pages/VersionsPage.vue'
 import TrialPage from '@/pages/TrialPage.vue'
 import RunsPage from '@/pages/RunsPage.vue'
 import RunDetailPage from '@/pages/RunDetailPage.vue'
-import KnowledgePage from '@/pages/KnowledgePage.vue'
+import KnowledgePage from '@/pages/knowledge-page/index.vue'
 import McpPage from '@/pages/McpPage.vue'
 import ModelsPage from '@/pages/ModelsPage.vue'
-import NodesPage from '@/pages/NodesPage.vue'
 import TemplatesPage from '@/pages/TemplatesPage.vue'
 import PluginsPage from '@/pages/PluginsPage.vue'
 
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: HomePage },
-    { path: '/workflows/:id', name: 'workflow-editor', component: EditorPage, meta: { layout: 'editor' } },
-    { path: '/workflows/:id/versions', name: 'workflow-versions', component: VersionsPage },
-    { path: '/workflows/:id/trial', name: 'workflow-trial', component: TrialPage },
-    { path: '/runs', name: 'runs', component: RunsPage },
-    { path: '/runs/:id', name: 'run-detail', component: RunDetailPage },
-    { path: '/knowledge', name: 'knowledge', component: KnowledgePage },
-    { path: '/mcp', name: 'mcp', component: McpPage },
-    { path: '/models', name: 'models', component: ModelsPage },
-    { path: '/nodes', name: 'nodes', component: NodesPage },
-    { path: '/templates', name: 'templates', component: TemplatesPage },
-    { path: '/plugins', name: 'plugins', component: PluginsPage },
+    { path: '/', name: 'home', component: HomePage, meta: { title: '工作流', layout: 'standard' } },
+    { path: '/workflows/:id', name: 'workflow-editor', component: EditorPage, meta: { title: '工作流编辑器', layout: 'editor' } },
+    { path: '/workflows/:id/versions', name: 'workflow-versions', component: VersionsPage, meta: { title: '版本历史', layout: 'standard' } },
+    { path: '/workflows/:id/trial', name: 'workflow-trial', component: TrialPage, meta: { title: '试运行', layout: 'standard' } },
+    { path: '/runs', name: 'runs', component: RunsPage, meta: { title: '运行记录', layout: 'standard' } },
+    { path: '/runs/:id', name: 'run-detail', component: RunDetailPage, meta: { title: '运行详情', layout: 'standard' } },
+    { path: '/knowledge', name: 'knowledge', component: KnowledgePage, meta: { title: '知识库', layout: 'standard' } },
+    { path: '/mcp', name: 'mcp', component: McpPage, meta: { title: 'MCP 调用', layout: 'standard' } },
+    { path: '/models', name: 'models', component: ModelsPage, meta: { title: '模型与密钥', layout: 'standard' } },
+    { path: '/templates', name: 'templates', component: TemplatesPage, meta: { title: '模板市场', layout: 'standard' } },
+    { path: '/plugins', name: 'plugins', component: PluginsPage, meta: { title: '插件市场', layout: 'standard' } },
   ],
   scrollBehavior: () => ({ top: 0 }),
 })
