@@ -132,6 +132,12 @@ const definitions: Record<string, FileTypeDefinition> = {
     text: true,
     signature: alwaysText,
   },
+  markdown: {
+    mime: 'text/markdown',
+    clientMimes: ['text/markdown', 'text/x-markdown', 'text/plain'],
+    text: true,
+    signature: alwaysText,
+  },
   txt: {
     mime: 'text/plain',
     clientMimes: ['text/plain'],

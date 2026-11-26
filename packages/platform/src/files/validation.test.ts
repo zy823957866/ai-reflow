@@ -149,6 +149,7 @@ test('accepts supported binary and text formats', async () => {
     ],
     ['table.csv', 'text/csv', Buffer.from('name,value\nalpha,1\n')],
     ['notes.md', 'text/markdown', Buffer.from('# Notes\n')],
+    ['notes.markdown', 'text/markdown', Buffer.from('# Notes\n')],
     ['notes.txt', 'text/plain', Buffer.from('plain text\n')],
     ['page.html', 'text/html', Buffer.from('<!doctype html><html></html>')],
     ['pixel.png', 'image/png', pngBytes],

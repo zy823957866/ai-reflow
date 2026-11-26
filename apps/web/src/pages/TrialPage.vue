@@ -397,6 +397,7 @@ import {
 import { clonePlain } from '@/shared/clone'
 import { formatDateTime, formatDuration } from '@/shared/format'
 import { isFileRef } from '@/shared/files'
+import { createClientId } from '@/shared/id'
 import type {
   FileRef,
   NodeRunStatus,
@@ -958,7 +959,7 @@ async function startRun(input: Record<string, unknown>) {
       input,
       options: { timeoutMs: 120_000 },
     },
-    crypto.randomUUID(),
+    createClientId('run'),
   )
   runEvents.value = []
   streamState.value = 'live'

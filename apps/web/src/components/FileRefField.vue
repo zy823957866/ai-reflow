@@ -94,6 +94,7 @@ import {
   selectedFileError,
   uploadErrorMessage,
 } from '@/shared/files'
+import { createClientId } from '@/shared/id'
 
 interface UploadTask {
   key: string
@@ -157,7 +158,7 @@ async function handleFileInput(event: Event) {
       continue
     }
     const task = reactive<UploadTask>({
-      key: `upload_${crypto.randomUUID()}`,
+      key: createClientId('upload'),
       name: file.name,
       progress: 0,
       status: 'uploading',

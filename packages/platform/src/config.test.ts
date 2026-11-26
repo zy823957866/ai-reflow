@@ -70,6 +70,19 @@ test('rejects partial object storage configuration', () => {
   )
 })
 
+test('rejects an endpoint without the complete storage configuration', () => {
+  assert.throws(
+    () => loadEnvironment(environment({
+      S3_ENDPOINT: 'http://127.0.0.1:9000',
+    })),
+    (error: unknown) => {
+      assert.ok(error instanceof Error)
+      assert.match(error.message, /S3_BUCKET/)
+      return true
+    },
+  )
+})
+
 test('rejects an invalid force path style flag', () => {
   assert.throws(
     () => loadEnvironment(environment({

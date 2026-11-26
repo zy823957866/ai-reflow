@@ -33,6 +33,7 @@ async function normalizeValue(
   resolve: FileReferenceResolver,
 ): Promise<unknown> {
   if (schema.format === 'file-ref') {
+    if (value === null || value === undefined) return value
     return resolveReference(value, resolve)
   }
 

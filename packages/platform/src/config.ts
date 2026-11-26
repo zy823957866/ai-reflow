@@ -32,8 +32,9 @@ const environmentSchema = z.object({
     ['S3_ACCESS_KEY_ID', value.S3_ACCESS_KEY_ID],
     ['S3_SECRET_ACCESS_KEY', value.S3_SECRET_ACCESS_KEY],
   ] as const
-  const configured = fields.filter(([, field]) => Boolean(field))
-  if (!configured.length) return
+  const configured = Boolean(value.S3_ENDPOINT)
+    || fields.some(([, field]) => Boolean(field))
+  if (!configured) return
   for (const [name, field] of fields) {
     if (!field) {
       context.addIssue({

@@ -168,6 +168,21 @@ test('rejects missing or cross-workspace FileRefs as FILE_NOT_FOUND', async () =
   )
 })
 
+test('keeps an empty optional FileRef field empty', async () => {
+  const normalized = await validateFileReferences(
+    { document: null },
+    {
+      type: 'object',
+      properties: { document: { format: 'file-ref' } },
+    },
+    async () => {
+      assert.fail('empty optional references must not reach the resolver')
+    },
+  )
+
+  assert.deepEqual(normalized, { document: null })
+})
+
 test('rejects malformed FileRef objects before resolving', async () => {
   await assert.rejects(
     () => validateFileReferences(
