@@ -1,4 +1,14 @@
-export { loadEnvironment } from './config'
+export {
+  getObjectStorageConfig,
+  loadEnvironment,
+  type ObjectStorageConfig,
+} from './config'
+export {
+  createObjectStorage,
+  requireObjectStorage,
+  type ObjectStorage,
+  type ObjectStorageObject,
+} from './storage'
 export { createDatabase } from './db/client'
 export type { DatabaseClient } from './db/client'
 export { schema } from './db/schema'
