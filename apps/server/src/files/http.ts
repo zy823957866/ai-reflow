@@ -16,6 +16,18 @@ export interface MultipartFileInput {
 }
 
 /**
+ * Multer 把 multipart 文件名按 latin1 解码，而浏览器发送的是 UTF-8 字节。
+ * 仅在字符串仍全部落在 latin1 范围且能还原为合法 UTF-8 时转换。
+ */
+function decodeMultipartFilename(name: string) {
+  if (!/[\u0080-\u00ff]/.test(name) || /[^\u0000-\u00ff]/.test(name)) {
+    return name
+  }
+  const decoded = Buffer.from(name, 'latin1').toString('utf8')
+  return decoded.includes('\ufffd') ? name : decoded
+}
+
+/**
  * 将 Multer 文件转换为校验器输入。
  */
 export function multipartFileInput(file?: MultipartFile): MultipartFileInput {
@@ -27,7 +39,7 @@ export function multipartFileInput(file?: MultipartFile): MultipartFileInput {
     })
   }
   return {
-    name: file.originalname,
+    name: decodeMultipartFilename(file.originalname),
     mime: file.mimetype,
     buffer: file.buffer,
   }

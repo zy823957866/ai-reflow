@@ -43,3 +43,30 @@ test('rejects an upload request without the file field', () => {
     },
   )
 })
+
+test('restores UTF-8 filenames decoded as latin1 by multipart parsing', () => {
+  const original = '集成附件-季度报告.pdf'
+  const input = multipartFileInput({
+    originalname: Buffer.from(original, 'utf8').toString('latin1'),
+    mimetype: 'application/pdf',
+    buffer: Buffer.from('%PDF-'),
+  })
+
+  assert.equal(input.name, original)
+})
+
+test('keeps already decoded Unicode and ASCII filenames unchanged', () => {
+  const unicode = multipartFileInput({
+    originalname: '季度报告.pdf',
+    mimetype: 'application/pdf',
+    buffer: Buffer.from('%PDF-'),
+  })
+  const ascii = multipartFileInput({
+    originalname: 'report.pdf',
+    mimetype: 'application/pdf',
+    buffer: Buffer.from('%PDF-'),
+  })
+
+  assert.equal(unicode.name, '季度报告.pdf')
+  assert.equal(ascii.name, 'report.pdf')
+})
