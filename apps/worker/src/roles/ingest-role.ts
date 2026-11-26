@@ -1,6 +1,14 @@
+import {
+  KnowledgeIngestError,
+  chunkParsedDocument,
+  embedTexts,
+  parseKnowledgeDocument,
+  type EmbeddingProvider,
+} from '@ai-reflow/capabilities'
 import type {
   ClaimedIngestJob,
   KnowledgeIngestRepository,
+  ObjectStorage,
 } from '@ai-reflow/platform'
 import { runRolePool } from './role-pool'
 
@@ -17,6 +25,128 @@ export interface IngestProcessResult {
 export interface IngestProcessContext {
   job: ClaimedIngestJob
   signal: AbortSignal
+  setStage(stage: IngestStage): Promise<void>
+}
+
+export interface IngestChunkStore {
+  replaceDocumentChunks(
+    documentId: string,
+    chunks: Array<{
+      content: string
+      tokenCount: number
+      metadata: Record<string, unknown>
+    }>,
+    embeddingModel: string,
+  ): Promise<number>
+  pendingDocumentChunks(documentId: string): Promise<Array<{
+    chunkIndex: number
+    content: string
+  }>>
+  updateChunkEmbedding(
+    documentId: string,
+    chunkIndex: number,
+    embedding: number[],
+    embeddingModel: string,
+  ): Promise<void>
+}
+
+export interface KnowledgeIngestProcessorDependencies {
+  storage: Pick<ObjectStorage, 'get'>
+  chunks: IngestChunkStore
+  embeddings:
+    | EmbeddingProvider
+    | ((job: ClaimedIngestJob) => EmbeddingProvider)
+  chunkSize?: number
+  overlap?: number
+  maxChunks?: number
+  embeddingBatchSize?: number
+  embeddingMaxRetries?: number
+}
+
+/**
+ * 创建真实文档 ingest 处理器；失败阶段由 KnowledgeIngestError 携带。
+ * @param dependencies 对象存储、chunk 仓库和 embedding Provider。
+ * @returns 可由 ingest role 调用的处理器。
+ */
+export function createKnowledgeIngestProcessor(
+  dependencies: KnowledgeIngestProcessorDependencies,
+) {
+  return async function processKnowledgeIngest(
+    context: IngestProcessContext,
+  ): Promise<IngestProcessResult> {
+    const { job, signal } = context
+    let chunkCount = 0
+
+    if (['parse', 'normalize', 'chunk'].includes(job.stage)) {
+      const bytes = await dependencies.storage.get(job.storageKey)
+      signal.throwIfAborted()
+      const parsed = await parseKnowledgeDocument({
+        filename: job.documentName,
+        mime: job.documentMime,
+        bytes,
+      })
+      await context.setStage('normalize')
+      signal.throwIfAborted()
+      await context.setStage('chunk')
+      const chunks = chunkParsedDocument(parsed, {
+        chunkSize: dependencies.chunkSize,
+        overlap: dependencies.overlap,
+        maxChunks: dependencies.maxChunks,
+      })
+      chunkCount = await dependencies.chunks.replaceDocumentChunks(
+        job.documentPublicId,
+        chunks,
+        job.embeddingModel,
+      )
+      await context.setStage('embedding')
+    }
+
+    let pending = await dependencies.chunks.pendingDocumentChunks(
+      job.documentPublicId,
+    )
+    if (!pending.length && job.stage === 'embedding' && !chunkCount) {
+      throw new KnowledgeIngestError({
+        code: 'KNOWLEDGE_INGEST_CHUNKS_MISSING',
+        message: '待向量化切片不存在，请从 parse 阶段重新入库。',
+        stage: 'embedding',
+      })
+    }
+    if (pending.length) {
+      const embeddings =
+        typeof dependencies.embeddings === 'function'
+          ? dependencies.embeddings(job)
+          : dependencies.embeddings
+      const vectors = await embedTexts(
+        embeddings,
+        pending.map((chunk) => chunk.content),
+        {
+          batchSize: dependencies.embeddingBatchSize,
+          dimensions: job.embeddingDimension,
+          maxRetries: dependencies.embeddingMaxRetries,
+          signal,
+        },
+      )
+      for (const [index, chunk] of pending.entries()) {
+        await dependencies.chunks.updateChunkEmbedding(
+          job.documentPublicId,
+          chunk.chunkIndex,
+          vectors[index],
+          job.embeddingModel,
+        )
+      }
+      chunkCount = Math.max(chunkCount, pending.length)
+      pending = []
+    }
+    await context.setStage('index')
+    return {
+      metadata: {
+        chunks: chunkCount,
+        embeddingModel: job.embeddingModel,
+        embeddingDimension: job.embeddingDimension,
+        resumedFrom: job.stage,
+      },
+    }
+  }
 }
 
 /**
@@ -50,7 +180,13 @@ export async function executeClaimedIngest(input: {
 
   try {
     await input.jobs.updateStage(input.job.id, input.job.stage)
-    const result = await input.process({ job: input.job, signal })
+    const result = await input.process({
+      job: input.job,
+      signal,
+      async setStage(stage) {
+        await input.jobs.updateStage(input.job.id, stage)
+      },
+    })
     await input.jobs.complete(
       input.job.id,
       result?.metadata ?? {},

@@ -4,7 +4,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
 import { AppError } from '@ai-reflow/core'
-import { LocalObjectStorage } from './object-storage'
+import {
+  LocalObjectStorage,
+  defaultObjectStoragePath,
+} from './object-storage'
 
 test('local object storage round-trips bytes and blocks path traversal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'ai-reflow-storage-'))
@@ -33,5 +36,18 @@ test('local object storage round-trips bytes and blocks path traversal', async (
     )
   } finally {
     await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('default object storage path is stable across process working directories', async () => {
+  const original = process.cwd()
+  const directory = await mkdtemp(join(tmpdir(), 'ai-reflow-cwd-'))
+  try {
+    const baseline = defaultObjectStoragePath()
+    process.chdir(directory)
+    assert.equal(defaultObjectStoragePath(), baseline)
+  } finally {
+    process.chdir(original)
+    await rm(directory, { recursive: true, force: true })
   }
 })

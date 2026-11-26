@@ -117,6 +117,7 @@ export class KnowledgeIngestRepository {
   async createJob(
     documentId: string,
     kind: KnowledgeIngestJobRow['kind'] = 'ingest',
+    stage: KnowledgeIngestJobRow['stage'] = 'parse',
   ) {
     const document = await this.requireDocument(documentId)
     const jobPublicId = publicId('kij')
@@ -127,13 +128,19 @@ export class KnowledgeIngestRepository {
       )
       values (
         ${jobPublicId}, ${this.workspaceId}, ${document.id}, ${kind},
-        'queued', 'parse', 0, 3
+        'queued', ${stage}, 0, 3
       )
     `
+    const documentStatus =
+      stage === 'parse'
+        ? 'queued'
+        : stage === 'normalize' || stage === 'chunk'
+          ? 'chunking'
+          : 'embedding'
     await this.sql`
       update documents
       set
-        status = 'queued',
+        status = ${documentStatus},
         stage_error = null,
         updated_at = now()
       where workspace_id = ${this.workspaceId} and id = ${document.id}

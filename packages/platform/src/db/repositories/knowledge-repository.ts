@@ -19,6 +19,36 @@ export interface KnowledgeDocumentQuery {
   search?: string
 }
 
+export interface KnowledgeSearchChunk {
+  id: string
+  documentId: string
+  documentName: string
+  chunkIndex: number
+  text: string
+  metadata: Record<string, unknown>
+  score: number
+  knowledgeBaseId: string
+  fulltextScore?: number
+  vectorScore?: number
+}
+
+export interface KnowledgeChunkInput {
+  content: string
+  tokenCount: number
+  metadata: Record<string, unknown>
+}
+
+export interface PendingKnowledgeChunk {
+  chunkIndex: number
+  content: string
+}
+
+export interface KnowledgeEmbeddingConfig {
+  provider: string
+  model: string
+  dimension: number
+}
+
 /**
  * 知识库、文档、切片、检索和预览管理的数据访问层。
  */
@@ -133,9 +163,9 @@ export class KnowledgeRepository {
       )
       values (
         ${publicId('kb')}, ${this.workspaceId}, ${input.name},
-        ${input.description ?? ''}, ${input.embeddingProvider ?? 'openai'},
-        ${input.embeddingModel ?? 'text-embedding-3-small'},
-        ${input.embeddingDimension ?? 1536}, ${'ready'}
+        ${input.description ?? ''}, ${input.embeddingProvider ?? 'ollama'},
+        ${input.embeddingModel ?? 'nomic-embed-text'},
+        ${input.embeddingDimension ?? 768}, ${'ready'}
       )
       returning public_id
     `
@@ -458,10 +488,16 @@ export class KnowledgeRepository {
         status: 409,
       })
     }
-    return new KnowledgeIngestRepository(
+    const jobs = new KnowledgeIngestRepository(
       this.sql,
       this.workspaceId,
-    ).createJob(documentId, 'retry')
+    )
+    const [latest] = await jobs.jobsForDocument(documentId)
+    return jobs.createJob(
+      documentId,
+      'retry',
+      latest?.status === 'failed' ? latest.stage : 'parse',
+    )
   }
 
   /**
@@ -492,7 +528,303 @@ export class KnowledgeRepository {
     return new KnowledgeIngestRepository(
       this.sql,
       this.workspaceId,
-    ).createJob(documentId, 'reindex')
+    ).createJob(documentId, 'reindex', 'parse')
+  }
+
+  /**
+   * 按 workspace 和知识库范围执行全文检索。
+   *
+   * @param knowledgeBaseIds 外部知识库 ID。
+   * @param query 用户查询。
+   * @param topK 返回上限。
+   * @returns 按全文得分排序的 chunk。
+   */
+  async keywordSearch(
+    knowledgeBaseIds: string[],
+    query: string,
+    topK: number,
+  ): Promise<KnowledgeSearchChunk[]> {
+    const kbs = await this.searchableKnowledgeBases(knowledgeBaseIds)
+    const rows = await this.sql<Array<{
+      id: string
+      content: string
+      chunk_index: number
+      metadata: Record<string, unknown>
+      document_public_id: string
+      document_name: string
+      knowledge_base_public_id: string
+      rank: number
+    }>>`
+      select
+        c.id, c.content, c.chunk_index, c.metadata,
+        d.public_id as document_public_id, d.name as document_name,
+        kb.public_id as knowledge_base_public_id,
+        greatest(
+          ts_rank(c.tsv, plainto_tsquery('simple', ${query}))::float,
+          case
+            when exists (
+              select 1
+              from unnest(regexp_split_to_array(trim(${query}), '\\s+')) term
+              where c.content ilike ${'%'} || term || ${'%'}
+            )
+            then 0.5::float
+            else 0::float
+          end
+        ) as rank
+      from document_chunks c
+      join documents d on d.id = c.document_id
+      join knowledge_bases kb on kb.id = d.kb_id
+      where c.workspace_id = ${this.workspaceId}
+        and d.workspace_id = ${this.workspaceId}
+        and kb.workspace_id = ${this.workspaceId}
+        and d.kb_id = any(${kbs.internalIds}::uuid[])
+        and (
+          c.tsv @@ plainto_tsquery('simple', ${query})
+          or exists (
+            select 1
+            from unnest(regexp_split_to_array(trim(${query}), '\\s+')) term
+            where c.content ilike ${'%'} || term || ${'%'}
+          )
+        )
+      order by rank desc, c.chunk_index
+      limit ${Math.min(100, Math.max(topK, topK * 3))}
+    `
+    return rows.map((row) => ({
+      id: row.id,
+      documentId: row.document_public_id,
+      documentName: row.document_name,
+      chunkIndex: row.chunk_index,
+      text: row.content,
+      metadata: row.metadata,
+      score: Number(row.rank),
+      knowledgeBaseId: row.knowledge_base_public_id,
+      fulltextScore: Number(row.rank),
+    }))
+  }
+
+  /**
+   * 按 workspace 和知识库范围执行 pgvector cosine 检索。
+   *
+   * @param knowledgeBaseIds 外部知识库 ID。
+   * @param queryEmbedding 查询向量。
+   * @param topK 返回上限。
+   * @returns 按相似度排序的 chunk。
+   */
+  async vectorSearch(
+    knowledgeBaseIds: string[],
+    queryEmbedding: number[],
+    topK: number,
+  ): Promise<KnowledgeSearchChunk[]> {
+    if (!queryEmbedding.length) {
+      throw new AppError({
+        code: 'EMBEDDING_QUERY_EMPTY',
+        message: '查询向量不能为空。',
+        status: 422,
+      })
+    }
+    const kbs = await this.searchableKnowledgeBases(knowledgeBaseIds)
+    const rows = await this.sql<Array<{
+      id: string
+      content: string
+      chunk_index: number
+      metadata: Record<string, unknown>
+      document_public_id: string
+      document_name: string
+      knowledge_base_public_id: string
+      score: number
+    }>>`
+      select
+        c.id, c.content, c.chunk_index, c.metadata,
+        d.public_id as document_public_id, d.name as document_name,
+        kb.public_id as knowledge_base_public_id,
+        (1 - (c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector))::float as score
+      from document_chunks c
+      join documents d on d.id = c.document_id
+      join knowledge_bases kb on kb.id = d.kb_id
+      where c.workspace_id = ${this.workspaceId}
+        and d.workspace_id = ${this.workspaceId}
+        and kb.workspace_id = ${this.workspaceId}
+        and d.kb_id = any(${kbs.internalIds}::uuid[])
+        and c.embedding is not null
+        and c.embedding_status = 'ready'
+      order by c.embedding <=> ${JSON.stringify(queryEmbedding)}::vector, c.chunk_index
+      limit ${Math.min(100, Math.max(topK, topK * 3))}
+    `
+    return rows.map((row) => ({
+      id: row.id,
+      documentId: row.document_public_id,
+      documentName: row.document_name,
+      chunkIndex: row.chunk_index,
+      text: row.content,
+      metadata: row.metadata,
+      score: Number(row.score),
+      knowledgeBaseId: row.knowledge_base_public_id,
+      vectorScore: Number(row.score),
+    }))
+  }
+
+  /**
+   * 读取一组知识库共用的 embedding 配置。
+   *
+   * @param knowledgeBaseIds 外部知识库 ID。
+   * @returns Provider、模型和维度。
+   */
+  async embeddingConfig(
+    knowledgeBaseIds: string[],
+  ): Promise<KnowledgeEmbeddingConfig> {
+    const rows = await this.sql<Array<{
+      embedding_provider: string
+      embedding_model: string
+      embedding_dimension: number
+    }>>`
+      select distinct
+        embedding_provider, embedding_model, embedding_dimension
+      from knowledge_bases
+      where workspace_id = ${this.workspaceId}
+        and public_id = any(${knowledgeBaseIds}::text[])
+        and status = 'ready'
+    `
+    if (!rows.length) {
+      throw new AppError({
+        code: 'KNOWLEDGE_NOT_READY',
+        message: '没有可检索的已就绪知识库。',
+        status: 409,
+      })
+    }
+    if (rows.length > 1) {
+      throw new AppError({
+        code: 'KNOWLEDGE_EMBEDDING_CONFIG_MISMATCH',
+        message: '所选知识库使用了不同的 embedding Provider、模型或维度。',
+        status: 409,
+      })
+    }
+    return {
+      provider: rows[0].embedding_provider,
+      model: rows[0].embedding_model,
+      dimension: rows[0].embedding_dimension,
+    }
+  }
+
+  /**
+   * 事务性替换文档切片；embedding 在后续阶段单独写入。
+   *
+   * @param documentId 外部文档 ID。
+   * @param chunks 已分块内容。
+   * @param embeddingModel 知识库固定模型。
+   * @returns 写入的切片数量。
+   */
+  async replaceDocumentChunks(
+    documentId: string,
+    chunks: KnowledgeChunkInput[],
+    embeddingModel: string,
+  ) {
+    if (chunks.length > 5000) {
+      throw new AppError({
+        code: 'KNOWLEDGE_CHUNK_LIMIT_EXCEEDED',
+        message: `切片数量 ${chunks.length} 超过单文档上限 5000。`,
+        status: 422,
+      })
+    }
+    await this.sql.begin(async (transaction) => {
+      const [document] = await transaction<Array<{ id: string }>>`
+        select id
+        from documents
+        where workspace_id = ${this.workspaceId}
+          and public_id = ${documentId}
+        limit 1
+      `
+      if (!document) throw notFound('文档')
+      await transaction`
+        delete from document_chunks
+        where workspace_id = ${this.workspaceId}
+          and document_id = ${document.id}
+      `
+      for (const [index, chunk] of chunks.entries()) {
+        await transaction`
+          insert into document_chunks (
+            workspace_id, document_id, chunk_index, content, token_count,
+            metadata, embedding_model, embedding_status, tsv
+          )
+          values (
+            ${this.workspaceId}, ${document.id}, ${index},
+            ${chunk.content}, ${chunk.tokenCount},
+            ${jsonb(transaction, chunk.metadata)}, ${embeddingModel},
+            'pending', to_tsvector('simple', ${chunk.content})
+          )
+        `
+      }
+      await transaction`
+        update documents
+        set
+          status = 'embedding',
+          metadata = metadata || ${jsonb(transaction, {
+            chunks: chunks.length,
+            embeddingModel,
+          })},
+          updated_at = now()
+        where workspace_id = ${this.workspaceId}
+          and id = ${document.id}
+      `
+    })
+    return chunks.length
+  }
+
+  /**
+   * 读取尚未完成 embedding 的切片，用于阶段重试。
+   *
+   * @param documentId 外部文档 ID。
+   * @returns 待向量化切片。
+   */
+  async pendingDocumentChunks(
+    documentId: string,
+  ): Promise<PendingKnowledgeChunk[]> {
+    const rows = await this.sql<Array<{
+      chunk_index: number
+      content: string
+    }>>`
+      select c.chunk_index, c.content
+      from document_chunks c
+      join documents d on d.id = c.document_id
+      where c.workspace_id = ${this.workspaceId}
+        and d.workspace_id = ${this.workspaceId}
+        and d.public_id = ${documentId}
+        and c.embedding_status = 'pending'
+      order by c.chunk_index
+    `
+    return rows.map((row) => ({
+      chunkIndex: row.chunk_index,
+      content: row.content,
+    }))
+  }
+
+  /**
+   * 写入单个切片的向量并标记 ready。
+   *
+   * @param documentId 外部文档 ID。
+   * @param chunkIndex 切片序号。
+   * @param embedding 固定维度向量。
+   * @param embeddingModel embedding 模型。
+   */
+  async updateChunkEmbedding(
+    documentId: string,
+    chunkIndex: number,
+    embedding: number[],
+    embeddingModel: string,
+  ) {
+    await this.sql`
+      update document_chunks c
+      set
+        embedding = ${JSON.stringify(embedding)}::vector,
+        embedding_model = ${embeddingModel},
+        embedding_status = 'ready',
+        updated_at = now()
+      from documents d
+      where c.document_id = d.id
+        and c.workspace_id = ${this.workspaceId}
+        and d.workspace_id = ${this.workspaceId}
+        and d.public_id = ${documentId}
+        and c.chunk_index = ${chunkIndex}
+    `
   }
 
   /**
@@ -806,6 +1138,30 @@ export class KnowledgeRepository {
     `
     if (!document) throw notFound('文档')
     return document
+  }
+
+  private async searchableKnowledgeBases(knowledgeBaseIds: string[]) {
+    const rows = await this.sql<Array<{
+      id: string
+      public_id: string
+    }>>`
+      select id, public_id
+      from knowledge_bases
+      where workspace_id = ${this.workspaceId}
+        and public_id = any(${knowledgeBaseIds}::text[])
+        and status = 'ready'
+    `
+    if (!rows.length) {
+      throw new AppError({
+        code: 'KNOWLEDGE_NOT_READY',
+        message: '没有可检索的已就绪知识库。',
+        status: 409,
+      })
+    }
+    return {
+      internalIds: rows.map((row) => row.id),
+      publicIds: rows.map((row) => row.public_id),
+    }
   }
 
   private async uploadResult(documentId: string) {

@@ -1,5 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { createCapabilityRegistry } from '@ai-reflow/capabilities'
+import {
+  createCapabilityRegistry,
+  createEmbeddingProvider,
+} from '@ai-reflow/capabilities'
 import { compileWorkflow, executeWorkflow } from '@ai-reflow/engine'
 import type {
   NodeExecutionContext,
@@ -8,8 +11,10 @@ import type {
 import {
   AgentConversationRepository,
   KnowledgeIngestRepository,
+  KnowledgeRepository,
   RunRepository,
   createDatabase,
+  createObjectStorage,
   loadEnvironment,
   type ClaimedRun,
 } from '@ai-reflow/platform'
@@ -20,7 +25,10 @@ import {
 } from './agent-runtime-factory'
 import { createRuntimeServices } from './runtime-services'
 import { runAgentRole } from './roles/agent-role'
-import { runIngestRole } from './roles/ingest-role'
+import {
+  createKnowledgeIngestProcessor,
+  runIngestRole,
+} from './roles/ingest-role'
 import { runRolePool } from './roles/role-pool'
 
 const workerId = `worker_${randomUUID().slice(0, 8)}`
@@ -159,19 +167,6 @@ async function runWorkflowRole(services: NodeRuntimeServices) {
   console.log('Workflow role 已停止')
 }
 
-/**
- * Task 6 之前的真实入库占位，明确失败，不伪造文档 ready。
- */
-async function processKnowledgeIngest() {
-  const error = new Error('知识库解析、切片和 embedding 处理器尚未接入。') as Error & {
-    code: string
-    retryable: boolean
-  }
-  error.code = 'KNOWLEDGE_INGEST_NOT_CONFIGURED'
-  error.retryable = false
-  throw error
-}
-
 async function bootstrap() {
   let checkpointer: PostgresSaver | undefined
   let services = createRuntimeServices(
@@ -224,6 +219,25 @@ async function bootstrap() {
     )
   }
   if (config.WORKER_ROLES.includes('ingest')) {
+    const ingestProcessor = createKnowledgeIngestProcessor({
+      storage: createObjectStorage(),
+      chunks: new KnowledgeRepository(
+        database.sql,
+        config.DEFAULT_WORKSPACE_ID,
+      ),
+      embeddings(job) {
+        return createEmbeddingProvider({
+          provider: job.embeddingProvider,
+          model: job.embeddingModel,
+          dimensions: job.embeddingDimension,
+          baseUrl:
+            process.env.EMBEDDING_BASE_URL ??
+            process.env.OLLAMA_BASE_URL ??
+            'http://127.0.0.1:11434',
+          apiKey: process.env.EMBEDDING_API_KEY,
+        })
+      },
+    })
     tasks.push(
       runIngestRole({
         jobs: new KnowledgeIngestRepository(
@@ -234,7 +248,7 @@ async function bootstrap() {
         concurrency: config.WORKER_INGEST_CONCURRENCY,
         pollIntervalMs: config.WORKER_POLL_INTERVAL_MS,
         signal: stopping.signal,
-        process: processKnowledgeIngest,
+        process: ingestProcessor,
       }),
     )
   }

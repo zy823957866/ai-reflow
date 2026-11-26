@@ -76,6 +76,7 @@ import {
   type AuthenticatedMcpExposure,
   type DatabaseClient,
 } from '@ai-reflow/platform'
+import { createKnowledgeSearchService } from './knowledge-search'
 import {
   AgentApiOperations,
   initialEventSeq,
@@ -276,6 +277,15 @@ class ApiController {
    */
   private knowledge() {
     return new KnowledgeRepository(this.database.sql, this.database.workspaceId)
+  }
+
+  /**
+   * 创建知识库检索服务。
+   *
+   * @returns 支持向量、全文和混合模式的检索服务。
+   */
+  private knowledgeSearch() {
+    return createKnowledgeSearchService(this.knowledge())
   }
 
   /**
@@ -1015,7 +1025,10 @@ class ApiController {
   @Post('knowledge-bases/:id/search')
   @HttpCode(200)
   async searchKnowledge(@Param('id') id: string, @Body() body: unknown) {
-    return this.knowledge().search(id, parseBody(knowledgeSearchSchema, body))
+    return this.knowledgeSearch().search(
+      id,
+      parseBody(knowledgeSearchSchema, body),
+    )
   }
 
   /**
@@ -1040,7 +1053,10 @@ class ApiController {
   @HttpCode(200)
   retrieve(@Param('id') id: string, @Body() body: unknown) {
     const input = parseBody(knowledgeSearchSchema, body)
-    return this.knowledge().search(id, { ...input, retrievalMode: 'keyword' })
+    return this.knowledgeSearch().search(id, {
+      ...input,
+      retrievalMode: 'keyword',
+    })
   }
 
   /**

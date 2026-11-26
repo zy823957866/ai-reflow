@@ -9,6 +9,7 @@ import {
 import { AgentExecutor } from './agent'
 
 export * from './agent'
+export * from './knowledge'
 
 type NodeConfig = Record<string, unknown>
 

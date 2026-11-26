@@ -1,5 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { AppError } from '@ai-reflow/core'
 
 export interface ObjectStorage {
@@ -73,8 +74,25 @@ export class LocalObjectStorage implements ObjectStorage {
 export function createObjectStorage(
   env: NodeJS.ProcessEnv = process.env,
 ) {
-  return new LocalObjectStorage(
-    env.OBJECT_STORAGE_PATH ??
-      resolve(process.cwd(), '.data', 'object-storage'),
+  return new LocalObjectStorage(defaultObjectStoragePath(env))
+}
+
+/**
+ * 返回与进程工作目录无关的默认对象存储目录。
+ * @param env 可覆盖目录的环境变量。
+ * @returns 绝对存储根目录。
+ */
+export function defaultObjectStoragePath(
+  env: NodeJS.ProcessEnv = process.env,
+) {
+  if (env.OBJECT_STORAGE_PATH) {
+    return resolve(env.OBJECT_STORAGE_PATH)
+  }
+  const moduleDirectory = dirname(fileURLToPath(import.meta.url))
+  return resolve(
+    moduleDirectory,
+    '../../../..',
+    '.data',
+    'object-storage',
   )
 }

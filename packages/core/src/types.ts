@@ -227,6 +227,31 @@ export interface NodeExecutionContext {
   emit: (event: Omit<RunEvent, 'seq' | 'runId' | 'at'>) => Promise<void>
 }
 
+export interface KnowledgeContextChunk {
+  id: string
+  documentId: string
+  documentName: string
+  chunkIndex: number
+  text: string
+  metadata: Record<string, unknown>
+  score: number
+  citationId?: string
+  location?: string
+  knowledgeBaseId?: string
+  fulltextScore?: number
+  vectorScore?: number
+}
+
+export interface KnowledgeContextCitation {
+  id: string
+  chunkId: string
+  documentId: string
+  documentName: string
+  chunkIndex: number
+  location: string
+  score: number
+}
+
 export interface NodeRuntimeServices {
   llm?: {
     generate(input: {
@@ -263,8 +288,8 @@ export interface NodeRuntimeServices {
       retrievalMode?: 'vector' | 'keyword' | 'hybrid'
       signal?: AbortSignal
     }): Promise<{
-      chunks: Array<Record<string, unknown>>
-      citations: Array<Record<string, unknown>>
+      chunks: KnowledgeContextChunk[]
+      citations: KnowledgeContextCitation[]
       context: string
       total: number
       warnings?: string[]

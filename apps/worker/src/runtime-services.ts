@@ -1,10 +1,16 @@
 import {
+  createKnowledgeRetriever,
+} from '@ai-reflow/capabilities'
+import {
   AppError,
   NodeExecutionError,
   type AgentRuntimePort,
   type NodeRuntimeServices,
 } from '@ai-reflow/core'
-import type { DatabaseClient } from '@ai-reflow/platform'
+import {
+  KnowledgeRepository,
+  type DatabaseClient,
+} from '@ai-reflow/platform'
 
 /**
  * 创建 worker 真实运行时服务。
@@ -17,6 +23,8 @@ export function createRuntimeServices(
   workspaceId: string,
   agent?: AgentRuntimePort,
 ): NodeRuntimeServices {
+  const knowledgeRepository = new KnowledgeRepository(sql, workspaceId)
+  const knowledgeRetriever = createKnowledgeRetriever(knowledgeRepository)
   return {
     llm: {
     /**
@@ -215,75 +223,19 @@ export function createRuntimeServices(
 
     knowledge: {
     /**
-     * 使用 PostgreSQL 全文索引完成知识库检索。
-     * @param input 知识库 ID、query、TopK 与阈值。
-     * @returns 切片、引用与拼接上下文。
+     * 使用 vector、keyword 或 hybrid 检索知识库。
+     * @param input 知识库 ID、query、TopK、阈值与模式。
+     * @returns 有序切片、引用、上下文与降级 warning。
      */
     async retrieve(input) {
-      const [kbs] = await sql<Array<{ ids: string[] }>>`
-        select array_agg(id) as ids
-        from knowledge_bases
-        where workspace_id = ${workspaceId}
-          and public_id = any(${input.knowledgeBaseIds}::text[])
-          and status = 'ready'
-      `
-      if (!kbs?.ids?.length) {
-        throw new NodeExecutionError({
-          code: 'KNOWLEDGE_NOT_READY',
-          message: '没有可检索的已就绪知识库。',
-          nodeType: 'knowledge',
-        })
-      }
-      const rows = await sql<Array<{
-        id: string
-        content: string
-        chunk_index: number
-        metadata: Record<string, unknown>
-        document_public_id: string
-        document_name: string
-        rank: number
-      }>>`
-        select
-          c.id, c.content, c.chunk_index, c.metadata,
-          d.public_id as document_public_id, d.name as document_name,
-          ts_rank(c.tsv, plainto_tsquery('simple', ${input.query}))::float as rank
-        from document_chunks c
-        join documents d on d.id = c.document_id
-        where c.workspace_id = ${workspaceId}
-          and d.kb_id = any(${kbs.ids}::uuid[])
-          and c.tsv @@ plainto_tsquery('simple', ${input.query})
-        order by rank desc, c.chunk_index
-        limit ${input.topK}
-      `
-      const chunks = rows
-        .map((row) => ({
-          id: row.id,
-          documentId: row.document_public_id,
-          documentName: row.document_name,
-          chunkIndex: row.chunk_index,
-          text: row.content,
-          metadata: row.metadata,
-          score: Number(row.rank),
-          fulltextScore: Number(row.rank),
-        }))
-        .filter((row) => row.score >= input.scoreThreshold)
-      const citations = chunks.map((chunk) => ({
-        documentId: chunk.documentId,
-        documentName: chunk.documentName,
-        chunkIndex: chunk.chunkIndex,
-        location: `chunk ${chunk.chunkIndex + 1}`,
-        score: chunk.score,
-      }))
-      return {
-        chunks,
-        citations,
-        context: chunks.map((chunk) => chunk.text).join('\n\n'),
-        total: chunks.length,
-        warnings:
-          input.retrievalMode === 'vector'
-            ? ['VECTOR_EMBEDDING_NOT_CONFIGURED: 已使用全文检索验证链路。']
-            : undefined,
-      }
+      return knowledgeRetriever.retrieve({
+        knowledgeBaseIds: input.knowledgeBaseIds,
+        query: input.query,
+        topK: input.topK,
+        scoreThreshold: input.scoreThreshold,
+        retrievalMode: input.retrievalMode ?? 'vector',
+        signal: input.signal,
+      })
     },
     },
     agent,

@@ -27,6 +27,7 @@ import type {
   AgentRuntimePort,
   AgentStep,
   AgentToolCall,
+  KnowledgeContextCitation,
   NodeRuntimeServices,
 } from '@ai-reflow/core'
 import {
@@ -814,7 +815,9 @@ function mergeUsage(
   }
 }
 
-function normalizeCitations(citations: Array<Record<string, unknown>>) {
+function normalizeCitations(
+  citations: Array<Record<string, unknown> | KnowledgeContextCitation>,
+) {
   return citations
     .filter(
       (citation) =>
