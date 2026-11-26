@@ -1,3 +1,5 @@
+import type { AgentRuntimePort } from './agent'
+
 export type WorkflowStatus = 'draft' | 'published' | 'reviewing' | 'archived' | 'error'
 
 export type RunKind = 'preview' | 'production'
@@ -209,6 +211,7 @@ export interface RunEvent {
 }
 
 export interface NodeExecutionContext {
+  currentNodeId?: string
   runId: string
   attempt?: number
   workspaceId: string
@@ -267,6 +270,7 @@ export interface NodeRuntimeServices {
       warnings?: string[]
     }>
   }
+  agent?: AgentRuntimePort
 }
 
 export interface NodeExecutionResult {

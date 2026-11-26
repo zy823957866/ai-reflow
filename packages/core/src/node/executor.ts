@@ -39,7 +39,7 @@ export abstract class BaseNodeExecutor<TConfig extends Record<string, unknown>> 
       const output = await this.withTimeout(
         context,
         timeoutMs,
-        () => this.doExecute(context, config),
+        () => this.doExecute({ ...context, currentNodeId: nodeId }, config),
       )
       const durationMs = Date.now() - startedAt
       await context.emit({

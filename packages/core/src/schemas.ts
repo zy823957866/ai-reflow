@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { agentDefinitionSchema } from './agent'
 
 const workflowNodeSchema = z.object({
   id: z.string().min(1),
@@ -123,6 +124,32 @@ export const knowledgeSearchSchema = z.object({
   scoreThreshold: z.number().min(0).max(1).optional().default(0),
   retrievalMode: z.enum(['vector', 'keyword', 'hybrid']).optional().default('keyword'),
   rerank: z.object({ enabled: z.boolean() }).optional(),
+})
+
+export const createAgentSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).optional().default(''),
+  config: agentDefinitionSchema,
+})
+
+export const updateAgentSchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().max(2000).optional(),
+  config: agentDefinitionSchema.optional(),
+})
+
+export const createAgentConversationSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+})
+
+export const sendAgentMessageSchema = z.object({
+  content: z.string().trim().min(1).max(20_000),
+  attachments: z.array(z.record(z.string(), z.unknown())).max(10).optional().default([]),
+  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+})
+
+export const retryAgentMessageSchema = z.object({
+  userMessageId: z.string().trim().min(1).max(200),
 })
 
 const mcpTransportSchema = z.enum(['streamable-http', 'sse', 'stdio'])

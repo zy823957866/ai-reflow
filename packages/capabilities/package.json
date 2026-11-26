@@ -7,7 +7,14 @@
     ".": "./src/index.ts",
     "./*": "./src/*/index.ts"
   },
+  "scripts": {
+    "test": "tsx --test --test-reporter spec \"src/**/*.test.ts\""
+  },
   "dependencies": {
-    "@ai-reflow/core": "workspace:*"
+    "@ai-reflow/core": "workspace:*",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.6"
   }
 }

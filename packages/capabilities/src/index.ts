@@ -6,6 +6,7 @@ import {
   type NodeExecutionContext,
   type NodeExecutionResult,
 } from '@ai-reflow/core'
+import { AgentExecutor } from './agent'
 
 type NodeConfig = Record<string, unknown>
 
@@ -514,6 +515,7 @@ export function createCapabilityRegistry() {
     new LlmExecutor(),
     new ToolExecutor(),
     new KnowledgeExecutor(),
+    new AgentExecutor(),
     new ConditionExecutor(),
     new TemplateExecutor(),
     new VariableExecutor(),
