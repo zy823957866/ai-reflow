@@ -330,6 +330,51 @@ test('agent runtime reuses an idempotent tool result after recovery', async () =
   assert.deepEqual(result.toolCalls[0].result, { status: 'cached' })
 })
 
+test('agent runtime records tool start before executing a side effect', async () => {
+  const order: string[] = []
+  const chat = new ScriptedChatProvider([
+    toolCallChunk('call_order', 'lookup_order', { orderId: 'A-9' }),
+    new AIMessageChunk({ content: '订单已查询。' }),
+  ])
+  const runtime = createAgentRuntime({
+    chat,
+    toolHistory: {
+      async get() {
+        order.push('get')
+        return undefined
+      },
+      async start() {
+        order.push('start')
+      },
+      async save() {
+        order.push('save')
+      },
+    },
+    mcp: {
+      async call() {
+        order.push('execute')
+        return { status: 'shipped' }
+      },
+    },
+  })
+
+  await runtime.invoke(
+    makeInvocation({
+      definition: agentDefinition({
+        mcpTools: [
+          {
+            serverId: 'orders',
+            toolName: 'lookup_order',
+            parameters: { type: 'object', properties: {} },
+          },
+        ],
+      }),
+    }),
+  )
+
+  assert.deepEqual(order, ['get', 'start', 'execute', 'save'])
+})
+
 test('agent runtime fails closed when a tool history result cannot be saved', async () => {
   const chat = new ScriptedChatProvider([
     toolCallChunk('call_unsaved', 'lookup_order', {

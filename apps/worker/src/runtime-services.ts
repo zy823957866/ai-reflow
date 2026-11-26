@@ -1,6 +1,7 @@
 import {
   AppError,
   NodeExecutionError,
+  type AgentRuntimePort,
   type NodeRuntimeServices,
 } from '@ai-reflow/core'
 import type { DatabaseClient } from '@ai-reflow/platform'
@@ -14,6 +15,7 @@ import type { DatabaseClient } from '@ai-reflow/platform'
 export function createRuntimeServices(
   sql: DatabaseClient,
   workspaceId: string,
+  agent?: AgentRuntimePort,
 ): NodeRuntimeServices {
   return {
     llm: {
@@ -284,6 +286,7 @@ export function createRuntimeServices(
       }
     },
     },
+    agent,
   }
 }
 

@@ -1,28 +1,47 @@
 import { randomUUID } from 'node:crypto'
 import { createCapabilityRegistry } from '@ai-reflow/capabilities'
-import { executeWorkflow, compileWorkflow } from '@ai-reflow/engine'
-import type { NodeExecutionContext } from '@ai-reflow/core'
+import { compileWorkflow, executeWorkflow } from '@ai-reflow/engine'
+import type {
+  NodeExecutionContext,
+  NodeRuntimeServices,
+} from '@ai-reflow/core'
 import {
+  AgentConversationRepository,
+  KnowledgeIngestRepository,
+  RunRepository,
   createDatabase,
   loadEnvironment,
-  RunRepository,
   type ClaimedRun,
 } from '@ai-reflow/platform'
+import type { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres'
+import {
+  createAgentRuntimeFactory,
+  createPostgresAgentCheckpointer,
+} from './agent-runtime-factory'
 import { createRuntimeServices } from './runtime-services'
+import { runAgentRole } from './roles/agent-role'
+import { runIngestRole } from './roles/ingest-role'
+import { runRolePool } from './roles/role-pool'
 
 const workerId = `worker_${randomUUID().slice(0, 8)}`
 const config = loadEnvironment()
 const database = createDatabase(config.DATABASE_URL)
-const runs = new RunRepository(database.sql, config.DEFAULT_WORKSPACE_ID)
+const runs = new RunRepository(
+  database.sql,
+  config.DEFAULT_WORKSPACE_ID,
+)
 const executors = createCapabilityRegistry()
-let stopping = false
-let activeRun = false
+const stopping = new AbortController()
 
 /**
  * 执行一个已领取的运行，并把所有生命周期事件写入 PostgreSQL。
  * @param run 已领取运行。
+ * @param services 当前 worker 的共享运行时服务。
  */
-async function executeClaimedRun(run: ClaimedRun) {
+async function executeClaimedRun(
+  run: ClaimedRun,
+  services: NodeRuntimeServices,
+) {
   const planResult = compileWorkflow(run.definition)
   if (!planResult.plan) {
     await runs.failClaimedRun(run.id, {
@@ -55,7 +74,6 @@ async function executeClaimedRun(run: ClaimedRun) {
   }, 1000)
 
   await runs.startClaimedRun(run)
-  const services = createRuntimeServices(database.sql, config.DEFAULT_WORKSPACE_ID)
   const context: NodeExecutionContext = {
     runId: run.publicId,
     workspaceId: config.DEFAULT_WORKSPACE_ID,
@@ -117,41 +135,138 @@ async function executeClaimedRun(run: ClaimedRun) {
 }
 
 /**
- * 轮询 PostgreSQL 队列并执行已领取任务。
+ * 启动 workflow 队列消费角色。
+ * @param services 共享运行时服务。
  */
-async function pollLoop() {
-  console.log(`AI Reflow worker 已启动：${workerId}`)
-  while (!stopping) {
-    try {
-      const run = await runs.claimNext(workerId)
-      if (!run) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, config.WORKER_POLL_INTERVAL_MS),
-        )
-        continue
-      }
-      activeRun = true
-      await executeClaimedRun(run)
-      activeRun = false
-    } catch (error) {
-      activeRun = false
-      console.error(error)
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-    }
+async function runWorkflowRole(services: NodeRuntimeServices) {
+  console.log(
+    `Workflow role 已启动：concurrency=${config.WORKER_WORKFLOW_CONCURRENCY}`,
+  )
+  await runRolePool({
+    concurrency: config.WORKER_WORKFLOW_CONCURRENCY,
+    pollIntervalMs: config.WORKER_POLL_INTERVAL_MS,
+    signal: stopping.signal,
+    async claim() {
+      return runs.claimNext(workerId)
+    },
+    async execute(run) {
+      await executeClaimedRun(run, services)
+    },
+    onError(error, phase) {
+      console.error(`Workflow role ${phase} failed`, error)
+    },
+  })
+  console.log('Workflow role 已停止')
+}
+
+/**
+ * Task 6 之前的真实入库占位，明确失败，不伪造文档 ready。
+ */
+async function processKnowledgeIngest() {
+  const error = new Error('知识库解析、切片和 embedding 处理器尚未接入。') as Error & {
+    code: string
+    retryable: boolean
   }
-  await database.sql.end()
+  error.code = 'KNOWLEDGE_INGEST_NOT_CONFIGURED'
+  error.retryable = false
+  throw error
+}
+
+async function bootstrap() {
+  let checkpointer: PostgresSaver | undefined
+  let services = createRuntimeServices(
+    database.sql,
+    config.DEFAULT_WORKSPACE_ID,
+  )
+  let runtimeFactory:
+    | ReturnType<typeof createAgentRuntimeFactory>
+    | undefined
+
+  const needsAgentRuntime =
+    config.WORKER_ROLES.includes('workflow') ||
+    config.WORKER_ROLES.includes('agent')
+  if (needsAgentRuntime) {
+    checkpointer = await createPostgresAgentCheckpointer(
+      config.DATABASE_URL,
+    )
+    runtimeFactory = createAgentRuntimeFactory({
+      sql: database.sql,
+      workspaceId: config.DEFAULT_WORKSPACE_ID,
+      services,
+      checkpointer,
+    })
+    services = createRuntimeServices(
+      database.sql,
+      config.DEFAULT_WORKSPACE_ID,
+      runtimeFactory.runtime,
+    )
+  }
+
+  const tasks: Array<Promise<void>> = []
+  if (config.WORKER_ROLES.includes('workflow')) {
+    tasks.push(runWorkflowRole(services))
+  }
+  if (config.WORKER_ROLES.includes('agent') && runtimeFactory) {
+    tasks.push(
+      runAgentRole({
+        invocations: runtimeFactory.invocations,
+        conversations: new AgentConversationRepository(
+          database.sql,
+          config.DEFAULT_WORKSPACE_ID,
+        ),
+        runtime: runtimeFactory.runtime,
+        workspaceId: config.DEFAULT_WORKSPACE_ID,
+        workerId,
+        concurrency: config.WORKER_AGENT_CONCURRENCY,
+        pollIntervalMs: config.WORKER_POLL_INTERVAL_MS,
+        signal: stopping.signal,
+      }),
+    )
+  }
+  if (config.WORKER_ROLES.includes('ingest')) {
+    tasks.push(
+      runIngestRole({
+        jobs: new KnowledgeIngestRepository(
+          database.sql,
+          config.DEFAULT_WORKSPACE_ID,
+        ),
+        workerId,
+        concurrency: config.WORKER_INGEST_CONCURRENCY,
+        pollIntervalMs: config.WORKER_POLL_INTERVAL_MS,
+        signal: stopping.signal,
+        process: processKnowledgeIngest,
+      }),
+    )
+  }
+
+  console.log(
+    `AI Reflow worker 已启动：${workerId}，roles=${config.WORKER_ROLES.join(',')}`,
+  )
+  await Promise.all(tasks)
+
+  try {
+    await checkpointer?.end()
+  } finally {
+    await database.sql.end()
+  }
   console.log(`AI Reflow worker 已停止：${workerId}`)
 }
 
-process.on('SIGINT', () => {
-  stopping = true
-})
-process.on('SIGTERM', () => {
-  stopping = true
-})
+function shutdown(signal: string) {
+  if (stopping.signal.aborted) return
+  console.log(`AI Reflow worker 收到 ${signal}，等待在途任务结束。`)
+  stopping.abort()
+}
 
-void pollLoop().catch(async (error) => {
+process.on('SIGINT', () => shutdown('SIGINT'))
+process.on('SIGTERM', () => shutdown('SIGTERM'))
+
+void bootstrap().catch(async (error) => {
   console.error(error)
-  if (!activeRun) await database.sql.end()
   process.exitCode = 1
+  try {
+    await database.sql.end()
+  } catch {
+    // The original startup error is more useful than a close error.
+  }
 })

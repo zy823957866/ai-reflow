@@ -36,8 +36,17 @@ export interface AgentToolHistoryRecord {
   finishedAt: string
 }
 
+export interface AgentToolHistoryStartRecord {
+  idempotencyKey: string
+  toolCallId: string
+  toolName: string
+  arguments: Record<string, unknown>
+  startedAt: string
+}
+
 export interface AgentToolHistoryPort {
   get(idempotencyKey: string): Promise<AgentToolHistoryRecord | undefined>
+  start?(record: AgentToolHistoryStartRecord): Promise<void>
   save(record: AgentToolHistoryRecord): Promise<void>
 }
 

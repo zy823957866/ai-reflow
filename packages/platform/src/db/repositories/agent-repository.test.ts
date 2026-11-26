@@ -14,6 +14,23 @@ test('only queued, running, and waiting invocations are active', async () => {
   assert.equal(module.isActiveInvocationStatus('interrupted'), false)
 })
 
+test('cancelled agent results complete as cancelled invocations', async () => {
+  const module = await import('./agent-invocation-repository')
+  const terminal = module.invocationCompletion({
+    text: '已经生成的部分回答',
+    messages: [],
+    steps: [],
+    toolCalls: [],
+    citations: [],
+    usage: {},
+    finishReason: 'cancelled',
+  })
+
+  assert.equal(terminal.status, 'cancelled')
+  assert.equal(terminal.eventType, 'invocation.cancelled')
+  assert.equal(terminal.error?.code, 'INVOCATION_CANCELLED')
+})
+
 test('agent row mapping preserves revision and snapshot config', async () => {
   const module = await import('./agent-repository')
   const updatedAt = new Date('2026-11-26T08:00:00.000Z')
@@ -26,8 +43,10 @@ test('agent row mapping preserves revision and snapshot config', async () => {
     config: {
       instructions: '你是售后助手。',
       modelConnectionId: 'mc_local',
+      mcpTools: [],
       maxSteps: 8,
       timeoutMs: 120_000,
+      memory: { mode: 'conversation' },
     },
     revision: 4,
     status: 'active',

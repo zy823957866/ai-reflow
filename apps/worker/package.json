@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --env-file=../../.env src/main.ts",
+    "test": "tsx --test --test-reporter spec \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -12,10 +13,14 @@
     "@ai-reflow/core": "workspace:*",
     "@ai-reflow/engine": "workspace:*",
     "@ai-reflow/platform": "workspace:*",
+    "@langchain/langgraph-checkpoint-postgres": "^1.1.4",
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }

@@ -23,5 +23,6 @@ export {
   type AgentToolCallIdentity,
   type AgentToolHistoryPort,
   type AgentToolHistoryRecord,
+  type AgentToolHistoryStartRecord,
   type AgentToolSchema,
 } from './tools'

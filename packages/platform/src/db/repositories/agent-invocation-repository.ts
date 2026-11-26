@@ -69,6 +69,29 @@ export function isActiveInvocationStatus(status: string) {
 }
 
 /**
+ * 根据运行时结束原因决定 invocation 终态和 SSE 事件。
+ * @param result Agent 运行时结果。
+ * @returns 数据库状态、事件类型和可选错误。
+ */
+export function invocationCompletion(result: AgentInvokeResult) {
+  if (result.finishReason === 'cancelled') {
+    return {
+      status: 'cancelled' as const,
+      eventType: 'invocation.cancelled',
+      error: {
+        code: 'INVOCATION_CANCELLED',
+        message: 'Agent 调用已取消。',
+      },
+    }
+  }
+  return {
+    status: 'succeeded' as const,
+    eventType: 'invocation.completed',
+    error: null,
+  }
+}
+
+/**
  * 把 invocation 行投影为 API DTO。
  * @param row invocation 行。
  * @returns 调用 DTO。
@@ -424,6 +447,7 @@ export class AgentInvocationRepository {
    * @returns 更新后的调用 DTO。
    */
   async complete(invocationId: string, result: AgentInvokeResult) {
+    const terminal = invocationCompletion(result)
     await this.sql.begin(async (transaction) => {
       const [row] = await transaction<AgentInvocationRow[]>`
         select *
@@ -436,9 +460,11 @@ export class AgentInvocationRepository {
       await transaction`
         update agent_invocations
         set
-          status = 'succeeded',
+          status = ${terminal.status},
           result = ${jsonb(transaction, result)},
-          error = null,
+          error = ${terminal.error
+            ? jsonb(transaction, terminal.error)
+            : null},
           resume_checkpoint_id = ${result.resumeCheckpointId ?? row.resume_checkpoint_id},
           finished_at = now(),
           duration_ms = greatest(
@@ -452,11 +478,12 @@ export class AgentInvocationRepository {
         transaction,
         this.workspaceId,
         row.id,
-        'invocation.completed',
+        terminal.eventType,
         {
-          status: 'succeeded',
+          status: terminal.status,
           finishReason: result.finishReason,
           usage: result.usage,
+          ...(terminal.error ? { error: terminal.error } : {}),
         },
       )
     })
@@ -559,10 +586,14 @@ export class AgentInvocationRepository {
    */
   async completedToolCall(invocationId: string, idempotencyKey: string) {
     const [row] = await this.sql<Array<{
+      call_id: string
+      tool_name: string
       result_summary: unknown
       error: Record<string, unknown> | null
+      finished_at: Date | null
     }>>`
-      select t.result_summary, t.error
+      select
+        t.call_id, t.tool_name, t.result_summary, t.error, t.finished_at
       from agent_tool_calls t
       join agent_invocations i on i.id = t.invocation_id
       where t.workspace_id = ${this.workspaceId}
@@ -573,8 +604,11 @@ export class AgentInvocationRepository {
     `
     if (!row) return null
     return {
+      toolCallId: row.call_id,
+      toolName: row.tool_name,
       result: row.result_summary,
       error: row.error ?? undefined,
+      finishedAt: row.finished_at?.toISOString(),
     }
   }
 

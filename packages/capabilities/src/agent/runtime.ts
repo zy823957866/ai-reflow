@@ -47,7 +47,9 @@ export interface AgentRuntimeDependencies {
   chat: AgentChatProvider
   knowledge?: AgentKnowledgePort
   mcp?: AgentMcpPort
-  toolHistory?: AgentToolHistoryPort
+  toolHistory?:
+    | AgentToolHistoryPort
+    | ((input: AgentInvokeInput) => AgentToolHistoryPort | undefined)
   checkpointer?: BaseCheckpointSaver | false
 }
 
@@ -122,10 +124,15 @@ export function createAgentRuntime(
       const signal = AbortSignal.any([input.signal, internal.signal])
       const progress: InvocationProgress = { partialText: '' }
       const tools = createAgentTools(input.definition, dependencies.mcp)
+      const toolHistory =
+        typeof dependencies.toolHistory === 'function'
+          ? dependencies.toolHistory(input)
+          : dependencies.toolHistory
       const builder = createAgentGraphBuilder({
         input,
         dependencies,
         tools,
+        toolHistory,
         signal,
         progress,
       })
@@ -238,10 +245,11 @@ function createAgentGraphBuilder(context: {
   input: AgentInvokeInput
   dependencies: AgentRuntimeDependencies
   tools: AgentRunnableTool[]
+  toolHistory?: AgentToolHistoryPort
   signal: AbortSignal
   progress: InvocationProgress
 }) {
-  const { input, dependencies, tools, signal, progress } = context
+  const { input, dependencies, tools, toolHistory, signal, progress } = context
   const definition = input.definition
   const toolMap = new Map(tools.map((tool) => [tool.name, tool]))
   const toolSchemas = tools.map(({ name, description, parameters }) => ({
@@ -462,7 +470,7 @@ function createAgentGraphBuilder(context: {
             arguments: call.args,
           },
         })
-        const cached = await dependencies.toolHistory?.get(idempotencyKey)
+        const cached = await toolHistory?.get(idempotencyKey)
         if (cached) {
           const finishedAt = new Date()
           startedCall.status = 'succeeded'
@@ -501,6 +509,25 @@ function createAgentGraphBuilder(context: {
         }
 
         try {
+          if (toolHistory?.start) {
+            try {
+              await toolHistory.start({
+                idempotencyKey,
+                toolCallId: startedCall.id,
+                toolName: call.name,
+                arguments: call.args,
+                startedAt: startedAt.toISOString(),
+              })
+            } catch (error) {
+              throw new AgentRuntimeError(
+                'TOOL_HISTORY_WRITE_FAILED',
+                error instanceof Error
+                  ? error.message
+                  : '工具执行前无法记录幂等状态。',
+                { retryable: true, cause: error },
+              )
+            }
+          }
           const result = await tool.execute(call.args, signal)
           ensureNotAborted(signal)
           const finishedAt = new Date()
@@ -525,9 +552,9 @@ function createAgentGraphBuilder(context: {
               'success',
             ),
           )
-          if (dependencies.toolHistory) {
+          if (toolHistory) {
             try {
-              await dependencies.toolHistory.save({
+              await toolHistory.save({
                 idempotencyKey,
                 toolCallId: startedCall.id,
                 toolName: call.name,

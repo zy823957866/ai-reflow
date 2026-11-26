@@ -1,4 +1,9 @@
-export { loadEnvironment } from './config'
+export {
+  loadEnvironment,
+  parseWorkerRoles,
+  WORKER_ROLES,
+  type WorkerRole,
+} from './config'
 export { createDatabase } from './db/client'
 export type { DatabaseClient } from './db/client'
 export { schema } from './db/schema'
