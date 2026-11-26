@@ -3,12 +3,29 @@
     <header class="flex min-h-[58px] shrink-0 items-center justify-between gap-2 border-b border-line px-3.5 py-2.5">
       <div>
         <h2 class="m-0 text-[14px] font-650">检索测试</h2>
-        <p class="mb-0 mt-1 text-[12px] text-subtle">全文检索已接入</p>
+        <p class="mb-0 mt-1 text-[12px] text-subtle">向量、全文与混合检索已接入</p>
       </div>
       <StatusBadge :status="loading ? 'processing' : activeKb?.status ?? 'none'" />
     </header>
 
     <div class="min-h-0 flex-1 overflow-y-auto p-3">
+      <div
+        v-if="warnings.length"
+        class="mb-3 flex items-start gap-2 rounded-[7px] border border-[#ecd5a3] bg-warning-soft px-2.5 py-2 text-[12px] leading-[1.5] text-warning"
+      >
+        <CircleAlert :size="14" class="mt-0.5 shrink-0" />
+        <div class="min-w-0 flex-1">
+          <strong class="block">检索已降级</strong>
+          <p
+            v-for="warning in warnings"
+            :key="warning"
+            class="mb-0 mt-0.5 break-words"
+          >
+            {{ retrievalWarningLabel(warning) }}
+          </p>
+        </div>
+      </div>
+
       <label class="block">
         <span class="mb-1.5 block text-[12px] text-subtle">检索问题</span>
         <Textarea
@@ -28,8 +45,8 @@
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="hybrid" disabled>混合（未配置）</SelectItem>
-              <SelectItem value="vector" disabled>向量（未配置）</SelectItem>
+              <SelectItem value="hybrid">混合</SelectItem>
+              <SelectItem value="vector">向量</SelectItem>
               <SelectItem value="keyword">全文</SelectItem>
             </SelectContent>
           </Select>
@@ -104,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { LoaderCircle, Search, Sparkles } from 'lucide-vue-next'
+import { CircleAlert, LoaderCircle, Search, Sparkles } from 'lucide-vue-next'
 import {
   Button,
   Input,
@@ -117,6 +134,7 @@ import {
   Textarea,
 } from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { retrievalWarningLabel } from '../status'
 import type { KnowledgeBaseItem, SearchRequest, SearchResult } from '../types'
 
 const props = defineProps<{
@@ -125,6 +143,7 @@ const props = defineProps<{
   loading: boolean
   searchRan: boolean
   lastDuration: number
+  warnings: string[]
 }>()
 
 const emit = defineEmits<{
@@ -132,7 +151,7 @@ const emit = defineEmits<{
 }>()
 
 const query = ref('企业版试用如何申请？需要准备哪些材料？')
-const mode = ref<'hybrid' | 'vector' | 'keyword'>('keyword')
+const mode = ref<'hybrid' | 'vector' | 'keyword'>('hybrid')
 const topK = ref(5)
 const threshold = ref(0)
 const rerankEnabled = ref(false)

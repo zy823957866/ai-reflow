@@ -206,3 +206,62 @@ test('agent node inspector exposes the serializable runtime fields', async () =>
   )
   assert.match(inspector, /node\.type\s*===\s*['"]agent['"]/)
 })
+
+test('knowledge UI follows real ingest jobs and renders degraded retrieval', async () => {
+  const status = await readFile(
+    path.join(root, 'apps/web/src/pages/knowledge-page/status.ts'),
+    'utf8',
+  )
+  for (const [stage, label] of [
+    ['queued', '排队中'],
+    ['parsing', '解析中'],
+    ['chunking', '分块中'],
+    ['embedding', '向量化中'],
+    ['ready', '已索引'],
+    ['failed', '索引失败'],
+  ]) {
+    assert.match(status, new RegExp(`${stage}:\\s*['"]${label}['"]`))
+  }
+
+  const page = await readFile(
+    path.join(root, 'apps/web/src/pages/knowledge-page/index.vue'),
+    'utf8',
+  )
+  const api = await readFile(
+    path.join(root, 'apps/web/src/services/reflowApi.ts'),
+    'utf8',
+  )
+  const search = await readFile(
+    path.join(
+      root,
+      'apps/web/src/pages/knowledge-page/components/KnowledgeSearchPanel.vue',
+    ),
+    'utf8',
+  )
+  const table = await readFile(
+    path.join(
+      root,
+      'apps/web/src/pages/knowledge-page/components/KnowledgeDocumentTable.vue',
+    ),
+    'utf8',
+  )
+  const upload = await readFile(
+    path.join(
+      root,
+      'apps/web/src/pages/knowledge-page/components/KnowledgeUploadZone.vue',
+    ),
+    'utf8',
+  )
+
+  assert.match(api, /KnowledgeIngestJobDto/)
+  assert.match(api, /KnowledgeUploadResponse/)
+  assert.match(page, /isActiveIngestStatus/)
+  assert.match(page, /accepted\.document/)
+  assert.match(page, /setTimeout/)
+  assert.match(search, /warnings/)
+  assert.match(search, /降级/)
+  assert.doesNotMatch(search, /value="hybrid"\s+disabled/)
+  assert.doesNotMatch(search, /value="vector"\s+disabled/)
+  assert.match(table, /reindex/)
+  assert.match(upload, /item\.error/)
+})

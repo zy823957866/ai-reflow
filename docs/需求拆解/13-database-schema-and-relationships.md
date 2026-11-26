@@ -91,6 +91,7 @@ erDiagram
   WORKSPACES ||--o{ TEMPLATE_IMPORTS : imports
   WORKSPACES ||--o{ OPERATION_PLANS : owns
   WORKSPACES ||--o{ OPERATION_IDEMPOTENCY : records
+  WORKSPACES ||--o{ AGENTS : owns
 
   WORKFLOWS ||--o{ WORKFLOW_VERSIONS : publishes
   WORKFLOWS ||--o{ RUNS : executes
@@ -112,6 +113,14 @@ erDiagram
   KNOWLEDGE_BASES ||--o{ DOCUMENTS : contains
   DOCUMENTS ||--o{ DOCUMENT_CHUNKS : chunks
   DOCUMENTS ||--o{ DOCUMENT_PREVIEWS : previews
+  DOCUMENTS ||--o{ KNOWLEDGE_INGEST_JOBS : ingests
+
+  AGENTS ||--o{ AGENT_CONVERSATIONS : chats
+  AGENTS ||--o{ AGENT_INVOCATIONS : executes
+  AGENT_CONVERSATIONS ||--o{ AGENT_MESSAGES : contains
+  AGENT_CONVERSATIONS ||--o{ AGENT_INVOCATIONS : queues
+  AGENT_INVOCATIONS ||--o{ AGENT_INVOCATION_EVENTS : emits
+  AGENT_INVOCATIONS ||--o{ AGENT_TOOL_CALLS : records
 
   MCP_CONNECTIONS ||--o{ MCP_TOOLS : discovers
   MCP_CONNECTIONS ||--o{ MCP_CALL_AUDIT : logs
@@ -387,7 +396,7 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 | `workspace_id` | uuid | FK |
 | `name` / `description` | text | 展示 |
 | `embedding_provider` / `embedding_model` | text | P0 部署级模型 |
-| `embedding_dimension` | integer | P0 固定 `1536` |
+| `embedding_dimension` | integer | 部署级固定；当前迁移为 `768` |
 | `status` | text | `ready/indexing/failed` |
 | `metadata` | jsonb | 分块/检索配置 |
 | `created_at` / `updated_at` | timestamptz | UTC |
@@ -431,7 +440,7 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 | `content` | text | 切片正文 |
 | `token_count` | integer | 可空 |
 | `metadata` | jsonb | 页码、sheet、行范围、headingPath、offset、bbox |
-| `embedding` | vector(1536) | 可空；写入前允许失败/重试 |
+| `embedding` | vector(768) | 可空；写入前允许失败/重试 |
 | `embedding_model` | text | 写入时模型 |
 | `embedding_status` | text | `pending/ready/failed` |
 | `tsv` | tsvector | 可选，全文检索 P1 |
@@ -444,7 +453,7 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 - `ix_document_chunks_embedding_hnsw`：`using hnsw (embedding vector_cosine_ops)`，可空向量不参与检索。
 - `ix_document_chunks_tsv_gin`：P1 全文检索启用。
 
-不变量：写入向量前，Repository 必须校验 `knowledge_bases.embedding_dimension = 1536` 且 `embedding_model` 与 KB 配置一致。
+不变量：写入向量前，Repository 必须校验 `knowledge_bases.embedding_dimension = 768` 且 `embedding_model` 与 KB 配置一致。
 
 ### 5.6 `document_previews`
 
@@ -465,6 +474,117 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 索引：
 
 - `uq_document_previews_document_kind(document_id, kind)`。
+
+### 5.7 `agents`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `public_id` | text | 外部 Agent ID |
+| `workspace_id` | uuid | FK -> `workspaces(id)` |
+| `name` / `description` | text | 展示信息 |
+| `config` | jsonb | 可序列化 `AgentDefinition` |
+| `revision` | integer | 配置修订号；会话创建时复制快照 |
+| `status` | text | `active/archived` |
+| `created_at` / `updated_at` | timestamptz | UTC |
+
+约束：`uq_agents_workspace_public`、`uq_agents_workspace_name`。
+
+### 5.8 `agent_conversations`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `public_id` | text | 外部会话 ID |
+| `workspace_id` | uuid | 隔离字段 |
+| `agent_id` | uuid | FK -> `agents(id)` |
+| `agent_revision` | integer | 会话创建时的 Agent 修订 |
+| `agent_snapshot` | jsonb | 固定 definition，避免后续改配置影响历史会话 |
+| `thread_id` | text | LangGraph checkpoint thread |
+| `title` / `status` | text | 标题与归档状态 |
+| `metadata` | jsonb | 会话级附加信息 |
+| `last_message_at` | timestamptz | 列表排序 |
+
+约束：`uq_agent_conversations_workspace_public`、`uq_agent_conversations_workspace_thread`。
+
+### 5.9 `agent_messages`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `public_id` | text | 外部消息 ID |
+| `workspace_id` | uuid | 隔离字段 |
+| `conversation_id` | uuid | FK -> `agent_conversations(id)` |
+| `invocation_id` | uuid | 可空；产生该消息的 invocation |
+| `seq` | integer | 会话内严格递增 |
+| `role` | text | `user/assistant/system` |
+| `content` | jsonb | 文本、结构化输出或分段内容 |
+| `status` | text | `pending/streaming/succeeded/failed/cancelled` |
+| `citations` | jsonb | 知识引用快照 |
+| `usage` / `error` | jsonb | Token/耗时和稳定错误 |
+
+约束：`uq_agent_messages_conversation_seq(conversation_id, seq)`。
+
+### 5.10 `agent_invocations`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `public_id` | text | 外部 invocation ID |
+| `workspace_id` | uuid | 隔离字段 |
+| `agent_id` / `conversation_id` | uuid | 可空；问答和流程节点共用 |
+| `run_id` / `node_id` | uuid/text | 工作流节点调用来源 |
+| `kind` | text | `chat/workflow_node/external` |
+| `status` | text | `queued/running/waiting/succeeded/failed/cancelled/interrupted` |
+| `definition_snapshot` | jsonb | 本次执行固定 AgentDefinition |
+| `request` / `result` / `error` | jsonb | 输入、输出与归一化错误 |
+| `thread_id` / `resume_checkpoint_id` | text | Checkpoint 恢复 |
+| `idempotency_key` | text | 防止重复投递 |
+| `worker_id` / `lease_expires_at` | text/timestamptz | 领取与租约 |
+| `attempts` / `duration_ms` | integer | 重试与耗时 |
+
+### 5.11 `agent_invocation_events`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | bigserial | 事件游标 |
+| `workspace_id` | uuid | 隔离字段 |
+| `invocation_id` | uuid | FK -> `agent_invocations(id)` |
+| `seq` | integer | invocation 内单调递增 |
+| `type` | text | `message.delta/tool.started/tool.output/invocation.*` 等 |
+| `payload` | jsonb | 增量、工具摘要或终态 |
+
+约束：`uq_agent_invocation_events_seq(invocation_id, seq)`。SSE 使用 `after/Last-Event-ID` 从该表补发。
+
+### 5.12 `agent_tool_calls`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `workspace_id` | uuid | 隔离字段 |
+| `invocation_id` | uuid | FK -> `agent_invocations(id)` |
+| `call_id` / `tool_name` | text | 模型工具调用与注册名 |
+| `idempotency_key` | text | 同一 invocation 内幂等 |
+| `status` | text | `started/succeeded/failed` |
+| `arguments_summary` / `result_summary` / `error` | jsonb | 脱敏摘要 |
+
+约束：`uq_agent_tool_calls_invocation_key(invocation_id, idempotency_key)`。
+
+### 5.13 `knowledge_ingest_jobs`
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `id` | uuid | PK |
+| `public_id` | text | 外部作业 ID |
+| `workspace_id` | uuid | 隔离字段 |
+| `document_id` | uuid | FK -> `documents(id)` |
+| `kind` | text | `ingest/retry/reindex` |
+| `status` | text | `queued/running/succeeded/failed/cancelled` |
+| `stage` | text | `parse/normalize/chunk/embedding/index` |
+| `attempt` / `max_attempts` | integer | 指数退避重试 |
+| `next_retry_at` | timestamptz | 可空 |
+| `error_code` / `error_message` | text | 稳定错误 |
+| `worker_id` / `lease_expires_at` | text/timestamptz | SKIP LOCKED 领取与租约 |
 
 ## 6. MCP 双向模型
 
@@ -863,6 +983,13 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 | run -> run_events | 1:N | `run_events.run_id` | 按保留期清理，审计优先 |
 | kb -> documents | 1:N | `documents.kb_id` | 删除文档或 KB 时显式事务清理 chunk/preview |
 | document -> chunks | 1:N | `document_chunks.document_id` | 级联删除未完成索引与向量 |
+| document -> ingest jobs | 1:N | `knowledge_ingest_jobs.document_id` | 删除文档时清理作业；历史失败原因按审计保留策略处理 |
+| workspace -> agents | 1:N | `agents.workspace_id` | 归档 Agent，保留历史会话 |
+| agent -> conversations | 1:N | `agent_conversations.agent_id` | 归档不删除会话 |
+| conversation -> messages | 1:N | `agent_messages.conversation_id` | 删除会话时事务清理消息 |
+| conversation -> invocations | 1:N | `agent_invocations.conversation_id` | 保留终态 invocation 以供重放/审计 |
+| invocation -> events | 1:N | `agent_invocation_events.invocation_id` | 按保留期清理，终态事件优先保留 |
+| invocation -> tool calls | 1:N | `agent_tool_calls.invocation_id` | 随 invocation 保留脱敏摘要 |
 | mcp_connection -> tools | 1:N | `mcp_tools.server_id` | 删除连接前检查 workflow 引用 |
 | workflow -> exposure | 1:N | `workflow_mcp_exposures.workflow_id` | 禁用/删除暴露不删除历史运行 |
 | registry entry -> installs | 1:N | `plugin_installs.entry_id` | 卸载保留审计，不删除 entry |
@@ -889,10 +1016,17 @@ MCP 入站令牌复用 `credentials` 的加密字段，`metadata` 必须遵守�
 | `workflow_mcp_exposures.input_schema_projection` | 发布版本输入 schema | 草稿输入 schema |
 | `operation_plans.payload` | 计划版本、依赖、权限和阻断项快照 | 明文密钥、完整令牌、密文、大文件 |
 | `operation_idempotency.result` | 可安全重放的外部 ID 和状态摘要 | 凭据、请求参数、运行输出、完整响应体 |
+| `agents.config` | 可序列化 AgentDefinition | 明文密钥、文件字节、运行时输出 |
+| `agent_conversations.agent_snapshot` | 会话创建时固定的 AgentDefinition | 可变配置指针 |
+| `agent_invocations.definition_snapshot` | 本次执行固定的 AgentDefinition | Provider 密钥、SDK 对象 |
+| `agent_invocations.request/result` | 输入、终态文本、工具摘要、usage | 原始向量、完整大文件、Authorization |
+| `agent_invocation_events.payload` | 增量文本、工具状态、终态事件 | 大二进制、密钥、完整工具原始响应 |
+| `agent_tool_calls.arguments_summary/result_summary` | 脱敏参数与结果摘要 | 敏感凭据、完整大响应 |
+| `documents.stage_error` | stage、code、message、retryable | 堆栈、密钥、对象存储路径 |
 
 ## 11. pgvector 与检索约束
 
-1. P0 固定 embedding 维度为 `1536`；`document_chunks.embedding` 使用 `vector(1536)`。
+1. 当前部署由 `0011_agent_and_knowledge_ingest` 统一切到 768 维，`document_chunks.embedding` 使用 `vector(768)`；切换维度必须先导出并重建索引。
 2. 一个知识库的 `embedding_dimension` 与 `embedding_model` 在索引期间必须一致，禁止混合维度。
 3. 查询先过滤 `workspace_id` 和 `kb_id`，再执行 cosine 距离排序。
 4. 低分或空向量 chunk 不进入结果；返回 `vectorScore/fulltextScore/rerankScore` 中可用的分数。
@@ -943,6 +1077,8 @@ private_key
 9. `0009_model_context_window`：为模型连接补充上下文窗口及检查约束。
 10. `0010_operation_plans_and_plugin_lifecycle`：一次性操作计划、幂等结果、插件软卸载与生命周期状态、
     活跃安装部分唯一索引，以及 `mcp_connections.description`。
+11. `0011_agent_and_knowledge_ingest`：Agent/Conversation/Message/Invocation/Event/ToolCall 表、
+    `knowledge_ingest_jobs` 入库队列、768 维 embedding 迁移与相关索引。
 
 迁移约束：
 

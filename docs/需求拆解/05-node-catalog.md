@@ -218,7 +218,7 @@ Flowise/Langflow 更接近组件图：常见能力是 Chat/Document/Vector Store
 
 |  # | 节点             | 判据     | 运行输入          | 输出 handles → 字段                                                                                                                        | 关键配置                                                                                                                                   |
 | -: | -------------- | ------ | ------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| 12 | `agent`        | 无      | `in`(any, 可选) | `out` → `output/messages/steps/toolCalls/usage/finishReason`                                                                           | model-picker；instructions/input；tools；toolChoice；maxSteps/maxTokens/maxCost；memory；outputSchema；stopConditions；humanApproval           |
+| 12 | `agent`        | 无      | `in`(any, 可选) | `out` → `output/messages/steps/toolCalls/usage/finishReason`                                                                           | modelConnectionId；instructions/inputExpression；knowledge；mcpTools；maxSteps/timeoutMs；memory；outputSchema                                  |
 | 13 | `loop`         | `mode` | `in`(any, 必需) | `body`；`done` → `items/iterations/lastOutput/failed/aggregated`                                                                        | forEach：items/concurrency；while：condition；fixed：iterations；item/indexVariable；maxIterations；collectOutput；breakCondition；errorPolicy   |
 | 14 | `subworkflow`  | 无      | `in`(any, 必需) | `out` → `output/childRunId/status/usage`；`error`（collect 时）                                                                            | workflow-picker；versionPolicy/version；input/outputMapping；timeout；maxDepth；errorPropagation；inheritWorkspace                           |
 | 15 | `human`        | `mode` | `in`(any, 必需) | form：`submitted`；approval：`approved/rejected`；字段 `action/values/comment/submittedBy/submittedAt/decision/decidedAt`                    | form：formSchema/submitLabel/allowDraft；approval：payload/title/assignee/actions；description；timeout/action/resumeTtl                    |
@@ -550,24 +550,27 @@ Flowise/Langflow 更接近组件图：常见能力是 Chat/Document/Vector Store
 
 无判据；输入 handle：`in`；输出 handle：`out`。
 
-| 字段                  | 类型                           | 必填 | 默认      | 说明            |
-| ------------------- | ---------------------------- | -- | ------- | ------------- |
-| `modelConnectionId` | string                       | 是  | —       | 模型连接          |
-| `model`             | string                       | 否  | 连接默认模型  | 可覆盖模型名        |
-| `instructions`      | RichTextValue                | 是  | —       | 系统指令          |
-| `input`             | RichTextValue / VariableRef  | 是  | —       | 用户输入或变量       |
-| `tools`             | ToolRef\[]                   | 否  | `[]`    | 可调用工具         |
-| `toolChoice`        | `auto` / `none` / `required` | 否  | `auto`  | 工具选择策略        |
-| `maxSteps`          | number                       | 否  | `10`    | 最大推理步数，1–30   |
-| `maxTokens`         | number                       | 否  | `8192`  | 单次/总 token 上限 |
-| `maxCost`           | number                       | 否  | `null`  | 成本上限          |
-| `memory`            | object                       | 否  | `{}`    | 会话记忆配置        |
-| `outputSchema`      | object                       | 否  | `null`  | 结构化输出 schema  |
-| `stopConditions`    | ConditionGroup\[]            | 否  | `[]`    | 提前停止条件        |
-| `humanApproval`     | object                       | 否  | `{}`    | 高危工具审批配置      |
-| `stream`            | boolean                      | 否  | `false` | 是否流式输出        |
+| 字段                  | 类型                           | 必填 | 默认                     | 说明                                             |
+| ------------------- | ---------------------------- | -- | ---------------------- | ---------------------------------------------- |
+| `modelConnectionId` | string                       | 是  | —                      | 模型连接；运行时由 worker 读取凭据                          |
+| `model`             | string                       | 否  | 连接默认模型                 | 可覆盖模型名                                         |
+| `instructions`      | RichTextValue                | 是  | —                      | 系统指令；工具输出视为不可信数据                               |
+| `inputExpression`   | string                       | 否  | `{{ $input.question }}` | 输入映射；留空时使用工作流原始输入                              |
+| `knowledge`         | object                       | 否  | —                      | `knowledgeBaseIds`、`topK`、`scoreThreshold`、`retrievalMode` |
+| `mcpTools`          | AgentMcpToolRef\[]           | 否  | `[]`                   | `serverId`、`toolName`，可选 `description/parameters` |
+| `maxSteps`          | number                       | 否  | `8`                    | 最大工具循环步数，1–32                                  |
+| `timeoutMs`         | number                       | 否  | `120000`               | 单次执行超时，1 秒到 1 小时                                |
+| `memory`            | object                       | 否  | `{ "mode": "run" }`    | `none/run/conversation`；会话模式使用持久 thread            |
+| `outputSchema`      | object                       | 否  | `null`                 | 配置后结构化输出必须通过 JSON Schema                        |
 
 输出字段：`output`、`messages`、`steps`、`toolCalls`、`usage`、`finishReason`。
+
+运行时边界：
+
+- 节点配置序列化为 `AgentDefinition`，工作流只负责输入映射与输出接线；Agent 循环由 worker 内的 `AgentRuntime` 执行。
+- 问答工作台与工作流节点共用同一个 `AgentRuntime`，差异只在 invocation 的 `kind` 和消息持久化方式。
+- `tools/toolChoice/maxTokens/maxCost/stopConditions/humanApproval/stream` 保留为后续扩展字段，不进入当前 P1 的序列化定义。
+- 运行时产生 `message.delta/message.completed/tool.started/tool.output/invocation.*` 事件，前端通过 SSE 按 `seq` 断点续传。
 
 #### 5.4.14 `loop`
 

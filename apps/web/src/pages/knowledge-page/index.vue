@@ -26,8 +26,10 @@
         @remove="removeKnowledgeBase"
         @files="queueFiles"
         @retry-upload="retryUpload"
+        @remove-upload="removeUpload"
         @open-document="openDocument"
         @retry-document="retryDocument"
+        @reindex-document="rebuildDocument"
         @remove-document="deleteDocument"
         @show-document-error="showDocumentError"
       />
@@ -38,6 +40,7 @@
         :loading="testLoading"
         :search-ran="searchRan"
         :last-duration="lastSearchDuration"
+        :warnings="searchWarnings"
         @search="runSearch"
       />
     </div>
@@ -69,8 +72,10 @@
           @remove="removeKnowledgeBase"
           @files="queueFiles"
           @retry-upload="retryUpload"
+          @remove-upload="removeUpload"
           @open-document="openDocument"
           @retry-document="retryDocument"
+          @reindex-document="rebuildDocument"
           @remove-document="deleteDocument"
           @show-document-error="showDocumentError"
         />
@@ -81,6 +86,7 @@
           :loading="testLoading"
           :search-ran="searchRan"
           :last-duration="lastSearchDuration"
+          :warnings="searchWarnings"
           @search="runSearch"
         />
       </div>
@@ -125,8 +131,10 @@
           @remove="removeKnowledgeBase"
           @files="queueFiles"
           @retry-upload="retryUpload"
+          @remove-upload="removeUpload"
           @open-document="openDocument"
           @retry-document="retryDocument"
+          @reindex-document="rebuildDocument"
           @remove-document="deleteDocument"
           @show-document-error="showDocumentError"
         />
@@ -137,6 +145,7 @@
           :loading="testLoading"
           :search-ran="searchRan"
           :last-duration="lastSearchDuration"
+          :warnings="searchWarnings"
           @search="runSearch"
         />
       </div>
@@ -194,6 +203,11 @@ import type {
   SearchResult,
   UploadItem,
 } from './types'
+import {
+  ingestProgress,
+  ingestStageLabel,
+  isActiveIngestStatus,
+} from './status'
 import DocumentPreviewDrawer from './components/DocumentPreviewDrawer.vue'
 import KnowledgeBaseDialog from './components/KnowledgeBaseDialog.vue'
 import KnowledgeDocumentPanel from './components/KnowledgeDocumentPanel.vue'
@@ -217,6 +231,7 @@ const documentsLoading = ref(false)
 const testLoading = ref(false)
 const searchRan = ref(false)
 const searchResults = ref<SearchResult[]>([])
+const searchWarnings = ref<string[]>([])
 const lastSearchDuration = ref(0)
 const documentDrawerOpen = ref(false)
 const selectedDocumentId = ref('')
@@ -225,6 +240,8 @@ const selectedPreview = ref<KnowledgePreviewDto>()
 const activeStats = ref<KnowledgeStatsDto>()
 const chunksLoading = ref(false)
 let filterTimer: number | undefined
+let pollTimer: number | undefined
+let pollInFlight = false
 
 const mobilePanes: Array<{ value: MobilePane; label: string }> = [
   { value: 'groups', label: '分组' },
@@ -247,9 +264,11 @@ watch([kbQuery, kbStatusFilter], () => {
 })
 
 watch(activeKbId, async (id) => {
+  window.clearTimeout(pollTimer)
   selectedDocumentId.value = ''
   documentDrawerOpen.value = false
   searchResults.value = []
+  searchWarnings.value = []
   searchRan.value = false
   if (!id) {
     documents.value = []
@@ -287,9 +306,9 @@ async function loadKnowledgeBases(silent = false) {
   }
 }
 
-async function loadActiveKnowledge() {
+async function loadActiveKnowledge(silent = false) {
   if (!activeKbId.value) return
-  documentsLoading.value = true
+  if (!silent) documentsLoading.value = true
   try {
     const [items, stats] = await Promise.all([
       listKnowledgeDocuments(activeKbId.value),
@@ -312,17 +331,99 @@ async function loadActiveKnowledge() {
         : undefined,
     }))
     activeStats.value = stats
+    syncUploadQueueFromDocuments()
+    if (!silent) scheduleKnowledgePoll()
   } catch (error) {
-    documents.value = []
-    activeStats.value = undefined
-    notifyError({
-      title: '知识库文档加载失败',
-      description: errorText(error),
-      retry: () => void loadActiveKnowledge(),
-    })
+    if (!silent) {
+      documents.value = []
+      activeStats.value = undefined
+      notifyError({
+        title: '知识库文档加载失败',
+        description: errorText(error),
+        retry: () => void loadActiveKnowledge(),
+      })
+    }
   } finally {
-    documentsLoading.value = false
+    if (!silent) documentsLoading.value = false
   }
+}
+
+/**
+ * 在有活动 ingest 时安排下一次文档状态轮询。
+ */
+function scheduleKnowledgePoll() {
+  window.clearTimeout(pollTimer)
+  if (!hasActiveIngest()) return
+  pollTimer = window.setTimeout(() => {
+    void pollActiveKnowledge()
+  }, 1500)
+}
+
+/**
+ * 判断当前知识库或上传队列是否仍有活动任务。
+ *
+ * @returns 是否需要继续轮询。
+ */
+function hasActiveIngest() {
+  return (
+    activeDocuments.value.some((document) =>
+      isActiveIngestStatus(document.status),
+    ) ||
+    uploadQueue.value.some(
+      (item) => item.status === 'processing' && Boolean(item.documentId),
+    )
+  )
+}
+
+/**
+ * 静默刷新活动文档，并在仍有任务时继续轮询。
+ */
+async function pollActiveKnowledge() {
+  if (pollInFlight || !activeKbId.value) return
+  pollInFlight = true
+  try {
+    await loadActiveKnowledge(true)
+  } finally {
+    pollInFlight = false
+    if (hasActiveIngest()) scheduleKnowledgePoll()
+  }
+}
+
+/**
+ * 把文档列表中的最新 ingest 状态同步到上传队列。
+ */
+function syncUploadQueueFromDocuments() {
+  const byId = new Map(documents.value.map((document) => [document.id, document]))
+  uploadQueue.value = uploadQueue.value.map((item) => {
+    const document = byId.get(item.documentId ?? '')
+    return document ? applyIngestDocument(item, document) : item
+  })
+}
+
+/**
+ * 将文档状态投影到上传队列项。
+ *
+ * @param item 上传队列项。
+ * @param document 最新文档 DTO。
+ * @returns 更新后的队列项。
+ */
+function applyIngestDocument(
+  item: UploadItem,
+  document: KnowledgeDocument,
+) {
+  item.status =
+    document.status === 'ready'
+      ? 'ready'
+      : document.status === 'failed'
+        ? 'failed'
+        : 'processing'
+  item.stage = ingestStageLabel(document.status)
+  item.progress = ingestProgress(document.status, document.progress)
+  item.error =
+    document.status === 'failed'
+      ? (document.error ?? '索引失败，请重试或重建索引。')
+      : undefined
+  return item
 }
 
 function selectKnowledgeBase(id: string) {
@@ -421,16 +522,22 @@ async function uploadFile(item: UploadItem) {
   if (!item.file || !activeKbId.value) return
   item.status = 'processing'
   item.progress = 0
-  item.stage = 'uploading'
+  item.stage = '上传中'
+  item.error = undefined
   try {
-    const document = await uploadKnowledgeDocument(activeKbId.value, item.file)
-    item.status = document.status === 'failed' ? 'failed' : 'ready'
-    item.progress = document.status === 'ready' ? 100 : document.progress
-    item.stage = document.status
+    const accepted = await uploadKnowledgeDocument(
+      activeKbId.value,
+      item.file,
+    )
+    item.documentId = accepted.document.id
+    item.jobId = accepted.job.id
+    applyIngestDocument(item, accepted.document)
+    if (accepted.job.errorMessage) item.error = accepted.job.errorMessage
     await loadActiveKnowledge()
   } catch (error) {
     item.status = 'failed'
-    item.stage = errorText(error)
+    item.stage = '上传失败'
+    item.error = errorText(error)
     item.progress = 0
     notifyError({
       title: '文档上传失败',
@@ -441,12 +548,47 @@ async function uploadFile(item: UploadItem) {
 }
 
 async function retryUpload(item: UploadItem) {
-  await uploadFile(item)
+  if (!item.documentId) {
+    await uploadFile(item)
+    return
+  }
+  item.status = 'processing'
+  item.stage = '排队中'
+  item.error = undefined
+  item.progress = 8
+  try {
+    const job = await retryKnowledgeDocument(item.documentId)
+    item.jobId = job.id
+    await loadActiveKnowledge()
+  } catch (error) {
+    item.status = 'failed'
+    item.stage = '重试失败'
+    item.error = errorText(error)
+    notifyError({
+      title: '文档重试失败',
+      description: errorText(error),
+      retry: () => void retryUpload(item),
+    })
+  }
+}
+
+function removeUpload(item: UploadItem) {
+  uploadQueue.value = uploadQueue.value.filter((entry) => entry.id !== item.id)
 }
 
 async function retryDocument(document: KnowledgeDocument) {
   try {
-    await retryKnowledgeDocument(document.id)
+    const job = await retryKnowledgeDocument(document.id)
+    const item = uploadQueue.value.find(
+      (entry) => entry.documentId === document.id,
+    )
+    if (item) {
+      item.jobId = job.id
+      item.status = 'processing'
+      item.stage = '排队中'
+      item.error = undefined
+      item.progress = 8
+    }
     await loadActiveKnowledge()
   } catch (error) {
     notifyError({
@@ -458,8 +600,25 @@ async function retryDocument(document: KnowledgeDocument) {
 }
 
 async function rebuildDocument(document: KnowledgeDocument) {
+  if (
+    !window.confirm(
+      `重建“${document.name}”的切片与向量索引？当前索引会先被清理。`,
+    )
+  ) {
+    return
+  }
   try {
-    await reindexKnowledgeDocument(document.id)
+    const job = await reindexKnowledgeDocument(document.id)
+    const item = uploadQueue.value.find(
+      (entry) => entry.documentId === document.id,
+    )
+    if (item) {
+      item.jobId = job.id
+      item.status = 'processing'
+      item.stage = '排队中'
+      item.error = undefined
+      item.progress = 8
+    }
     await loadActiveKnowledge()
   } catch (error) {
     notifyError({
@@ -534,6 +693,7 @@ async function runSearch(request: SearchRequest) {
   if (testLoading.value || !activeKbId.value) return
   testLoading.value = true
   searchResults.value = []
+  searchWarnings.value = []
   searchRan.value = false
   lastSearchDuration.value = 0
   const startedAt = performance.now()
@@ -554,13 +714,9 @@ async function runSearch(request: SearchRequest) {
     }))
     lastSearchDuration.value = Math.round(performance.now() - startedAt)
     searchRan.value = true
-    if (response.warnings?.length) {
-      notifyError({
-        title: '检索返回警告',
-        description: response.warnings.join('；'),
-      })
-    }
+    searchWarnings.value = response.warnings ?? []
   } catch (error) {
+    searchWarnings.value = []
     notifyError({
       title: '知识库检索失败',
       description: errorText(error),
@@ -582,5 +738,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.clearTimeout(filterTimer)
+  window.clearTimeout(pollTimer)
 })
 </script>

@@ -22,6 +22,7 @@
       :items="uploadQueue"
       @files="$emit('files', $event)"
       @retry="$emit('retryUpload', $event)"
+      @remove="$emit('removeUpload', $event)"
     />
     <KnowledgeDocumentTable
       :documents="documents"
@@ -29,6 +30,7 @@
       :active="Boolean(activeKb)"
       @open="$emit('openDocument', $event)"
       @retry="$emit('retryDocument', $event)"
+      @reindex="$emit('reindexDocument', $event)"
       @remove="$emit('removeDocument', $event)"
       @show-error="$emit('showDocumentError', $event)"
     />
@@ -55,8 +57,10 @@ defineEmits<{
   remove: [knowledgeBase: KnowledgeBaseItem]
   files: [files: File[]]
   retryUpload: [item: UploadItem]
+  removeUpload: [item: UploadItem]
   openDocument: [document: KnowledgeDocument]
   retryDocument: [document: KnowledgeDocument]
+  reindexDocument: [document: KnowledgeDocument]
   removeDocument: [document: KnowledgeDocument]
   showDocumentError: [document: KnowledgeDocument]
 }>()

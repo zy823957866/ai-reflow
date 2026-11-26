@@ -85,6 +85,7 @@
 | `B-MODEL-08` | 版本 pin | 连接版本/模型名进入 snapshot |
 | `B-MODEL-09` | 成本统计 | token/cost 按 run/node/provider |
 | `B-MODEL-10` | 引用检查 | 删除/禁用连接前查引用 |
+| `B-MODEL-11` | Agent/Embedding Provider | Ollama 原生接口 + OpenAI-compatible；流式、429 重试、错误归一化、维度校验 |
 | `B-SKILL-01` | 能力包 manifest | 类型/版本/权限/依赖/可用节点 |
 | `B-SKILL-02` | 安装/授权 | workspace 级；权限快照 |
 | `B-SKILL-03` | 挂载关系 | workflow/node → skill install |
@@ -108,6 +109,24 @@
 | `POST` | `/api/skill-installs/:id/upgrade` / `rollback` | 升级/回滚 |
 | `GET` | `/api/skill-installs/:id/mounts` | 挂载关系 |
 | `POST` | `/api/skill-installs/:id/test` | 沙箱测试 |
+
+### 3.2 Provider 适配
+
+Agent 和知识库通过同一套 Provider 端口接入模型，密钥只在 worker 内解析：
+
+| 能力 | Provider | 当前实现 |
+| --- | --- | --- |
+| Chat | Ollama | 原生 `/api/chat`，支持流式 chunk 和 tool calls |
+| Chat | OpenAI-compatible | `/chat/completions`；覆盖 OpenAI、DeepSeek 以及自定义 base URL |
+| Embedding | Ollama | `/api/embeddings`，当前示例为 `nomic-embed-text`（768 维） |
+| Embedding | OpenAI-compatible | `/embeddings`；维度必须与 `knowledge_bases.embedding_dimension` 一致 |
+
+约束：
+
+- 聊天模型可以按 Agent 切换；embedding 模型变化必须重建知识库索引，不能把不同维度写入同一列。
+- Provider 将 429/5xx 映射为可重试错误，将 4xx 参数/鉴权错误映射为不可重试错误；错误码和阶段随 invocation/ingest job 持久化。
+- 前端只展示模型名、连接状态和凭据掩码，不接触明文密钥。
+- Agent 的 `AgentDefinition` 只存连接 ID 和模型名；运行时快照固定 definition，历史 invocation 可解释。
 
 ## 4. 示例
 
@@ -162,6 +181,7 @@
 | `T-MODEL-05` | P0 | 默认模型与 fallback | 失败切换可解释 |
 | `T-MODEL-06` | P0 | 成本/token 统计 | 按 run/node 聚合 |
 | `T-MODEL-07` | P0 | 删除前引用检查 | 不静默破坏已发布工作流 |
+| `T-MODEL-08` | P0 | Agent/Embedding Provider | Ollama 流式与 OpenAI-compatible（DeepSeek）调用通过 |
 | `T-SKILL-01` | P1 | Skill manifest 与校验 | 权限/依赖/版本必填 |
 | `T-SKILL-02` | P1 | 安装/授权/挂载关系 | workspace 隔离，权限可见 |
 | `T-SKILL-03` | P1 | 声明式注入 | 不改节点 I/O schema |
@@ -173,6 +193,8 @@
 
 - 凭据保存后不可回显；日志/事件无密钥。
 - 模型不存在、限流、超时、fallback 失败。
+- Ollama 流式输出、tool calls、embedding 维度不一致和 429 指数退避。
+- OpenAI-compatible（DeepSeek）base URL、鉴权失败和不可重试 4xx。
 - 已发布工作流在模型连接变更后仍可解释/可重放。
 - Skill 权限变更、依赖缺失、版本回滚、挂载节点删除。
 - 代码型 Skill 在 runner 外不可执行。

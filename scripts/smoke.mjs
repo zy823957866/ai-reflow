@@ -216,20 +216,35 @@ async function auditKnowledgeCrud(page, groupPanel, failures, outputDir) {
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
-          id: 'doc_smoke_upload',
-          kbId: createdId,
-          name: 'smoke-upload.txt',
-          mime: 'text/plain',
-          extension: 'txt',
-          size: '24 B',
-          sizeBytes: 24,
-          chunks: 1,
-          chunkStrategy: 'heading',
-          status: 'ready',
-          previewStatus: 'ready',
-          progress: 100,
-          metadata: {},
-          updatedAt: new Date().toISOString(),
+          document: {
+            id: 'doc_smoke_upload',
+            kbId: createdId,
+            name: 'smoke-upload.txt',
+            mime: 'text/plain',
+            extension: 'txt',
+            size: '24 B',
+            sizeBytes: 24,
+            chunks: 0,
+            chunkStrategy: 'heading',
+            status: 'queued',
+            previewStatus: 'none',
+            progress: 0,
+            metadata: {},
+            updatedAt: new Date().toISOString(),
+          },
+          job: {
+            id: 'kij_smoke_upload',
+            documentId: 'doc_smoke_upload',
+            documentName: 'smoke-upload.txt',
+            documentStatus: 'queued',
+            kind: 'ingest',
+            status: 'queued',
+            stage: 'parse',
+            attempt: 0,
+            maxAttempts: 3,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
         }),
       })
     })
@@ -381,7 +396,7 @@ async function auditKnowledgeLayouts(browser, failures, outputDir) {
 }
 
 /**
- * 验收普通输入框与复合搜索框的焦点边框。
+ * 验收普通输入框与复合搜索框的焦点轮廓。
  * @param page Playwright 页面。
  * @param failures 失败列表。
  */
@@ -397,6 +412,7 @@ async function auditFormFocus(page, failures) {
   const shellBlurred = await shell.evaluate((element) => {
     const style = window.getComputedStyle(element)
     return {
+      borderColor: style.borderTopColor,
       borderWidth: Number.parseFloat(style.borderTopWidth),
       outlineWidth: Number.parseFloat(style.outlineWidth),
       boxShadow: style.boxShadow,
@@ -420,7 +436,7 @@ async function auditFormFocus(page, failures) {
     shellBlurred.borderWidth !== 1 ||
     shellBlurred.outlineWidth !== 2 ||
     shellBlurred.boxShadow !== 'none' ||
-    shellFocused.borderColor !== 'rgba(0, 0, 0, 0)' ||
+    shellFocused.borderColor !== shellBlurred.borderColor ||
     shellFocused.outlineWidth !== 2 ||
     shellFocused.outlineColor === 'rgba(0, 0, 0, 0)' ||
     shellFocused.inputBorderWidth !== 0 ||
@@ -468,6 +484,7 @@ async function auditFormFocus(page, failures) {
   const inputBlurred = await regularInput.evaluate((element) => {
     const style = window.getComputedStyle(element)
     return {
+      borderColor: style.borderTopColor,
       borderWidth: Number.parseFloat(style.borderTopWidth),
       outlineWidth: Number.parseFloat(style.outlineWidth),
       outlineColor: style.outlineColor,
@@ -490,7 +507,7 @@ async function auditFormFocus(page, failures) {
     inputBlurred.outlineWidth !== 2 ||
     inputBlurred.outlineColor !== 'rgba(0, 0, 0, 0)' ||
     inputBlurred.boxShadow !== 'none' ||
-    inputFocused.borderColor !== 'rgba(0, 0, 0, 0)' ||
+    inputFocused.borderColor !== inputBlurred.borderColor ||
     inputFocused.outlineWidth !== 2 ||
     inputFocused.outlineColor === 'rgba(0, 0, 0, 0)' ||
     inputFocused.boxShadow !== 'none'

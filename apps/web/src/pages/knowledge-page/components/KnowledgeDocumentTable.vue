@@ -53,9 +53,14 @@
                 :title="document.error || '查看文档'"
                 @click="document.error ? $emit('showError', document) : $emit('open', document)"
               >
-                <StatusBadge :status="document.status === 'ready' ? 'succeeded' : document.status" />
-                <small v-if="isProcessing(document)" class="text-[12px] text-subtle">{{ document.progress }}%</small>
-                <span v-if="document.error" class="inline-flex items-center gap-1 text-danger">
+                <StatusBadge :status="document.status" />
+                <small class="text-[12px] text-subtle">
+                  {{ ingestStageLabel(document.status) }}
+                  <template v-if="isProcessing(document)">
+                    · {{ documentProgress(document) }}%
+                  </template>
+                </small>
+                <span v-if="document.error" class="inline-flex max-w-[180px] items-center gap-1 truncate text-danger" :title="document.error">
                   <CircleAlert :size="12" /> 查看错误
                 </span>
               </Button>
@@ -75,6 +80,16 @@
                   @click="$emit('retry', document)"
                 >
                   <RefreshCw :size="13" />
+                </Button>
+                <Button
+                  v-if="document.status === 'ready' || document.status === 'failed'"
+                  variant="ghost"
+                  size="icon-sm"
+                  class="!h-7 !w-7"
+                  title="重建索引"
+                  @click="$emit('reindex', document)"
+                >
+                  <RefreshCcw :size="13" />
                 </Button>
                 <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" title="删除文档" @click="$emit('remove', document)">
                   <Trash2 :size="13" />
@@ -114,6 +129,7 @@ import {
   Eye,
   FileSearch,
   LoaderCircle,
+  RefreshCcw,
   RefreshCw,
   Trash2,
 } from 'lucide-vue-next'
@@ -127,6 +143,7 @@ import {
 } from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { relativeTime } from '@/shared/format'
+import { ingestProgress, ingestStageLabel } from '../status'
 import type { KnowledgeDocument } from '../types'
 
 const props = defineProps<{
@@ -138,6 +155,7 @@ const props = defineProps<{
 defineEmits<{
   open: [document: KnowledgeDocument]
   retry: [document: KnowledgeDocument]
+  reindex: [document: KnowledgeDocument]
   remove: [document: KnowledgeDocument]
   showError: [document: KnowledgeDocument]
 }>()
@@ -170,6 +188,10 @@ watch(totalPages, (value) => {
 
 function isProcessing(document: KnowledgeDocument) {
   return ['queued', 'parsing', 'chunking', 'embedding'].includes(document.status)
+}
+
+function documentProgress(document: KnowledgeDocument) {
+  return ingestProgress(document.status, document.progress)
 }
 
 function fileMarkClass(extension: string) {

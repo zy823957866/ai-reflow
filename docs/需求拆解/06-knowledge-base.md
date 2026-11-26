@@ -157,6 +157,8 @@ Word/Excel 不依赖浏览器原生 Office 渲染；服务端转换后前端只�
 | `POST` | `/api/documents/:id/preview/retry` | 重试预览转换 |
 | `POST` | `/api/knowledge-bases/:id/search` | 检索测试 |
 | `GET` | `/api/knowledge-bases/:id/stats` | 文档/chunk/失败统计 |
+| `GET` | `/api/knowledge-ingest-jobs/:id` | 入库作业状态、阶段、尝试次数和稳定错误 |
+| `POST` | `/api/knowledge-ingest-jobs/:id/cancel` | 取消尚未完成的入库作业 |
 
 ### 3.2 数据与流程
 
@@ -173,6 +175,18 @@ preview: parse/convert -> preview artifact -> signed URL
 - 检索先做 workspace/KB 过滤，再相似度排序。
 - rerank 失败按配置回退到原始排序，并在事件中标注。
 - 预览转换异步执行，不阻塞检索；大文件首次打开可能处于 `converting`。
+
+### 3.3 当前实现与前端轮询
+
+截至 2026-11-26，知识库链路已经落到真实 worker：
+
+- 上传接口返回 `{ document, job }`。`document` 是可轮询的文档状态，`job` 是 `knowledge_ingest_jobs` 中的入库作业。
+- 作业阶段为 `parse → normalize → chunk → embedding → index`；文档状态为 `queued → parsing → chunking → embedding → ready`，失败时进入 `failed` 并保留 `stage_error`。
+- 失败重试从作业的失败阶段继续，复用已持久化 chunk；重建索引会先清理 chunks/向量，再从 `parse` 重新执行。
+- 前端在存在活动文档时每 1.5 秒静默轮询文档列表；上传队列按 `documentId` 同步阶段和进度，结束后停止轮询。
+- 文档列表显示真实阶段、进度、失败原因，并提供重试与重建索引入口；错误不再只停留在 Toast。
+- 检索测试台已启用 `vector/keyword/hybrid`。embedding 不可用时，服务端返回 `EMBEDDING_UNAVAILABLE` 并降级为全文检索；rerank 不可用时返回 `RERANK_NOT_CONFIGURED`，前端在结果上方持续展示降级原因。
+- 当前部署示例使用 Ollama `nomic-embed-text`（768 维）；如切换到 OpenAI-compatible embedding，必须同步重建索引。
 
 ## 4. 示例
 

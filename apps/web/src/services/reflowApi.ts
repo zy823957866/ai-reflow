@@ -103,6 +103,30 @@ export interface KnowledgeDocumentDto {
   updatedAt: string
 }
 
+export interface KnowledgeIngestJobDto {
+  id: string
+  documentId?: string
+  documentName?: string
+  documentStatus?: string
+  kind: 'ingest' | 'retry' | 'reindex'
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled'
+  stage: 'parse' | 'normalize' | 'chunk' | 'embedding' | 'index'
+  attempt: number
+  maxAttempts: number
+  nextRetryAt?: string
+  errorCode?: string
+  errorMessage?: string
+  workerId?: string
+  leaseExpiresAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface KnowledgeUploadResponse {
+  document: KnowledgeDocumentDto
+  job: KnowledgeIngestJobDto
+}
+
 export interface KnowledgeSearchChunk {
   id: string
   documentId: string
@@ -952,7 +976,7 @@ export function listKnowledgeDocuments(knowledgeBaseId: string) {
 export function uploadKnowledgeDocument(knowledgeBaseId: string, file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  return apiUpload<KnowledgeDocumentDto>(
+  return apiUpload<KnowledgeUploadResponse>(
     `/api/knowledge-bases/${knowledgeBaseId}/documents`,
     formData,
   )
@@ -985,7 +1009,7 @@ export function deleteKnowledgeDocument(documentId: string) {
  * @returns ingest 状态。
  */
 export function retryKnowledgeDocument(documentId: string) {
-  return apiPost<Record<string, unknown>>(`/api/documents/${documentId}/retry`)
+  return apiPost<KnowledgeIngestJobDto>(`/api/documents/${documentId}/retry`)
 }
 
 /**
@@ -995,7 +1019,29 @@ export function retryKnowledgeDocument(documentId: string) {
  * @returns 重建任务状态。
  */
 export function reindexKnowledgeDocument(documentId: string) {
-  return apiPost<Record<string, unknown>>(`/api/documents/${documentId}/reindex`)
+  return apiPost<KnowledgeIngestJobDto>(`/api/documents/${documentId}/reindex`)
+}
+
+/**
+ * 查询知识库入库作业详情。
+ *
+ * @param jobId 外部作业 ID。
+ * @returns 作业状态、阶段和稳定错误。
+ */
+export function getKnowledgeIngestJob(jobId: string) {
+  return apiGet<KnowledgeIngestJobDto>(`/api/knowledge-ingest-jobs/${jobId}`)
+}
+
+/**
+ * 取消尚未完成的知识库入库作业。
+ *
+ * @param jobId 外部作业 ID。
+ * @returns 最新作业状态。
+ */
+export function cancelKnowledgeIngestJob(jobId: string) {
+  return apiPost<KnowledgeIngestJobDto>(
+    `/api/knowledge-ingest-jobs/${jobId}/cancel`,
+  )
 }
 
 /**

@@ -37,7 +37,13 @@
         </span>
         <span class="min-w-0">
           <strong class="block truncate">{{ item.name }}</strong>
-          <small class="block truncate text-[12px] text-subtle">{{ item.sizeLabel }} · {{ item.stage }}</small>
+          <small
+            class="block truncate text-[12px]"
+            :class="item.error ? 'text-danger' : 'text-subtle'"
+            :title="item.error || item.stage"
+          >
+            {{ item.sizeLabel }} · {{ item.error || item.stage }}
+          </small>
         </span>
         <span class="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
           <i class="block h-full rounded-full bg-primary transition-[width]" :style="{ width: `${item.progress}%` }" />
@@ -47,6 +53,16 @@
           <Button v-if="item.status === 'failed'" variant="link" size="xs" @click="$emit('retry', item)">
             重试
           </Button>
+          <Button
+            v-if="item.status === 'failed'"
+            variant="link"
+            size="xs"
+            aria-label="从列表删除"
+            title="从列表删除"
+            @click="$emit('remove', item)"
+          >
+            <Trash2 :size="12" />
+          </Button>
         </span>
       </div>
     </div>
@@ -55,7 +71,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { FileText, UploadCloud } from 'lucide-vue-next'
+import { FileText, Trash2, UploadCloud } from 'lucide-vue-next'
 import { Button } from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { UploadItem } from '../types'
@@ -68,6 +84,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   files: [files: File[]]
   retry: [item: UploadItem]
+  remove: [item: UploadItem]
 }>()
 
 const fileInput = ref<HTMLInputElement>()
