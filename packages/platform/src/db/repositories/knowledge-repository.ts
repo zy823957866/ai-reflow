@@ -1,5 +1,8 @@
-import { AppError } from '@ai-reflow/core'
+import { AppError, type FileRef } from '@ai-reflow/core'
+import type { Readable } from 'node:stream'
 import type { DatabaseClient } from '../client'
+import type { ObjectStorage } from '../../storage'
+import { validateUploadFile, type NormalizedUploadFile } from '../../files/validation'
 import { iso } from './dto'
 import { jsonb, notFound, publicId } from './helpers'
 
@@ -12,6 +15,32 @@ export interface KnowledgeDocumentQuery {
   status?: string
   type?: string
   search?: string
+}
+
+interface KnowledgeDocumentAssetRow {
+  id: string
+  public_id: string
+  name: string
+  extension: string
+  mime: string
+  size_bytes: number | string
+  sha256: string
+  status: string
+  preview_status: string
+  stage_error?: Record<string, unknown> | null
+  metadata: Record<string, unknown>
+  updated_at: Date
+  chunks?: number
+  storage_key?: string
+}
+
+export interface KnowledgeFileContent {
+  file: FileRef
+  object: {
+    body: Readable
+    contentType?: string
+    contentLength?: number
+  }
 }
 
 /**
@@ -27,6 +56,7 @@ export class KnowledgeRepository {
   constructor(
     private readonly sql: DatabaseClient,
     private readonly workspaceId: string,
+    private readonly storage?: ObjectStorage,
   ) {}
 
   /**
@@ -204,6 +234,25 @@ export class KnowledgeRepository {
         details: usage,
       })
     }
+    const objectKeys = await this.sql<Array<{ storage_key: string }>>`
+      select d.storage_key
+      from documents d
+      where d.workspace_id = ${this.workspaceId}
+        and d.kb_id = ${kb.id}
+      union all
+      select p.storage_key
+      from document_previews p
+      join documents d on d.id = p.document_id
+      where p.workspace_id = ${this.workspaceId}
+        and d.workspace_id = ${this.workspaceId}
+        and d.kb_id = ${kb.id}
+    `
+    if (objectKeys.length) {
+      const storage = this.requireStorage()
+      for (const row of objectKeys) {
+        await storage.deleteObject(row.storage_key)
+      }
+    }
     await this.sql.begin(async (transaction) => {
       await transaction`
         delete from document_chunks
@@ -297,17 +346,72 @@ export class KnowledgeRepository {
   }
 
   /**
-   * 上传文件并在对象存储可用时创建 ingest 任务。
+   * 上传知识库原文件并创建 queued 文档记录。
    *
-   * @returns 当前部署未配置对象存储时抛出稳定错误。
+   * 同一知识库内相同 SHA-256 会复用已有文档并跳过对象写入。
    */
-  async upload() {
-    throw new AppError({
-      code: 'OBJECT_STORAGE_NOT_CONFIGURED',
-      message: 'MinIO/S3 对象存储尚未配置，不能接收文档上传。',
-      status: 503,
-      retryable: true,
-    })
+  async upload(
+    knowledgeBaseId: string,
+    file: { name: string; mime: string; buffer: Buffer },
+  ) {
+    const storage = this.requireStorage()
+    const kb = await this.requireInternal(knowledgeBaseId)
+    const normalized = await validateUploadFile(file, 'knowledge-base')
+    const duplicate = await this.documentBySha(kb.id, normalized.sha256)
+    if (duplicate) {
+      return this.toDocumentUpload(duplicate, kb.public_id, true)
+    }
+
+    const documentId = publicId('doc')
+    const storageKey = `workspace/${this.workspaceId}/knowledge/${kb.id}/${documentId}.${normalized.extension}`
+    let objectWritten = false
+    try {
+      await storage.putObject({
+        key: storageKey,
+        body: normalized.buffer,
+        contentType: normalized.mime,
+      })
+      objectWritten = true
+      const [created] = await this.sql<Array<{ public_id: string }>>`
+        insert into documents (
+          public_id, workspace_id, kb_id, name, mime, extension, size_bytes,
+          sha256, storage_key, status, preview_status, metadata
+        )
+        values (
+          ${documentId}, ${this.workspaceId}, ${kb.id}, ${normalized.name},
+          ${normalized.mime}, ${normalized.extension}, ${normalized.size},
+          ${normalized.sha256}, ${storageKey}, ${'queued'}, ${'none'},
+          ${'{}'}::jsonb
+        )
+        on conflict (kb_id, sha256) do nothing
+        returning public_id
+      `
+      if (!created) {
+        await storage.deleteObject(storageKey)
+        objectWritten = false
+        const existing = await this.documentBySha(kb.id, normalized.sha256)
+        if (!existing) {
+          throw new AppError({
+            code: 'OBJECT_STORAGE_ERROR',
+            message: '文档写入冲突，请重试。',
+            status: 409,
+            retryable: true,
+          })
+        }
+        return this.toDocumentUpload(existing, kb.public_id, true)
+      }
+    } catch (error) {
+      if (objectWritten) {
+        await storage.deleteObject(storageKey).catch(() => undefined)
+      }
+      throw error
+    }
+
+    return this.toNormalizedDocumentUpload(
+      documentId,
+      kb.public_id,
+      normalized,
+    )
   }
 
   /**
@@ -366,13 +470,64 @@ export class KnowledgeRepository {
   }
 
   /**
+   * 从对象存储读取知识库文档原文件。
+   */
+  async documentFile(documentId: string): Promise<KnowledgeFileContent> {
+    const storage = this.requireStorage()
+    const [row] = await this.sql<Array<{
+      id: string
+      public_id: string
+      name: string
+      mime: string
+      size_bytes: number | string
+      sha256: string
+      storage_key: string
+    }>>`
+      select
+        id, public_id, name, mime, size_bytes, sha256, storage_key
+      from documents
+      where workspace_id = ${this.workspaceId}
+        and public_id = ${documentId}
+      limit 1
+    `
+    if (!row) {
+      throw new AppError({
+        code: 'FILE_NOT_FOUND',
+        message: '文档不存在或无权访问。',
+        status: 404,
+      })
+    }
+    return {
+      file: {
+        id: row.public_id,
+        name: row.name,
+        mime: row.mime,
+        size: Number(row.size_bytes),
+        sha256: row.sha256,
+      },
+      object: await storage.getObject(row.storage_key),
+    }
+  }
+
+  /**
    * 删除文档、切片和预览记录。
    *
    * @param documentId 外部文档 ID。
    * @returns 删除确认。
    */
   async removeDocument(documentId: string) {
+    const storage = this.requireStorage()
     const document = await this.requireDocument(documentId)
+    const previews = await this.sql<Array<{ storage_key: string }>>`
+      select storage_key
+      from document_previews
+      where workspace_id = ${this.workspaceId}
+        and document_id = ${document.id}
+    `
+    await storage.deleteObject(document.storage_key)
+    for (const preview of previews) {
+      await storage.deleteObject(preview.storage_key)
+    }
     await this.sql`
       delete from documents
       where workspace_id = ${this.workspaceId} and id = ${document.id}
@@ -702,6 +857,106 @@ export class KnowledgeRepository {
   }
 
   /**
+   * 返回已配置的对象存储，或抛出稳定 503。
+   */
+  private requireStorage() {
+    if (!this.storage) {
+      throw new AppError({
+        code: 'OBJECT_STORAGE_NOT_CONFIGURED',
+        message: 'MinIO/S3 对象存储尚未配置，不能处理知识库文件。',
+        status: 503,
+        retryable: true,
+      })
+    }
+    return this.storage
+  }
+
+  /**
+   * 查询同一知识库内 SHA-256 相同的文档。
+   */
+  private async documentBySha(kbId: string, sha256: string) {
+    const [document] = await this.sql<KnowledgeDocumentAssetRow[]>`
+      select
+        d.id, d.public_id, d.name, d.extension, d.mime, d.size_bytes, d.sha256,
+        d.status, d.preview_status, d.stage_error, d.metadata, d.updated_at, 0 as chunks
+      from documents d
+      where d.workspace_id = ${this.workspaceId}
+        and d.kb_id = ${kbId}
+        and d.sha256 = ${sha256}
+      limit 1
+    `
+    return document
+  }
+
+  /**
+   * 把新写入的规范化文件映射为 upload DTO。
+   */
+  private toNormalizedDocumentUpload(
+    id: string,
+    knowledgeBaseId: string,
+    file: NormalizedUploadFile,
+  ) {
+    return {
+      id,
+      kbId: knowledgeBaseId,
+      name: file.name,
+      extension: file.extension,
+      mime: file.mime,
+      size: formatBytes(file.size),
+      sizeBytes: file.size,
+      sha256: file.sha256,
+      chunks: 0,
+      chunkStrategy: 'structured · 800/120',
+      status: 'queued',
+      previewStatus: 'none',
+      progress: 0,
+      metadata: {},
+      updatedAt: new Date().toISOString(),
+      deduplicated: false as const,
+    }
+  }
+
+  /**
+   * 把已存在文档映射为 upload DTO。
+   */
+  private toDocumentUpload(
+    row: KnowledgeDocumentAssetRow,
+    knowledgeBaseId: string,
+    deduplicated: boolean,
+  ) {
+    const sizeBytes = Number(row.size_bytes)
+    const progress =
+      row.status === 'ready'
+        ? 100
+        : row.status === 'embedding'
+          ? 75
+          : row.status === 'chunking'
+            ? 50
+            : row.status === 'parsing'
+              ? 25
+              : 0
+    return {
+      id: row.public_id,
+      kbId: knowledgeBaseId,
+      name: row.name,
+      extension: row.extension,
+      mime: row.mime,
+      size: formatBytes(sizeBytes),
+      sizeBytes,
+      sha256: row.sha256,
+      chunks: row.chunks ?? 0,
+      chunkStrategy: String(row.metadata.chunkStrategy ?? 'structured · 800/120'),
+      status: row.status,
+      previewStatus: row.preview_status,
+      progress,
+      error: row.stage_error?.message,
+      metadata: row.metadata,
+      updatedAt: iso(row.updated_at)!,
+      deduplicated,
+    }
+  }
+
+  /**
    * 读取文档内部记录。
    *
    * @param documentId 外部文档 ID。
@@ -713,8 +968,9 @@ export class KnowledgeRepository {
       name: string
       extension: string
       preview_status: string
+      storage_key: string
     }>>`
-      select id, name, extension, preview_status
+      select id, name, extension, preview_status, storage_key
       from documents
       where workspace_id = ${this.workspaceId}
         and public_id = ${documentId}

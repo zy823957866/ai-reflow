@@ -18,8 +18,11 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import { FileInterceptor } from '@nestjs/platform-express'
 import {
   AppError,
   createMcpServerSchema,
@@ -56,7 +59,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ZodType } from 'zod'
 import {
   CatalogRepository,
+  FileRepository,
   KnowledgeRepository,
+  MAX_FILE_SIZE_BYTES,
   McpExposureRepository,
   McpRepository,
   ModelRepository,
@@ -65,10 +70,17 @@ import {
   TemplateRepository,
   WorkflowRepository,
   createDatabase,
+  createObjectStorage,
+  getObjectStorageConfig,
   loadEnvironment,
   type AuthenticatedMcpExposure,
   type DatabaseClient,
 } from '@ai-reflow/platform'
+import {
+  multipartFileInput,
+  streamAttachment,
+  type MultipartFile,
+} from './files/http'
 
 interface ApiResponse {
   writableEnded: boolean
@@ -90,9 +102,13 @@ interface ApiRequest {
  */
 @Injectable()
 class DatabaseService {
-  private readonly database = createDatabase(loadEnvironment().DATABASE_URL)
+  private readonly config = loadEnvironment()
+  private readonly database = createDatabase(this.config.DATABASE_URL)
   readonly sql: DatabaseClient = this.database.sql
-  readonly workspaceId = loadEnvironment().DEFAULT_WORKSPACE_ID
+  readonly workspaceId = this.config.DEFAULT_WORKSPACE_ID
+  readonly objectStorage = createObjectStorage(
+    getObjectStorageConfig(this.config),
+  )
 
   /**
    * 关闭 PostgreSQL 连接池。
@@ -132,9 +148,16 @@ class ApiExceptionFilter implements ExceptionFilter {
       return
     }
     if (exception instanceof HttpException) {
-      response.status(exception.getStatus())
+      const status = exception.getStatus()
+      response.status(status)
       response.json({
-        error: { code: 'HTTP_ERROR', message: exception.message },
+        error: {
+          code: status === 413 ? 'FILE_TOO_LARGE' : 'HTTP_ERROR',
+          message: status === 413
+            ? '文件大小超过 50 MiB 上限。'
+            : exception.message,
+          retryable: false,
+        },
       })
       return
     }
@@ -199,7 +222,24 @@ class ApiController {
    * @returns 知识库仓库。
    */
   private knowledge() {
-    return new KnowledgeRepository(this.database.sql, this.database.workspaceId)
+    return new KnowledgeRepository(
+      this.database.sql,
+      this.database.workspaceId,
+      this.database.objectStorage,
+    )
+  }
+
+  /**
+   * 创建当前 workspace 的通用附件仓库。
+   *
+   * @returns 附件仓库。
+   */
+  private files() {
+    return new FileRepository(
+      this.database.sql,
+      this.database.workspaceId,
+      this.database.objectStorage,
+    )
   }
 
   /**
@@ -246,6 +286,41 @@ class ApiController {
   async health() {
     await this.database.sql`select 1`
     return { ok: true, service: 'ai-reflow-server', database: 'up' }
+  }
+
+  /**
+   * 上传单个通用附件。
+   */
+  @Post('files')
+  @HttpCode(201)
+  @UseInterceptors(FileInterceptor('file', {
+    limits: {
+      files: 1,
+      fileSize: MAX_FILE_SIZE_BYTES,
+    },
+  }))
+  uploadFile(@UploadedFile() file?: MultipartFile) {
+    return this.files().upload(multipartFileInput(file))
+  }
+
+  /**
+   * 流式下载通用附件正文。
+   */
+  @Get('files/:id/content')
+  async fileContent(
+    @Param('id') id: string,
+    @Res() response: ServerResponse,
+  ) {
+    const content = await this.files().content(id)
+    await streamAttachment(response, content.file, content.object.body)
+  }
+
+  /**
+   * 删除通用附件和对象正文。
+   */
+  @Delete('files/:id')
+  removeFile(@Param('id') id: string) {
+    return this.files().remove(id)
   }
 
   /**
@@ -659,14 +734,25 @@ class ApiController {
   }
 
   /**
-   * 接收文档上传。对象存储未配置时返回稳定 503。
+   * 接收知识库文档 multipart 上传。
    *
-   * @returns 当前部署的上传能力状态。
+   * @param id 外部知识库 ID。
+   * @param file multipart `file` 字段。
+   * @returns queued 文档记录或去重结果。
    */
   @Post('knowledge-bases/:id/documents')
   @HttpCode(201)
-  uploadKnowledgeDocument() {
-    return this.knowledge().upload()
+  @UseInterceptors(FileInterceptor('file', {
+    limits: {
+      files: 1,
+      fileSize: MAX_FILE_SIZE_BYTES,
+    },
+  }))
+  uploadKnowledgeDocument(
+    @Param('id') id: string,
+    @UploadedFile() file?: MultipartFile,
+  ) {
+    return this.knowledge().upload(id, multipartFileInput(file))
   }
 
   /**
@@ -716,6 +802,18 @@ class ApiController {
   @Get('documents/:id')
   document(@Param('id') id: string) {
     return this.knowledge().document(id)
+  }
+
+  /**
+   * 流式下载知识库文档原文件。
+   */
+  @Get('documents/:id/file')
+  async documentFile(
+    @Param('id') id: string,
+    @Res() response: ServerResponse,
+  ) {
+    const content = await this.knowledge().documentFile(id)
+    await streamAttachment(response, content.file, content.object.body)
   }
 
   /**
@@ -1833,7 +1931,12 @@ async function bootstrap() {
       'Mcp-Protocol-Version',
       'X-AI-Reflow-Client',
     ],
-    exposedHeaders: ['Mcp-Session-Id', 'Mcp-Protocol-Version'],
+    exposedHeaders: [
+      'Mcp-Session-Id',
+      'Mcp-Protocol-Version',
+      'Content-Disposition',
+      'Content-Length',
+    ],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   })
   app.useGlobalFilters(new ApiExceptionFilter())

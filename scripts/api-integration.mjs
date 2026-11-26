@@ -117,6 +117,47 @@ async function api(path, options = {}) {
 }
 
 /**
+ * 通过 multipart 调用真实上传接口。
+ *
+ * @param {string} path API 路径。
+ * @param {{name: string, mime: string, bytes: Buffer}} file 上传文件。
+ * @param {number[]} expectedStatus 期望 HTTP 状态码。
+ * @returns {Promise<{ status: number, data: any, headers: Headers }>} 上传结果。
+ */
+async function apiUpload(path, file, expectedStatus = [201]) {
+  const formData = new FormData()
+  formData.set(
+    'file',
+    new Blob([file.bytes], { type: file.mime }),
+    file.name,
+  )
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    body: formData,
+  })
+  const text = await response.text()
+  const data = parseResponseBody(text, response.headers.get('content-type'))
+  if (!expectedStatus.includes(response.status)) {
+    throw new Error(
+      `POST ${path} 返回 ${response.status}，预期 ${expectedStatus.join('/')}：`
+      + `${typeof data === 'string' ? data : JSON.stringify(data)}`,
+    )
+  }
+  return { status: response.status, data, headers: response.headers }
+}
+
+/**
+ * 断言 API 错误响应包含稳定错误码。
+ *
+ * @param {{status: number, data: any}} response API 响应。
+ * @param {string} code 稳定错误码。
+ */
+function assertErrorCode(response, code) {
+  assert.equal(response.data?.error?.code, code, JSON.stringify(response.data))
+}
+
+/**
  * 发送 MCP Streamable HTTP JSON-RPC 请求。
  *
  * @param {string} token 入站 MCP 访问令牌。
@@ -346,6 +387,137 @@ async function testKnowledge() {
     method: 'DELETE',
   })
   assert.equal(removed.data.deleted, true)
+}
+
+/**
+ * 验证通用附件和知识库原文件的上传、下载、去重与删除。
+ *
+ * @param {import('@ai-reflow/platform').DatabaseClient} sql PostgreSQL 客户端。
+ */
+async function testFiles(sql) {
+  const pdfBytes = Buffer.from('%PDF-1.7\nintegration attachment\n%%EOF\n')
+  const uploaded = await apiUpload('/api/files', {
+    name: `..\\private\\集成附件-${runStamp}.pdf`,
+    mime: 'application/pdf',
+    bytes: pdfBytes,
+  })
+  const fileRef = uploaded.data
+  assert.equal(fileRef.name, `集成附件-${runStamp}.pdf`)
+  assert.equal(fileRef.mime, 'application/pdf')
+  assert.equal(fileRef.size, pdfBytes.length)
+  assert.match(fileRef.sha256, /^[a-f0-9]{64}$/)
+  assert.equal('storageKey' in fileRef, false)
+  assert.equal(JSON.stringify(fileRef).includes('workspace/'), false)
+
+  const [asset] = await sql`
+    select public_id, storage_key, size_bytes, sha256
+    from file_assets
+    where workspace_id = ${process.env.DEFAULT_WORKSPACE_ID}
+      and public_id = ${fileRef.id}
+  `
+  assert.ok(asset, '附件元数据必须写入 file_assets。')
+  assert.equal(Number(asset.size_bytes), pdfBytes.length)
+  assert.equal(asset.sha256, fileRef.sha256)
+
+  const download = await fetch(`${apiBaseUrl}/api/files/${fileRef.id}/content`)
+  assert.equal(download.status, 200)
+  assert.equal(download.headers.get('content-disposition')?.startsWith('attachment;'), true)
+  assert.equal(download.headers.get('x-content-type-options'), 'nosniff')
+  assert.equal(download.headers.get('cache-control'), 'private, no-store')
+  assert.deepEqual(Buffer.from(await download.arrayBuffer()), pdfBytes)
+
+  await api(`/api/files/${fileRef.id}`, { method: 'DELETE' })
+  const [remainingAsset] = await sql`
+    select public_id
+    from file_assets
+    where workspace_id = ${process.env.DEFAULT_WORKSPACE_ID}
+      and public_id = ${fileRef.id}
+  `
+  assert.equal(remainingAsset, undefined, '删除附件后元数据必须移除。')
+  const removedDownload = await fetch(`${apiBaseUrl}/api/files/${fileRef.id}/content`)
+  assert.equal(removedDownload.status, 404)
+  assertErrorCode({
+    status: removedDownload.status,
+    data: await removedDownload.json(),
+  }, 'FILE_NOT_FOUND')
+
+  await apiUpload('/api/files', {
+    name: 'forbidden.exe',
+    mime: 'application/octet-stream',
+    bytes: Buffer.from('MZ'),
+  }, [415]).then((response) => assertErrorCode(response, 'FILE_TYPE_NOT_ALLOWED'))
+  await apiUpload('/api/files', {
+    name: 'missing.pdf',
+    mime: 'application/pdf',
+    bytes: Buffer.alloc(50 * 1024 * 1024 + 1, 0x61),
+  }, [413]).then((response) => assertErrorCode(response, 'FILE_TOO_LARGE'))
+
+  const emptyUpload = await fetch(`${apiBaseUrl}/api/files`, {
+    method: 'POST',
+    body: new FormData(),
+  })
+  assert.equal(emptyUpload.status, 400)
+  assertErrorCode({
+    status: emptyUpload.status,
+    data: await emptyUpload.json(),
+  }, 'FILE_REQUIRED')
+
+  const knowledgeBase = await api('/api/knowledge-bases', {
+    method: 'POST',
+    expectedStatus: [201],
+    body: {
+      name: `文件知识库 ${runStamp}`,
+      description: '文件上传集成测试。',
+    },
+  })
+  const knowledgeBaseId = knowledgeBase.data.id
+  const documentFile = {
+    name: `知识库文档-${runStamp}.pdf`,
+    mime: 'application/pdf',
+    bytes: pdfBytes,
+  }
+  const firstDocument = await apiUpload(
+    `/api/knowledge-bases/${knowledgeBaseId}/documents`,
+    documentFile,
+  )
+  assert.equal(firstDocument.data.status, 'queued')
+  assert.equal(firstDocument.data.deduplicated, false)
+  assert.equal('storageKey' in firstDocument.data, false)
+
+  const duplicateDocument = await apiUpload(
+    `/api/knowledge-bases/${knowledgeBaseId}/documents`,
+    { ...documentFile, name: `重复-${runStamp}.pdf` },
+  )
+  assert.equal(duplicateDocument.data.id, firstDocument.data.id)
+  assert.equal(duplicateDocument.data.deduplicated, true)
+
+  const [documentRows] = await sql`
+    select count(*)::int as count
+    from documents
+    where workspace_id = ${process.env.DEFAULT_WORKSPACE_ID}
+      and public_id = ${firstDocument.data.id}
+  `
+  assert.equal(documentRows.count, 1, '同知识库相同 SHA-256 只能保留一条文档记录。')
+
+  const documentDownload = await fetch(
+    `${apiBaseUrl}/api/documents/${firstDocument.data.id}/file`,
+  )
+  assert.equal(documentDownload.status, 200)
+  assert.equal(documentDownload.headers.get('x-content-type-options'), 'nosniff')
+  assert.match(documentDownload.headers.get('content-disposition') ?? '', /^attachment;/)
+  assert.deepEqual(Buffer.from(await documentDownload.arrayBuffer()), pdfBytes)
+
+  await api(`/api/documents/${firstDocument.data.id}`, { method: 'DELETE' })
+  const removedDocument = await fetch(
+    `${apiBaseUrl}/api/documents/${firstDocument.data.id}/file`,
+  )
+  assert.equal(removedDocument.status, 404)
+  assertErrorCode({
+    status: removedDocument.status,
+    data: await removedDocument.json(),
+  }, 'FILE_NOT_FOUND')
+
+  await api(`/api/knowledge-bases/${knowledgeBaseId}`, { method: 'DELETE' })
 }
 
 /**
@@ -712,6 +884,7 @@ async function runIntegrationSuite() {
     })
     await test('模型连接闭环', testModels)
     await test('知识库闭环', testKnowledge)
+    await test('附件与知识库文件闭环', () => testFiles(sql))
     await test('出站 MCP 闭环', testOutboundMcp)
     await test('模板克隆闭环', testTemplates)
     await test('插件生命周期闭环', () => testPlugins(sql))
