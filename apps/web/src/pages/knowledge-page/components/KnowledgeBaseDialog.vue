@@ -1,6 +1,6 @@
 <template>
   <Dialog :open="open" @update:open="$emit('update:open', $event)">
-      <DialogContent class="w-[min(480px,calc(100vw-28px))]" :show-close="false">
+      <DialogContent class="w-[min(480px,calc(100vw-28px))]">
         <DialogTitle class="m-0 text-[17px] font-700">{{ knowledgeBase ? '编辑知识库' : '新建知识库' }}</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           embedding 模型与维度由部署配置决定，创建后不可单独切换。

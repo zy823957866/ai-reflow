@@ -204,7 +204,7 @@
   </main>
 
   <Dialog v-model:open="createOpen">
-      <DialogContent class="w-[min(620px,calc(100vw-28px))]" :show-close="false">
+      <DialogContent class="w-[min(620px,calc(100vw-28px))]">
         <DialogTitle class="m-0 text-[17px] font-700">{{ editingModelId ? '编辑模型连接' : '新建模型连接' }}</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           Workspace 级连接。凭证只接受安全引用，创建后不可回显明文；编辑时留空表示保留现有引用。

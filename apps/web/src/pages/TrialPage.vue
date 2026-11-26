@@ -301,7 +301,7 @@
   </main>
 
   <Dialog v-model:open="callInfoOpen">
-      <DialogContent class="w-[min(540px,calc(100vw-32px))]" :show-close="false">
+      <DialogContent class="w-[min(540px,calc(100vw-32px))]">
         <DialogTitle class="m-0 text-[17px] font-700">固定版本调用信息</DialogTitle>
         <DialogDescription class="mb-[15px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           外部调用只运行当前发布版本，不会读取草稿。凭证以掩码或 secret_ref 展示。

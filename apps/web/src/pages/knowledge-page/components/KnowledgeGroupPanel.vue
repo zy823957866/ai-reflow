@@ -43,7 +43,7 @@
           : 'border-transparent bg-[#f6f8fa] hover:border-line hover:bg-[var(--surface-3)]'"
         @click="$emit('select', kb.id)"
       >
-        <span class="flex min-w-0 items-start gap-2">
+        <span class="flex min-w-0 items-start gap-2 w-full">
           <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-[6px] bg-surface text-primary">
             <BookOpen :size="16" />
           </span>
@@ -69,11 +69,11 @@
       </div>
     </div>
 
-    <footer v-if="activeKb" class="flex items-center gap-1 border-t border-line p-2">
-      <Button variant="ghost" class="!h-8 flex-1 !px-2" @click="$emit('edit', activeKb)">
+    <footer v-if="activeKb" class="flex items-center gap-1 border-t border-line p-2 h-11!">
+      <Button variant="ghost" class="flex-1 px-2 h-8" @click="$emit('edit', activeKb)">
         <Pencil :size="13" /> 编辑
       </Button>
-      <Button variant="destructive" class="!h-8 flex-1 !px-2" @click="$emit('remove', activeKb)">
+      <Button variant="destructive" class="flex-1 px-2  h-8" @click="$emit('remove', activeKb)">
         <Trash2 :size="13" /> 删除
       </Button>
     </footer>
@@ -84,7 +84,6 @@
 import { computed } from 'vue'
 import { BookOpen, LoaderCircle, Pencil, Plus, Search, Trash2 } from 'lucide-vue-next'
 import { Button, Input } from '@ai-reflow/ui'
-import StatusBadge from '@/components/StatusBadge.vue'
 import type { KnowledgeBaseItem } from '../types'
 
 const props = defineProps<{

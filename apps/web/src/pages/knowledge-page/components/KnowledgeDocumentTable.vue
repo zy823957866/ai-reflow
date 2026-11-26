@@ -109,7 +109,7 @@
       </div>
     </div>
 
-    <footer class="flex min-h-10 shrink-0 items-center justify-between border-t border-line px-3 text-[12px] text-subtle">
+    <footer class="flex min-h-11 shrink-0 items-center justify-between border-t border-line px-3 text-[12px] text-subtle">
       <span>显示 {{ filteredDocuments.length ? pageStart + 1 : 0 }}–{{ Math.min(pageStart + pageSize, filteredDocuments.length) }} / {{ filteredDocuments.length }}</span>
       <div class="flex items-center gap-2">
         <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" :disabled="page === 1" @click="page--"><ChevronLeft :size="13" /></Button>

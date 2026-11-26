@@ -194,7 +194,7 @@
   </main>
 
   <Dialog v-model:open="createOpen">
-      <DialogContent class="w-[min(480px,calc(100vw-32px))]" :show-close="false">
+      <DialogContent class="w-[min(480px,calc(100vw-32px))]">
         <DialogTitle class="m-0 text-17px font-700">创建工作流</DialogTitle>
         <DialogDescription class="mb-3.25 mt-1.5 text-[12px] leading-1.6 text-subtle">
           创建后会进入设计器。空白工作流包含一个开始节点和一个输出节点。
@@ -215,7 +215,7 @@
   </Dialog>
 
   <Dialog v-model:open="renameOpen">
-      <DialogContent class="w-[min(390px,calc(100vw-32px))]" :show-close="false">
+      <DialogContent class="w-[min(390px,calc(100vw-32px))]">
         <DialogTitle class="m-0 text-17px font-700">重命名工作流</DialogTitle>
         <div class="mt-3 flex flex-col gap-1.5">
           <Label>名称</Label>

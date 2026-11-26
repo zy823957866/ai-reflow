@@ -1,5 +1,5 @@
 <template>
-  <div class="overflow-hidden rounded-8px border bg-surface transition-[border-color,box-shadow]" :class="focused ? 'border-[#9e95fb] shadow-[0_0_0_3px_rgba(91,77,240,0.1)]' : 'border-line'">
+  <div class="overflow-hidden rounded-8px border bg-surface transition-[border-color]" :class="focused ? 'border-[#9e95fb] shadow-[0_0_0_3px_rgba(91,77,240,0.1)]' : 'border-line'">
     <div v-if="toolbar" class="flex h-8 items-center gap-0.5 border-b border-line bg-surface-2 px-1.5">
       <Button type="button" variant="ghost" size="xs" class="h-[23px] px-[7px] text-muted" title="插入变量" @click="insertVariable">
         <Braces :size="13" />

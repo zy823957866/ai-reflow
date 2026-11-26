@@ -169,7 +169,7 @@
   outline: 2px solid transparent;
   outline-offset: 0;
   box-shadow: none;
-  transition: border-color 0.15s, outline-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 :where(.ui-textarea) {
@@ -179,7 +179,6 @@
 
 :where(.ui-input:focus),
 :where(.ui-textarea:focus) {
-  border-color: transparent;
   outline-color: var(--primary);
 }
 
@@ -215,7 +214,7 @@
   cursor: pointer;
   outline: 2px solid transparent;
   outline-offset: 0;
-  transition: border-color 0.15s, outline-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 :where(.ui-select-trigger:hover:not(:disabled)) {
@@ -227,7 +226,6 @@
 }
 
 :where(.ui-select-trigger:focus-visible) {
-  border-color: transparent;
   outline-color: var(--primary);
 }
 
@@ -415,7 +413,7 @@
   z-index: 60;
   background: rgba(18, 20, 26, 0.32);
   backdrop-filter: blur(2px);
-  animation: ui-fade-in 0.15s ease-out;
+  animation: ui-fade-in 0.09s ease-out;
 }
 
 :where(.ui-dialog-content) {
@@ -435,7 +433,7 @@
   box-shadow: var(--shadow-lg);
   outline: none;
   transform: translate(-50%, -50%);
-  animation: ui-fade-in 0.15s ease-out;
+  animation: ui-fade-in 0.09s ease-out;
 }
 
 :where(.ui-dialog-title) {
@@ -444,6 +442,10 @@
   font-size: 17px;
   font-weight: 700;
   line-height: 1.3;
+}
+
+:where(.ui-dialog-content--closable) > :where(.ui-dialog-title) {
+  padding-right: 28px;
 }
 
 :where(.ui-dialog-description) {

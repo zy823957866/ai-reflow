@@ -27,7 +27,10 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
 <template>
   <DialogPortal>
     <DialogOverlay class="ui-dialog-overlay" />
-    <DialogContent v-bind="forwarded" :class="cn('ui-dialog-content', props.class)">
+    <DialogContent
+      v-bind="forwarded"
+      :class="cn('ui-dialog-content', { 'ui-dialog-content--closable': showClose }, props.class)"
+    >
       <slot />
 
       <DialogClose v-if="showClose" class="ui-dialog-close" aria-label="关闭">

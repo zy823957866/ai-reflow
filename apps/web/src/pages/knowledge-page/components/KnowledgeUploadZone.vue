@@ -1,7 +1,7 @@
 <template>
   <div class="border-b border-line p-3">
     <div
-      class="flex min-h-[72px] flex-wrap items-center justify-center gap-2 rounded-[7px] border border-dashed px-3 py-2 text-center text-[12px]"
+      class="flex flex-col min-h-[72px] flex-wrap items-center justify-center gap-2 rounded-[7px] border border-dashed px-3 py-2 text-center text-[12px]"
       :class="dragActive
         ? 'border-primary bg-primary-soft text-primary'
         : disabled
@@ -11,19 +11,23 @@
       @dragleave.prevent="dragActive = false"
       @drop.prevent="handleDrop"
     >
-      <UploadCloud :size="18" />
-      <span>拖入 PDF、Word、Excel、CSV、Markdown 或 TXT</span>
-      <Button variant="link" size="xs" :disabled="disabled" @click="triggerFilePicker">
-        选择文件
-      </Button>
-      <input
-        ref="fileInput"
-        class="hidden"
-        type="file"
-        multiple
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.md,.markdown,.txt,.html"
-        @change="handleFileInput"
-      />
+      <div>
+        <Button variant="outline" size="xs" :disabled="disabled" @click="triggerFilePicker">
+          选择文件
+        </Button>
+        <input
+          ref="fileInput"
+          class="hidden"
+          type="file"
+          multiple
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.md,.markdown,.txt,.html"
+          @change="handleFileInput"
+        />
+      </div>
+      <div class="flex flex-row items-center gap-1">
+        <UploadCloud :size="18" />
+        <span>拖入 PDF、Word、Excel、CSV、Markdown 或 TXT</span>
+      </div>
     </div>
 
     <div v-if="items.length" class="mt-2 max-h-32 overflow-y-auto rounded-[7px] border border-line">

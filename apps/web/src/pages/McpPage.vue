@@ -231,7 +231,7 @@
   </main>
 
   <Dialog v-model:open="addOpen">
-      <DialogContent class="w-[min(620px,calc(100vw-28px))]" :show-close="false">
+      <DialogContent class="w-[min(620px,calc(100vw-28px))]">
         <DialogTitle class="m-0 text-[17px] font-700">添加外部 MCP Server</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           凭证只保存为 secret_ref；远端地址必须通过 allowlist，stdio 仅允许自托管 worker。
@@ -364,7 +364,7 @@
   </Dialog>
 
   <Dialog v-model:open="settingsOpen">
-      <DialogContent class="w-[min(470px,calc(100vw-28px))]" :show-close="false">
+      <DialogContent class="w-[min(470px,calc(100vw-28px))]">
         <DialogTitle class="m-0 text-[17px] font-700">MCP 网关设置</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           本地开发默认监听回环地址。向非回环地址暴露时必须启用访问凭证。

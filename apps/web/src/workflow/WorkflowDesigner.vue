@@ -270,7 +270,7 @@
     </div>
 
     <Dialog v-model:open="previewDialogOpen">
-        <DialogContent class="w-[min(460px,calc(100vw-32px))]" :show-close="false">
+        <DialogContent class="w-[min(460px,calc(100vw-32px))]">
           <DialogTitle class="dialog-title m-0 text-17px font-700">草稿预览输入</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             预览使用当前草稿定义，不生成发布版本。表单与 JSON 使用同一份输入。
@@ -288,7 +288,7 @@
     </Dialog>
 
     <Dialog v-model:open="publishDialogOpen">
-        <DialogContent class="w-[min(520px,calc(100vw-32px))]" :show-close="false">
+        <DialogContent class="w-[min(520px,calc(100vw-32px))]">
           <DialogTitle class="dialog-title m-0 text-17px font-700">发布不可变版本</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             发布前会完成服务端编译校验，并把当前 Manifest 版本与定义固化为快照。
@@ -314,7 +314,7 @@
     </Dialog>
 
     <Dialog v-model:open="publishSuccessOpen">
-        <DialogContent class="w-[min(520px,calc(100vw-32px))] text-center" :show-close="false">
+        <DialogContent class="w-[min(520px,calc(100vw-32px))] text-center">
           <div class="success-icon mx-auto mb-12px flex h-54px w-54px items-center justify-center rounded-full bg-success-soft text-success"><CheckCircle2 :size="26" /></div>
           <DialogTitle class="dialog-title m-0 text-17px font-700">版本 v{{ publishedVersion }} 已发布</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">

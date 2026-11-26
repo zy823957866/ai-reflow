@@ -116,11 +116,10 @@ a:focus-visible {
   background: var(--surface);
   outline: 2px solid transparent;
   outline-offset: 0;
-  transition: border-color 0.15s, outline-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 .control-shell:focus-within {
-  border-color: transparent;
   outline-color: var(--primary);
 }
 
