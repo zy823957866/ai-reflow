@@ -4,6 +4,11 @@ export {
   WORKER_ROLES,
   type WorkerRole,
 } from './config'
+export {
+  LocalObjectStorage,
+  createObjectStorage,
+  type ObjectStorage,
+} from './storage/object-storage'
 export { createDatabase } from './db/client'
 export type { DatabaseClient } from './db/client'
 export { schema } from './db/schema'

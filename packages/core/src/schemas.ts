@@ -142,9 +142,19 @@ export const createAgentConversationSchema = z.object({
   title: z.string().trim().min(1).max(120).optional(),
 })
 
+export const updateAgentConversationSchema = z.object({
+  title: z.string().trim().min(1).max(120).optional(),
+  status: z.enum(['active', 'archived']).optional(),
+})
+
 export const sendAgentMessageSchema = z.object({
   content: z.string().trim().min(1).max(20_000),
   attachments: z.array(z.record(z.string(), z.unknown())).max(10).optional().default([]),
+  metadata: z.record(z.string(), z.unknown()).optional().default({}),
+})
+
+export const testAgentSchema = z.object({
+  content: z.string().trim().min(1).max(20_000).default('你好，请介绍一下你的能力。'),
   metadata: z.record(z.string(), z.unknown()).optional().default({}),
 })
 

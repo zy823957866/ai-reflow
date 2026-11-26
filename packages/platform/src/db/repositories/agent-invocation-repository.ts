@@ -394,6 +394,68 @@ export class AgentInvocationRepository {
   }
 
   /**
+   * 为 Agent 调试创建一次性 external invocation。
+   * @param agentId 外部 Agent ID。
+   * @param input 测试输入和元数据。
+   * @returns 已排队调用 DTO。
+   */
+  async createTestInvocation(
+    agentId: string,
+    input: {
+      content: string
+      metadata?: Record<string, unknown>
+    },
+  ) {
+    return this.sql.begin(async (transaction) => {
+      const [agent] = await transaction<Array<{
+        id: string
+        config: AgentDefinition
+        status: string
+      }>>`
+        select id, config, status
+        from agents
+        where workspace_id = ${this.workspaceId}
+          and public_id = ${agentId}
+        limit 1
+      `
+      if (!agent) throw notFound('Agent')
+      if (agent.status !== 'active') {
+        throw new AppError({
+          code: 'AGENT_NOT_ACTIVE',
+          message: 'Agent 已归档，不能执行测试。',
+          status: 409,
+        })
+      }
+      const invocationPublicId = publicId('agi')
+      const [invocation] = await transaction<Array<{ id: string }>>`
+        insert into agent_invocations (
+          public_id, workspace_id, agent_id, kind, status,
+          definition_snapshot, request, thread_id
+        )
+        values (
+          ${invocationPublicId}, ${this.workspaceId}, ${agent.id},
+          'external', 'queued', ${jsonb(transaction, agent.config)},
+          ${jsonb(transaction, {
+            content: input.content,
+            attachments: [],
+            metadata: input.metadata ?? {},
+          })},
+          ${`test:${invocationPublicId}`}
+        )
+        returning id
+      `
+      await appendInvocationEventRecord(
+        transaction,
+        this.workspaceId,
+        invocation.id,
+        'invocation.queued',
+        { status: 'queued', test: true },
+      )
+      return invocationPublicId
+    }).then((invocationId) => this.get(invocationId))
+  }
+
+  /**
    * 请求取消；排队调用立即取消，运行中调用由 worker 心跳中止。
    * @param invocationId 外部 invocation ID。
    * @returns 最新状态。

@@ -18,8 +18,11 @@ import {
   Query,
   Req,
   Res,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
+import { FileInterceptor } from '@nestjs/platform-express'
 import {
   AppError,
   createMcpServerSchema,
@@ -55,7 +58,11 @@ import {
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { ZodType } from 'zod'
 import {
+  AgentConversationRepository,
+  AgentInvocationRepository,
+  AgentRepository,
   CatalogRepository,
+  KnowledgeIngestRepository,
   KnowledgeRepository,
   McpExposureRepository,
   McpRepository,
@@ -69,6 +76,13 @@ import {
   type AuthenticatedMcpExposure,
   type DatabaseClient,
 } from '@ai-reflow/platform'
+import {
+  AgentApiOperations,
+  initialEventSeq,
+  isTerminalInvocationStatus,
+  orderEventBacklog,
+  sseFrame,
+} from './agent-api'
 
 interface ApiResponse {
   writableEnded: boolean
@@ -83,6 +97,13 @@ interface ApiRequest {
   headers: Record<string, string | string[] | undefined>
   query: Record<string, string | string[] | undefined>
   on?(event: 'close', listener: () => void): void
+}
+
+interface MultipartFile {
+  originalname: string
+  mimetype: string
+  buffer: Buffer
+  size: number
 }
 
 /**
@@ -177,6 +198,61 @@ class ApiController {
   }
 
   /**
+   * 创建 Agent Profile 仓库。
+   * @returns Agent 仓库。
+   */
+  private agents() {
+    return new AgentRepository(this.database.sql, this.database.workspaceId)
+  }
+
+  /**
+   * 创建 Agent 会话仓库。
+   * @returns 会话与消息仓库。
+   */
+  private conversations() {
+    return new AgentConversationRepository(
+      this.database.sql,
+      this.database.workspaceId,
+    )
+  }
+
+  /**
+   * 创建 Agent invocation 仓库。
+   * @returns 调用、事件和工具历史仓库。
+   */
+  private invocations() {
+    return new AgentInvocationRepository(
+      this.database.sql,
+      this.database.workspaceId,
+    )
+  }
+
+  /**
+   * 创建知识库 ingest job 仓库。
+   * @returns 入库作业仓库。
+   */
+  private ingestJobs() {
+    return new KnowledgeIngestRepository(
+      this.database.sql,
+      this.database.workspaceId,
+    )
+  }
+
+  /**
+   * 创建 Agent API 业务编排层。
+   * @returns 使用当前 workspace 仓库的 API 服务。
+   */
+  private agentApi() {
+    return new AgentApiOperations({
+      agents: this.agents(),
+      conversations: this.conversations(),
+      invocations: this.invocations(),
+      knowledge: this.knowledge(),
+      ingestJobs: this.ingestJobs(),
+    })
+  }
+
+  /**
    * 创建当前 workspace 的目录仓库。
    * @returns 目录仓库。
    */
@@ -246,6 +322,246 @@ class ApiController {
   async health() {
     await this.database.sql`select 1`
     return { ok: true, service: 'ai-reflow-server', database: 'up' }
+  }
+
+  /**
+   * 查询 Agent 列表。
+   */
+  @Get('agents')
+  listAgents() {
+    return this.agentApi().listAgents()
+  }
+
+  /**
+   * 创建 Agent。
+   * @param body 名称、描述和 AgentDefinition。
+   */
+  @Post('agents')
+  @HttpCode(201)
+  createAgent(@Body() body: unknown) {
+    return this.agentApi().createAgent(body)
+  }
+
+  /**
+   * 读取 Agent 详情。
+   * @param id 外部 Agent ID。
+   */
+  @Get('agents/:id')
+  getAgent(@Param('id') id: string) {
+    return this.agentApi().getAgent(id)
+  }
+
+  /**
+   * 更新 Agent 配置并递增 revision。
+   * @param id 外部 Agent ID。
+   * @param body 部分更新字段。
+   */
+  @Patch('agents/:id')
+  updateAgent(@Param('id') id: string, @Body() body: unknown) {
+    return this.agentApi().updateAgent(id, body)
+  }
+
+  /**
+   * 归档 Agent，保留历史会话。
+   * @param id 外部 Agent ID。
+   */
+  @Delete('agents/:id')
+  archiveAgent(@Param('id') id: string) {
+    return this.agentApi().archiveAgent(id)
+  }
+
+  /**
+   * 使用 Agent 当前快照创建一次性测试 invocation。
+   * @param id 外部 Agent ID。
+   * @param body 测试输入。
+   */
+  @Post('agents/:id/test')
+  @HttpCode(202)
+  testAgent(@Param('id') id: string, @Body() body: unknown) {
+    return this.agentApi().testAgent(id, body)
+  }
+
+  /**
+   * 查询 Agent 会话列表。
+   * @param id 外部 Agent ID。
+   */
+  @Get('agents/:id/conversations')
+  listAgentConversations(@Param('id') id: string) {
+    return this.agentApi().listConversations(id)
+  }
+
+  /**
+   * 创建会话并固定 Agent 当前配置快照。
+   * @param id 外部 Agent ID。
+   * @param body 可选的会话标题。
+   */
+  @Post('agents/:id/conversations')
+  @HttpCode(201)
+  createAgentConversation(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.agentApi().createConversation(id, body)
+  }
+
+  /**
+   * 读取会话详情。
+   * @param id 外部会话 ID。
+   */
+  @Get('agent-conversations/:id')
+  getAgentConversation(@Param('id') id: string) {
+    return this.agentApi().getConversation(id)
+  }
+
+  /**
+   * 重命名或归档会话。
+   * @param id 外部会话 ID。
+   * @param body 标题和状态。
+   */
+  @Patch('agent-conversations/:id')
+  updateAgentConversation(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.agentApi().updateConversation(id, body)
+  }
+
+  /**
+   * 分页读取会话消息。
+   * @param id 外部会话 ID。
+   * @param query after 与 limit。
+   */
+  @Get('agent-conversations/:id/messages')
+  agentMessages(
+    @Param('id') id: string,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.agentApi().messages(id, query)
+  }
+
+  /**
+   * 发送消息并创建 Agent invocation。
+   * @param id 外部会话 ID。
+   * @param body 消息内容、附件和元数据。
+   * @param idempotencyKey 可选的客户端幂等键。
+   */
+  @Post('agent-conversations/:id/messages')
+  @HttpCode(202)
+  sendAgentMessage(
+    @Param('id') id: string,
+    @Body() body: unknown,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    return this.agentApi().sendMessage(id, body, idempotencyKey)
+  }
+
+  /**
+   * 从指定用户轮次重新生成助手回答。
+   * @param id 外部会话 ID。
+   * @param body 用户消息 ID。
+   */
+  @Post('agent-conversations/:id/messages/retry')
+  @HttpCode(202)
+  retryAgentMessage(
+    @Param('id') id: string,
+    @Body() body: unknown,
+  ) {
+    return this.agentApi().retryMessage(id, body)
+  }
+
+  /**
+   * 读取 Agent invocation 详情。
+   * @param id 外部 invocation ID。
+   */
+  @Get('agent-invocations/:id')
+  getAgentInvocation(@Param('id') id: string) {
+    return this.agentApi().getInvocation(id)
+  }
+
+  /**
+   * 分页读取 invocation 事件。
+   * @param id 外部 invocation ID。
+   * @param query after 与 limit。
+   */
+  @Get('agent-invocations/:id/events/page')
+  agentInvocationEventsPage(
+    @Param('id') id: string,
+    @Query() query: Record<string, string>,
+  ) {
+    return this.agentApi().invocationEvents(id, query)
+  }
+
+  /**
+   * 以 SSE 推送 invocation backlog 与后续事件。
+   * @param id 外部 invocation ID。
+   * @param request HTTP 请求。
+   * @param response SSE 响应。
+   * @param query after 游标。
+   */
+  @Get('agent-invocations/:id/events')
+  async agentInvocationEvents(
+    @Param('id') id: string,
+    @Req() request: ApiRequest,
+    @Res() response: ApiResponse,
+    @Query() query: Record<string, string>,
+  ) {
+    let lastSeq = initialEventSeq(request.headers, query)
+    response.setHeader(
+      'Content-Type',
+      'text/event-stream; charset=utf-8',
+    )
+    response.setHeader('Cache-Control', 'no-cache, no-transform')
+    response.setHeader('Connection', 'keep-alive')
+    response.setHeader('X-Accel-Buffering', 'no')
+    response.flushHeaders()
+    let closed = false
+    request.on?.('close', () => {
+      closed = true
+    })
+    response.on('close', () => {
+      closed = true
+    })
+    const send = (event: { seq: number; type: string } & Record<string, unknown>) => {
+      response.write(sseFrame(event))
+      lastSeq = event.seq
+    }
+    try {
+      while (!closed && !response.writableEnded) {
+        const page = await this.invocations().eventsPage(
+          id,
+          lastSeq,
+          200,
+        )
+        const events = orderEventBacklog(page, lastSeq)
+        events.forEach(send)
+        const invocation = await this.invocations().get(id)
+        if (isTerminalInvocationStatus(invocation.status)) break
+        await new Promise((resolve) => setTimeout(resolve, 350))
+      }
+      response.end()
+    } catch {
+      if (!response.writableEnded) response.end()
+    }
+  }
+
+  /**
+   * 请求取消 Agent invocation。
+   * @param id 外部 invocation ID。
+   */
+  @Post('agent-invocations/:id/cancel')
+  @HttpCode(200)
+  cancelAgentInvocation(@Param('id') id: string) {
+    return this.agentApi().cancelInvocation(id)
+  }
+
+  /**
+   * 从 Checkpoint 恢复中断或失败的 invocation。
+   * @param id 外部 invocation ID。
+   */
+  @Post('agent-invocations/:id/resume')
+  @HttpCode(202)
+  resumeAgentInvocation(@Param('id') id: string) {
+    return this.agentApi().resumeInvocation(id)
   }
 
   /**
@@ -665,8 +981,28 @@ class ApiController {
    */
   @Post('knowledge-bases/:id/documents')
   @HttpCode(201)
-  uploadKnowledgeDocument() {
-    return this.knowledge().upload()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 50 * 1024 * 1024 },
+    }),
+  )
+  uploadKnowledgeDocument(
+    @Param('id') id: string,
+    @UploadedFile() file?: MultipartFile,
+  ) {
+    if (!file) {
+      throw new AppError({
+        code: 'KNOWLEDGE_FILE_REQUIRED',
+        message: '请选择要上传的文件。',
+        status: 400,
+      })
+    }
+    return this.agentApi().uploadDocument(id, {
+      filename: file.originalname,
+      mime: file.mimetype,
+      bytes: file.buffer,
+      declaredSize: file.size,
+    })
   }
 
   /**
@@ -749,6 +1085,29 @@ class ApiController {
   @Post('documents/:id/reindex')
   reindexDocument(@Param('id') id: string) {
     return this.knowledge().reindexDocument(id)
+  }
+
+  /**
+   * 查询知识库入库作业状态。
+   *
+   * @param id 外部作业 ID。
+   * @returns 作业阶段、尝试次数和错误信息。
+   */
+  @Get('knowledge-ingest-jobs/:id')
+  knowledgeIngestJob(@Param('id') id: string) {
+    return this.agentApi().getIngestJob(id)
+  }
+
+  /**
+   * 取消尚未完成的入库作业。
+   *
+   * @param id 外部作业 ID。
+   * @returns 最新作业状态。
+   */
+  @Post('knowledge-ingest-jobs/:id/cancel')
+  @HttpCode(200)
+  cancelKnowledgeIngestJob(@Param('id') id: string) {
+    return this.agentApi().cancelIngestJob(id)
   }
 
   /**

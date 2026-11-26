@@ -1,7 +1,12 @@
 import { AppError } from '@ai-reflow/core'
 import type { DatabaseClient } from '../client'
+import {
+  createObjectStorage,
+  type ObjectStorage,
+} from '../../storage/object-storage'
 import { iso } from './dto'
 import { jsonb, notFound, publicId } from './helpers'
+import { KnowledgeIngestRepository } from './knowledge-ingest-repository'
 
 export interface KnowledgeListQuery {
   search?: string
@@ -27,6 +32,7 @@ export class KnowledgeRepository {
   constructor(
     private readonly sql: DatabaseClient,
     private readonly workspaceId: string,
+    private readonly storage: ObjectStorage = createObjectStorage(),
   ) {}
 
   /**
@@ -301,13 +307,70 @@ export class KnowledgeRepository {
    *
    * @returns 当前部署未配置对象存储时抛出稳定错误。
    */
-  async upload() {
-    throw new AppError({
-      code: 'OBJECT_STORAGE_NOT_CONFIGURED',
-      message: 'MinIO/S3 对象存储尚未配置，不能接收文档上传。',
-      status: 503,
-      retryable: true,
+  async upload(input: {
+    knowledgeBaseId: string
+    name: string
+    mime: string
+    extension: string
+    sizeBytes: number
+    sha256: string
+    bytes: Uint8Array
+  }) {
+    const kb = await this.requireInternal(input.knowledgeBaseId)
+    const [existing] = await this.sql<Array<{ public_id: string }>>`
+      select public_id
+      from documents
+      where workspace_id = ${this.workspaceId}
+        and kb_id = ${kb.id}
+        and sha256 = ${input.sha256}
+      limit 1
+    `
+    if (existing) return this.uploadResult(existing.public_id)
+
+    const storageKey = [
+      'kb',
+      kb.public_id,
+      input.sha256,
+      input.name,
+    ].join('/')
+    await this.storage.put({
+      key: storageKey,
+      bytes: input.bytes,
+      contentType: input.mime,
     })
+    const documentPublicId = publicId('doc')
+    try {
+      await this.sql`
+        insert into documents (
+          public_id, workspace_id, kb_id, name, mime, extension,
+          size_bytes, sha256, storage_key, status
+        )
+        values (
+          ${documentPublicId}, ${this.workspaceId}, ${kb.id},
+          ${input.name}, ${input.mime}, ${input.extension},
+          ${input.sizeBytes}, ${input.sha256}, ${storageKey}, ${'queued'}
+        )
+      `
+    } catch (error) {
+      const [raced] = await this.sql<Array<{ public_id: string }>>`
+        select public_id
+        from documents
+        where workspace_id = ${this.workspaceId}
+          and kb_id = ${kb.id}
+          and sha256 = ${input.sha256}
+        limit 1
+      `
+      if (raced) return this.uploadResult(raced.public_id)
+      throw error
+    }
+    const job = await new KnowledgeIngestRepository(
+      this.sql,
+      this.workspaceId,
+    ).createJob(documentPublicId, 'ingest')
+    return {
+      document: await this.document(documentPublicId),
+      job,
+    }
   }
 
   /**
@@ -387,13 +450,18 @@ export class KnowledgeRepository {
    * @returns 新状态；当前部署缺少 ingest worker 时返回稳定错误。
    */
   async retryDocument(documentId: string) {
-    await this.requireDocument(documentId)
-    throw new AppError({
-      code: 'KNOWLEDGE_INGEST_NOT_CONFIGURED',
-      message: '文档 ingest 队列与解析 worker 尚未配置，不能伪造重试成功。',
-      status: 503,
-      retryable: true,
-    })
+    const document = await this.requireDocument(documentId)
+    if (document.status !== 'failed') {
+      throw new AppError({
+        code: 'DOCUMENT_NOT_RETRYABLE',
+        message: '只有失败状态的文档可以重试。',
+        status: 409,
+      })
+    }
+    return new KnowledgeIngestRepository(
+      this.sql,
+      this.workspaceId,
+    ).createJob(documentId, 'retry')
   }
 
   /**
@@ -403,13 +471,28 @@ export class KnowledgeRepository {
    * @returns 新状态；当前部署缺少 ingest worker 时返回稳定错误。
    */
   async reindexDocument(documentId: string) {
-    await this.requireDocument(documentId)
-    throw new AppError({
-      code: 'KNOWLEDGE_REINDEX_NOT_CONFIGURED',
-      message: '文档重建索引 worker 尚未配置，不能伪造成功。',
-      status: 503,
-      retryable: true,
+    const document = await this.requireDocument(documentId)
+    await this.sql.begin(async (transaction) => {
+      await transaction`
+        delete from document_chunks
+        where workspace_id = ${this.workspaceId}
+          and document_id = ${document.id}
+      `
+      await transaction`
+        update documents
+        set
+          status = 'queued',
+          preview_status = 'none',
+          stage_error = null,
+          updated_at = now()
+        where workspace_id = ${this.workspaceId}
+          and id = ${document.id}
+      `
     })
+    return new KnowledgeIngestRepository(
+      this.sql,
+      this.workspaceId,
+    ).createJob(documentId, 'reindex')
   }
 
   /**
@@ -713,8 +796,9 @@ export class KnowledgeRepository {
       name: string
       extension: string
       preview_status: string
+      status: string
     }>>`
-      select id, name, extension, preview_status
+      select id, name, extension, preview_status, status
       from documents
       where workspace_id = ${this.workspaceId}
         and public_id = ${documentId}
@@ -722,6 +806,18 @@ export class KnowledgeRepository {
     `
     if (!document) throw notFound('文档')
     return document
+  }
+
+  private async uploadResult(documentId: string) {
+    const jobs = new KnowledgeIngestRepository(
+      this.sql,
+      this.workspaceId,
+    )
+    const existingJobs = await jobs.jobsForDocument(documentId)
+    return {
+      document: await this.document(documentId),
+      job: existingJobs[0] ?? (await jobs.createJob(documentId, 'ingest')),
+    }
   }
 }
 

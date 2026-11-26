@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --tsconfig tsconfig.json --env-file=../../.env src/main.ts",
+    "test": "tsx --test --test-reporter spec \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -17,5 +18,8 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
   }
 }

@@ -300,7 +300,7 @@ export class AgentConversationRepository {
    * @param input 可选标题。
    * @returns 会话 DTO。
    */
-  async create(agentId: string, input: { title?: string }) {
+  async create(agentId: string, input: { title?: string } = {}) {
     const agent = await new AgentRepository(this.sql, this.workspaceId).snapshot(agentId)
     const conversationPublicId = publicId('conv')
     await this.sql`
