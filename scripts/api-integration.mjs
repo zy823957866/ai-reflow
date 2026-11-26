@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createDemoWorkflowDefinitions } from '@ai-reflow/core'
 import { createDatabase } from '@ai-reflow/platform'
 
 const apiBaseUrl = process.env.API_BASE_URL
@@ -426,6 +427,124 @@ async function testFiles(sql) {
   assert.equal(download.headers.get('cache-control'), 'private, no-store')
   assert.deepEqual(Buffer.from(await download.arrayBuffer()), pdfBytes)
 
+  const workflowName = `运行附件校验 ${runStamp}`
+  const workflow = await api('/api/workflows', {
+    method: 'POST',
+    expectedStatus: [201],
+    body: { name: workflowName, description: '运行输入 FileRef 集成测试。' },
+  })
+  const workflowId = workflow.data.workflowId
+  const definition = createDemoWorkflowDefinitions().wf_support
+  definition.name = workflowName
+  const saved = await api(`/api/workflows/${workflowId}`, {
+    method: 'PATCH',
+    body: { definition, revision: workflow.data.revision },
+  })
+  const forgedFileRef = {
+    ...fileRef,
+    name: 'forged.pdf',
+    mime: 'text/plain',
+    size: 1,
+  }
+  const runCount = async () => {
+    const [row] = await sql`
+      select count(*)::int as count
+      from runs r
+      join workflows w on w.id = r.workflow_id
+      where r.workspace_id = ${process.env.DEFAULT_WORKSPACE_ID}
+        and w.public_id = ${workflowId}
+    `
+    return row.count
+  }
+  const beforeRuns = await runCount()
+
+  const preview = await api(`/api/workflows/${workflowId}/preview`, {
+    method: 'POST',
+    expectedStatus: [201],
+    body: {
+      definition,
+      input: { question: '预览附件', files: [forgedFileRef] },
+    },
+  })
+  const previewRun = await api(`/api/runs/${preview.data.runId}`)
+  assert.deepEqual(previewRun.data.input.files, [fileRef])
+  assert.equal(JSON.stringify(previewRun.data.input).includes('workspace/'), false)
+
+  const published = await api(`/api/workflows/${workflowId}/publish`, {
+    method: 'POST',
+    body: { revision: saved.data.revision, changelog: '运行附件校验' },
+  })
+  const production = await api(`/api/workflows/${workflowId}/runs`, {
+    method: 'POST',
+    expectedStatus: [201],
+    body: {
+      workflowVersionId: published.data.versionId,
+      trigger: 'api',
+      input: { question: '固定版本附件', files: [forgedFileRef] },
+    },
+  })
+  const productionRun = await api(`/api/runs/${production.data.runId}`)
+  assert.deepEqual(productionRun.data.input.files, [fileRef])
+  assert.equal(JSON.stringify(productionRun.data.input).includes('workspace/'), false)
+
+  const missingPreview = await api(`/api/workflows/${workflowId}/preview`, {
+    method: 'POST',
+    expectedStatus: [404],
+    body: {
+      definition,
+      input: {
+        question: '伪造附件',
+        files: [{
+          ...forgedFileRef,
+          id: `file_missing_${runStamp}`,
+        }],
+      },
+    },
+  })
+  assertErrorCode(missingPreview, 'FILE_NOT_FOUND')
+  assert.equal(await runCount(), beforeRuns + 2)
+
+  const crossWorkspaceId = '00000000-0000-7000-8000-000000000002'
+  const crossFileId = `file_cross_${runStamp}`
+  await sql`
+    insert into workspaces (id, slug, name, settings)
+    values (
+      ${crossWorkspaceId}, ${`cross-${runStamp}`}, ${'附件跨库测试'},
+      ${jsonb(sql, {})}
+    )
+    on conflict (id) do nothing
+  `
+  await sql`
+    insert into file_assets (
+      public_id, workspace_id, storage_key, name, mime, extension,
+      size_bytes, sha256, metadata
+    )
+    values (
+      ${crossFileId}, ${crossWorkspaceId},
+      ${`workspace/${crossWorkspaceId}/files/${crossFileId}.pdf`},
+      ${'cross-workspace.pdf'}, ${'application/pdf'}, ${'pdf'},
+      ${pdfBytes.length}, ${fileRef.sha256}, ${jsonb(sql, {})}
+    )
+  `
+  const crossWorkspacePreview = await api(`/api/workflows/${workflowId}/preview`, {
+    method: 'POST',
+    expectedStatus: [404],
+    body: {
+      definition,
+      input: {
+        question: '跨 workspace 附件',
+        files: [{ ...forgedFileRef, id: crossFileId }],
+      },
+    },
+  })
+  assertErrorCode(crossWorkspacePreview, 'FILE_NOT_FOUND')
+  assert.equal(await runCount(), beforeRuns + 2)
+  await sql`
+    delete from file_assets
+    where workspace_id = ${crossWorkspaceId}
+      and public_id = ${crossFileId}
+  `
+
   await api(`/api/files/${fileRef.id}`, { method: 'DELETE' })
   const [remainingAsset] = await sql`
     select public_id
@@ -518,6 +637,7 @@ async function testFiles(sql) {
   }, 'FILE_NOT_FOUND')
 
   await api(`/api/knowledge-bases/${knowledgeBaseId}`, { method: 'DELETE' })
+  await api(`/api/workflows/${workflowId}`, { method: 'DELETE' })
 }
 
 /**

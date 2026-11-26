@@ -11,6 +11,7 @@ import {
   type WorkflowDraft,
   type WorkflowVersion,
 } from '@ai-reflow/core'
+import { validateFileReferences } from '../../files/references'
 import type { DatabaseClient } from '../client'
 import {
   iso,
@@ -573,13 +574,17 @@ export class WorkflowRepository {
         issues: validation.errors,
       })
     }
+    const normalizedInput = await this.normalizeRunInput(
+      input.definition,
+      input.input,
+    )
     return this.insertRun({
       workflow,
       workflowVersionId: null,
       definition: input.definition,
       runKind: 'preview',
       trigger: 'manual_preview',
-      input: input.input,
+      input: normalizedInput,
       timeoutMs: input.timeoutMs ?? 120_000,
       idempotencyKey: input.idempotencyKey,
     })
@@ -613,13 +618,17 @@ export class WorkflowRepository {
       limit 1
     `
     if (!versionRow) throw notFound('工作流版本')
+    const normalizedInput = await this.normalizeRunInput(
+      version.definition,
+      input.input,
+    )
     return this.insertRun({
       workflow,
       workflowVersionId: versionRow.id,
       definition: version.definition,
       runKind: 'production',
       trigger: input.trigger,
-      input: input.input,
+      input: normalizedInput,
       timeoutMs: input.timeoutMs ?? 120_000,
       idempotencyKey: input.idempotencyKey,
       metadata: input.metadata,
@@ -717,6 +726,54 @@ export class WorkflowRepository {
       where workspace_id = ${this.workspaceId} and id = ${internalId}
     `
     return row?.public_id
+  }
+
+  /**
+   * 按开始节点的输入 Schema 规范化运行附件引用。
+   * @param definition 本次运行固化的工作流定义。
+   * @param input 客户端提交的运行输入。
+   * @returns 仅含当前 workspace 可信元数据的运行输入。
+   */
+  private async normalizeRunInput(
+    definition: WorkflowDefinition,
+    input: Record<string, unknown>,
+  ) {
+    const start = definition.nodes.find((node) => node.type === 'start')
+    const schema = asRecord(start?.config.inputSchema)
+    return validateFileReferences(
+      input,
+      schema,
+      (id) => this.resolveFileReference(id),
+    )
+  }
+
+  /**
+   * 在当前 workspace 内读取附件公开元数据。
+   * @param id 外部附件 ID。
+   * @returns FileRef；不存在或跨 workspace 时返回 undefined。
+   */
+  private async resolveFileReference(id: string) {
+    const [row] = await this.sql<Array<{
+      public_id: string
+      name: string
+      mime: string
+      size_bytes: number | string
+      sha256: string
+    }>>`
+      select public_id, name, mime, size_bytes, sha256
+      from file_assets
+      where workspace_id = ${this.workspaceId}
+        and public_id = ${id}
+      limit 1
+    `
+    if (!row) return undefined
+    return {
+      id: row.public_id,
+      name: row.name,
+      mime: row.mime,
+      size: Number(row.size_bytes),
+      sha256: row.sha256,
+    }
   }
 
   /**
