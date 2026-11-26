@@ -75,6 +75,7 @@ import { Button } from '@ai-reflow/ui'
 import {
   Activity,
   BookOpen,
+  Bot,
   Boxes,
   KeyRound,
   LayoutGrid,
@@ -91,6 +92,7 @@ const route = useRoute()
 
 const primaryNav = computed(() => [
   { to: '/', label: '工作流', icon: LayoutGrid },
+  { to: '/agents', label: 'Agent', icon: Bot },
   { to: '/runs', label: '运行记录', icon: Activity },
   { to: '/knowledge', label: '知识库', icon: BookOpen },
   {

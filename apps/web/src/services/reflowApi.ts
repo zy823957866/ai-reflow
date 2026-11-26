@@ -1,4 +1,11 @@
-import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/api/client'
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiUpload,
+} from '@/api/client'
 import type {
   RunEvent,
   RunRecord,
@@ -148,6 +155,133 @@ export interface KnowledgePreviewDto {
   pages: unknown
   sheets: unknown
   error?: string
+}
+
+export type AgentMemoryMode = 'none' | 'conversation' | 'run'
+
+export interface AgentKnowledgeConfig {
+  knowledgeBaseIds: string[]
+  topK: number
+  scoreThreshold: number
+  retrievalMode: 'vector' | 'keyword' | 'hybrid'
+}
+
+export interface AgentMcpToolConfig {
+  serverId: string
+  toolName: string
+  description?: string
+  parameters?: Record<string, unknown>
+}
+
+export interface AgentDefinitionDto {
+  instructions: string
+  inputExpression?: string
+  modelConnectionId: string
+  model?: string
+  temperature?: number
+  maxTokens?: number
+  knowledge?: AgentKnowledgeConfig
+  mcpTools: AgentMcpToolConfig[]
+  maxSteps: number
+  timeoutMs: number
+  outputSchema?: Record<string, unknown>
+  memory: {
+    mode: AgentMemoryMode
+  }
+}
+
+export interface AgentDto {
+  id: string
+  name: string
+  description: string
+  config: AgentDefinitionDto
+  revision: number
+  status: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentConversationDto {
+  id: string
+  agentId: string
+  agentName?: string
+  revision: number
+  title: string
+  status: string
+  messageCount: number
+  preview: string
+  lastMessageAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentCitationDto {
+  id?: string
+  chunkId?: string
+  documentId: string
+  documentName: string
+  chunkIndex?: number
+  location?: string
+  score?: number
+  [key: string]: unknown
+}
+
+export interface AgentMessageDto {
+  id: string
+  conversationId: string
+  invocationId?: string | null
+  seq: number
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  status: string
+  citations: AgentCitationDto[]
+  usage: Record<string, unknown>
+  error?: Record<string, unknown> | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentInvocationDto {
+  id: string
+  agentId?: string | null
+  conversationId?: string | null
+  runId?: string | null
+  nodeId?: string | null
+  kind: 'chat' | 'workflow_node' | 'external'
+  status: string
+  definitionSnapshot: AgentDefinitionDto
+  request: Record<string, unknown>
+  result?: Record<string, unknown> | null
+  error?: Record<string, unknown> | null
+  threadId: string
+  resumeCheckpointId?: string | null
+  attempts: number
+  cancelRequestedAt?: string
+  workerId?: string | null
+  leaseExpiresAt?: string
+  startedAt?: string
+  finishedAt?: string
+  durationMs?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface AgentInvocationEventDto {
+  seq: number
+  type: string
+  invocationId: string
+  at: string
+  payload: Record<string, unknown>
+}
+
+export interface AgentMessageAcceptedResponse {
+  conversationId: string
+  userMessageId: string
+  assistantMessageId: string
+  invocationId: string
+  status: string
+  events: string
+  messages: AgentMessageDto[]
 }
 
 export interface SkillDto {
@@ -1396,6 +1530,374 @@ export function syncRegistry() {
  */
 export function uninstallPlugin(installId: string) {
   return apiDelete<{ deleted: true }>(`/api/plugin-installs/${installId}`)
+}
+
+/**
+ * 查询当前 workspace 的 Agent。
+ *
+ * @returns Agent Profile 列表。
+ */
+export function listAgents() {
+  return apiGet<AgentDto[]>('/api/agents')
+}
+
+/**
+ * 查询单个 Agent Profile。
+ *
+ * @param agentId 外部 Agent ID。
+ * @returns Agent 配置与 revision。
+ */
+export function getAgent(agentId: string) {
+  return apiGet<AgentDto>(`/api/agents/${agentId}`)
+}
+
+/**
+ * 创建 Agent Profile。
+ *
+ * @param input 名称、描述和可序列化定义。
+ * @returns 新建 Agent。
+ */
+export function createAgent(input: {
+  name: string
+  description?: string
+  config: AgentDefinitionDto
+}) {
+  return apiPost<AgentDto>('/api/agents', input)
+}
+
+/**
+ * 更新 Agent Profile；配置变化会递增 revision。
+ *
+ * @param agentId 外部 Agent ID。
+ * @param input 可修改字段。
+ * @returns 更新后的 Agent。
+ */
+export function updateAgent(
+  agentId: string,
+  input: {
+    name?: string
+    description?: string
+    config?: AgentDefinitionDto
+  },
+) {
+  return apiPatch<AgentDto>(`/api/agents/${agentId}`, input)
+}
+
+/**
+ * 归档 Agent，保留历史会话。
+ *
+ * @param agentId 外部 Agent ID。
+ * @returns 归档确认。
+ */
+export function archiveAgent(agentId: string) {
+  return apiDelete<{ archived: true }>(`/api/agents/${agentId}`)
+}
+
+/**
+ * 使用 Agent 当前配置创建一次性测试调用。
+ *
+ * @param agentId 外部 Agent ID。
+ * @param input 测试内容与元数据。
+ * @returns 已排队的 invocation。
+ */
+export function testAgent(
+  agentId: string,
+  input: { content?: string; metadata?: Record<string, unknown> } = {},
+) {
+  return apiPost<AgentInvocationDto>(`/api/agents/${agentId}/test`, input)
+}
+
+/**
+ * 查询 Agent 会话列表。
+ *
+ * @param agentId 外部 Agent ID。
+ * @returns 会话摘要。
+ */
+export function listAgentConversations(agentId: string) {
+  return apiGet<AgentConversationDto[]>(
+    `/api/agents/${agentId}/conversations`,
+  )
+}
+
+/**
+ * 创建会话并固定当前 Agent 快照。
+ *
+ * @param agentId 外部 Agent ID。
+ * @param input 可选标题。
+ * @returns 新会话。
+ */
+export function createAgentConversation(
+  agentId: string,
+  input: { title?: string } = {},
+) {
+  return apiPost<AgentConversationDto>(
+    `/api/agents/${agentId}/conversations`,
+    input,
+  )
+}
+
+/**
+ * 查询会话详情。
+ *
+ * @param conversationId 外部会话 ID。
+ * @returns 会话摘要。
+ */
+export function getAgentConversation(conversationId: string) {
+  return apiGet<AgentConversationDto>(
+    `/api/agent-conversations/${conversationId}`,
+  )
+}
+
+/**
+ * 重命名或归档 Agent 会话。
+ *
+ * @param conversationId 外部会话 ID。
+ * @param input 标题与状态。
+ * @returns 更新后的会话。
+ */
+export function updateAgentConversation(
+  conversationId: string,
+  input: { title?: string; status?: 'active' | 'archived' },
+) {
+  return apiPatch<AgentConversationDto>(
+    `/api/agent-conversations/${conversationId}`,
+    input,
+  )
+}
+
+/**
+ * 分页读取会话消息。
+ *
+ * @param conversationId 外部会话 ID。
+ * @param query 起始序号与条数。
+ * @returns 用户和助手消息。
+ */
+export function listAgentMessages(
+  conversationId: string,
+  query: { after?: number; limit?: number } = {},
+) {
+  return apiGet<AgentMessageDto[]>(
+    `/api/agent-conversations/${conversationId}/messages`,
+    query,
+  )
+}
+
+/**
+ * 发送消息并创建 Agent invocation。
+ *
+ * @param conversationId 外部会话 ID。
+ * @param input 消息正文、附件和元数据。
+ * @param idempotencyKey 客户端幂等键。
+ * @returns 用户消息、助手占位和 invocation 链接。
+ */
+export function sendAgentMessage(
+  conversationId: string,
+  input: {
+    content: string
+    attachments?: Array<Record<string, unknown>>
+    metadata?: Record<string, unknown>
+  },
+  idempotencyKey?: string,
+) {
+  return apiPost<AgentMessageAcceptedResponse>(
+    `/api/agent-conversations/${conversationId}/messages`,
+    input,
+    idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+  )
+}
+
+/**
+ * 从指定用户消息重新生成助手回答。
+ *
+ * @param conversationId 外部会话 ID。
+ * @param userMessageId 用户消息 ID。
+ * @returns 新 invocation 与助手占位。
+ */
+export function retryAgentMessage(
+  conversationId: string,
+  userMessageId: string,
+) {
+  return apiPost<AgentMessageAcceptedResponse>(
+    `/api/agent-conversations/${conversationId}/messages/retry`,
+    { userMessageId },
+  )
+}
+
+/**
+ * 查询 invocation 详情。
+ *
+ * @param invocationId 外部 invocation ID。
+ * @returns 状态、结果和 checkpoint。
+ */
+export function getAgentInvocation(invocationId: string) {
+  return apiGet<AgentInvocationDto>(
+    `/api/agent-invocations/${invocationId}`,
+  )
+}
+
+/**
+ * 分页读取已落库的 invocation 事件。
+ *
+ * @param invocationId 外部 invocation ID。
+ * @param afterSeq 起始事件序号。
+ * @param limit 最大条数。
+ * @returns 有序事件。
+ */
+export function listAgentInvocationEvents(
+  invocationId: string,
+  afterSeq = 0,
+  limit = 1000,
+) {
+  return apiGet<AgentInvocationEventDto[]>(
+    `/api/agent-invocations/${invocationId}/events/page`,
+    { after: afterSeq, limit },
+  )
+}
+
+/**
+ * 请求取消 Agent invocation。
+ *
+ * @param invocationId 外部 invocation ID。
+ * @returns 最新状态。
+ */
+export function cancelAgentInvocation(invocationId: string) {
+  return apiPost<{ invocationId: string; status: string }>(
+    `/api/agent-invocations/${invocationId}/cancel`,
+  )
+}
+
+/**
+ * 从失败或中断状态恢复 invocation。
+ *
+ * @param invocationId 外部 invocation ID。
+ * @returns 更新后的 invocation。
+ */
+export function resumeAgentInvocation(invocationId: string) {
+  return apiPost<AgentInvocationDto>(
+    `/api/agent-invocations/${invocationId}/resume`,
+  )
+}
+
+/**
+ * 通过 fetch SSE 订阅 Agent invocation，支持 after 和 Last-Event-ID。
+ *
+ * @param input invocation ID、起始序号和生命周期回调。
+ * @returns 取消订阅函数。
+ */
+export function subscribeAgentInvocationEvents(input: {
+  invocationId: string
+  afterSeq?: number
+  onEvent: (event: AgentInvocationEventDto) => void
+  onError: (error: Error) => void
+  onEnd: () => void
+}) {
+  const controller = new AbortController()
+  let ended = false
+
+  function finish() {
+    if (ended) return
+    ended = true
+    input.onEnd()
+  }
+
+  void (async () => {
+    try {
+      const query = input.afterSeq
+        ? `?after=${encodeURIComponent(String(input.afterSeq))}`
+        : ''
+      const response = await fetch(
+        `/api/agent-invocations/${encodeURIComponent(input.invocationId)}/events${query}`,
+        {
+          headers: {
+            Accept: 'text/event-stream',
+            ...(input.afterSeq
+              ? { 'Last-Event-ID': String(input.afterSeq) }
+              : {}),
+          },
+          signal: controller.signal,
+        },
+      )
+      if (!response.ok) {
+        let message = response.statusText || 'Agent 事件流请求失败。'
+        try {
+          const body = (await response.json()) as {
+            error?: { message?: string }
+          }
+          message = body.error?.message ?? message
+        } catch {
+          // Keep the HTTP status text when the server did not return JSON.
+        }
+        throw new ApiError({
+          status: response.status,
+          code: `HTTP_${response.status}`,
+          message,
+          retryable: response.status >= 500,
+        })
+      }
+      if (!response.body) {
+        throw new ApiError({
+          status: 0,
+          code: 'SSE_BODY_MISSING',
+          message: 'Agent 事件流没有响应正文。',
+          retryable: true,
+        })
+      }
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (!controller.signal.aborted) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const blocks = buffer.split(/\r?\n\r?\n/)
+        buffer = blocks.pop() ?? ''
+        blocks.forEach((block) => {
+          const parsed = parseAgentSseBlock(block)
+          if (!parsed) return
+          try {
+            const event = JSON.parse(parsed.data) as AgentInvocationEventDto
+            if (parsed.event) event.type = parsed.event
+            if (parsed.id) event.seq = parsed.id
+            input.onEvent(event)
+          } catch {
+            input.onError(new Error('收到无法解析的 Agent 事件。'))
+          }
+        })
+      }
+      finish()
+    } catch (error) {
+      if (controller.signal.aborted) return
+      input.onError(
+        error instanceof Error ? error : new Error(String(error)),
+      )
+      finish()
+    }
+  })()
+
+  return () => {
+    if (ended) return
+    ended = true
+    controller.abort()
+  }
+}
+
+/**
+ * 解析单个 SSE block。
+ *
+ * @param block SSE 原始文本块。
+ * @returns 事件序号、类型和 JSON 数据。
+ */
+function parseAgentSseBlock(block: string) {
+  let id = 0
+  let event = ''
+  const data: string[] = []
+  block.split(/\r?\n/).forEach((line) => {
+    if (line.startsWith('id:')) id = Number(line.slice(3).trim())
+    else if (line.startsWith('event:')) event = line.slice(6).trim()
+    else if (line.startsWith('data:')) data.push(line.slice(5).trimStart())
+  })
+  if (!data.length) return null
+  return { id, event, data: data.join('\n') }
 }
 
 /**

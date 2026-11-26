@@ -6,6 +6,7 @@ import TrialPage from '@/pages/TrialPage.vue'
 import RunsPage from '@/pages/RunsPage.vue'
 import RunDetailPage from '@/pages/RunDetailPage.vue'
 import KnowledgePage from '@/pages/knowledge-page/index.vue'
+import AgentsPage from '@/pages/agents-page/index.vue'
 import McpPage from '@/pages/McpPage.vue'
 import ModelsPage from '@/pages/ModelsPage.vue'
 import TemplatesPage from '@/pages/TemplatesPage.vue'
@@ -21,6 +22,8 @@ export const router = createRouter({
     { path: '/runs', name: 'runs', component: RunsPage, meta: { title: '运行记录', layout: 'standard' } },
     { path: '/runs/:id', name: 'run-detail', component: RunDetailPage, meta: { title: '运行详情', layout: 'standard' } },
     { path: '/knowledge', name: 'knowledge', component: KnowledgePage, meta: { title: '知识库', layout: 'standard' } },
+    { path: '/agents', name: 'agents', component: AgentsPage, meta: { title: 'Agent 工作台', layout: 'standard' } },
+    { path: '/agents/:id', name: 'agent-workbench', component: AgentsPage, meta: { title: 'Agent 工作台', layout: 'standard' } },
     { path: '/mcp', name: 'mcp', component: McpPage, meta: { title: 'MCP 调用', layout: 'standard' } },
     { path: '/models', name: 'models', component: ModelsPage, meta: { title: '模型与密钥', layout: 'standard' } },
     { path: '/templates', name: 'templates', component: TemplatesPage, meta: { title: '模板市场', layout: 'standard' } },

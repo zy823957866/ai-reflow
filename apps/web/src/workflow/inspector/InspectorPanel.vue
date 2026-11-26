@@ -101,6 +101,41 @@
           </div>
         </section>
 
+        <section
+          v-if="node.type === 'agent'"
+          class="agent-runtime-section border-b border-line bg-[var(--surface-2)] px-15px py-11px"
+        >
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="text-[12px] font-600 text-muted">AgentDefinition 运行时</span>
+            <span class="rounded-3px bg-primary-soft px-4px py-1px font-mono text-[12px] text-primary">agent</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1.5">
+            <div class="flex min-w-0 flex-col gap-0.5 rounded-5px bg-surface px-7px py-5px">
+              <span class="text-[12px] text-subtle">模型</span>
+              <strong class="truncate font-mono text-[12px] text-muted">{{ String(node.config.modelConnectionId || '未选择') }}</strong>
+            </div>
+            <div class="flex min-w-0 flex-col gap-0.5 rounded-5px bg-surface px-7px py-5px">
+              <span class="text-[12px] text-subtle">步数上限</span>
+              <strong class="font-mono text-[12px] text-muted">{{ Number(node.config.maxSteps ?? 8) }}</strong>
+            </div>
+            <div class="flex min-w-0 flex-col gap-0.5 rounded-5px bg-surface px-7px py-5px">
+              <span class="text-[12px] text-subtle">超时</span>
+              <strong class="font-mono text-[12px] text-muted">{{ agentTimeoutLabel }}</strong>
+            </div>
+            <div class="flex min-w-0 flex-col gap-0.5 rounded-5px bg-surface px-7px py-5px">
+              <span class="text-[12px] text-subtle">记忆</span>
+              <strong class="truncate font-mono text-[12px] text-muted">{{ agentMemoryMode }}</strong>
+            </div>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-1">
+            <span class="rounded-3px border border-line bg-surface px-5px py-1px text-[12px] text-subtle">知识库 {{ agentKnowledgeCount }}</span>
+            <span class="rounded-3px border border-line bg-surface px-5px py-1px text-[12px] text-subtle">MCP 工具 {{ agentToolCount }}</span>
+            <span class="rounded-3px border border-line bg-surface px-5px py-1px text-[12px] text-subtle">
+              {{ node.config.outputSchema ? '结构化输出' : '文本输出' }}
+            </span>
+          </div>
+        </section>
+
         <section class="config-section border-b border-line">
           <div class="config-heading flex items-center justify-between px-16px pb-2px pt-13px text-[12px] font-600 text-muted">
             <span>配置输入</span>
@@ -342,6 +377,37 @@ const visibleFields = computed(() => {
 const modeValue = computed(() => {
   if (!props.node || !manifest.value?.discriminator) return ''
   return String(props.node.config[manifest.value.discriminator.key] ?? '')
+})
+
+const agentMemoryMode = computed(() => {
+  const memory = props.node?.config.memory
+  if (!memory || typeof memory !== 'object' || Array.isArray(memory)) {
+    return 'run'
+  }
+  const mode = (memory as Record<string, unknown>).mode
+  return typeof mode === 'string' ? mode : 'run'
+})
+
+const agentKnowledgeCount = computed(() => {
+  const knowledge = props.node?.config.knowledge
+  if (!knowledge || typeof knowledge !== 'object' || Array.isArray(knowledge)) {
+    return 0
+  }
+  const ids = (knowledge as Record<string, unknown>).knowledgeBaseIds
+  return Array.isArray(ids) ? ids.length : 0
+})
+
+const agentToolCount = computed(() => {
+  const tools = props.node?.config.mcpTools
+  return Array.isArray(tools) ? tools.length : 0
+})
+
+const agentTimeoutLabel = computed(() => {
+  const timeout = Number(props.node?.config.timeoutMs ?? 120000)
+  if (!Number.isFinite(timeout)) return '120s'
+  return timeout >= 1000 && timeout % 1000 === 0
+    ? `${timeout / 1000}s`
+    : `${timeout}ms`
 })
 
 const displayOutputs = computed(() => {

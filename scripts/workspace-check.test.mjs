@@ -113,3 +113,96 @@ test('web imports the shared UI package through one entry per module', async () 
   }
   assert.deepEqual(offenders, [])
 })
+
+test('agent workbench routes and API boundaries are registered', async () => {
+  const router = await readFile(
+    path.join(root, 'apps/web/src/router/index.ts'),
+    'utf8',
+  )
+  const api = await readFile(
+    path.join(root, 'apps/web/src/services/reflowApi.ts'),
+    'utf8',
+  )
+  assert.match(router, /path:\s*['"]\/agents['"]/)
+  assert.match(router, /path:\s*['"]\/agents\/:id['"]/)
+  assert.match(router, /pages\/agents-page\/index\.vue/)
+  for (const route of [
+    '/api/agents',
+    '/api/agent-conversations',
+    '/api/agent-invocations',
+  ]) {
+    assert.match(api, new RegExp(route.replaceAll('/', '\\/')))
+  }
+  assert.match(api, /subscribeAgentInvocationEvents/)
+})
+
+test('agent workbench restores invocations and uses safe Markdown', async () => {
+  const page = await readFile(
+    path.join(root, 'apps/web/src/pages/agents-page/index.vue'),
+    'utf8',
+  )
+  const markdown = await readFile(
+    path.join(root, 'apps/web/src/pages/agents-page/markdown.ts'),
+    'utf8',
+  )
+  assert.doesNotMatch(page, /\bfetch\(/)
+  assert.doesNotMatch(page, /localStorage/)
+  assert.match(page, /route\.query/)
+  assert.match(page, /invocationId/)
+  assert.match(markdown, /html:\s*false/)
+})
+
+test('agent settings scope form ids and conversation previews stay accurate', async () => {
+  const settings = await readFile(
+    path.join(root, 'apps/web/src/pages/agents-page/AgentSettingsPanel.vue'),
+    'utf8',
+  )
+  const conversations = await readFile(
+    path.join(root, 'apps/web/src/pages/agents-page/ConversationList.vue'),
+    'utf8',
+  )
+  const page = await readFile(
+    path.join(root, 'apps/web/src/pages/agents-page/index.vue'),
+    'utf8',
+  )
+  assert.match(settings, /useId\(\)/)
+  assert.doesNotMatch(settings, /id="agent-instructions"/)
+  assert.match(conversations, /messageCount\s*\?\s*['"]等待回复['"]/)
+  assert.match(page, /matchMedia\('\(min-width: 1540px\)'\)/)
+  assert.match(page, /selectedAgent\s*&&\s*wideSettings/)
+  assert.match(page, /!wideSettings/)
+})
+
+test('agent page line heights are explicit ratios', async () => {
+  const sourceFiles = await listSourceFiles('apps/web/src/pages/agents-page')
+  const offenders = []
+  for (const file of sourceFiles) {
+    const source = await readFile(path.join(root, file), 'utf8')
+    if (/leading-\d/.test(source)) offenders.push(file)
+  }
+  assert.deepEqual(offenders, [])
+})
+
+test('agent node inspector exposes the serializable runtime fields', async () => {
+  const nodes = await readFile(
+    path.join(root, 'apps/web/src/shared/nodes.ts'),
+    'utf8',
+  )
+  for (const key of [
+    'modelConnectionId',
+    'instructions',
+    'knowledge',
+    'mcpTools',
+    'maxSteps',
+    'timeoutMs',
+    'outputSchema',
+    'memory',
+  ]) {
+    assert.match(nodes, new RegExp(`key:\\s*['"]${key}['"]`))
+  }
+  const inspector = await readFile(
+    path.join(root, 'apps/web/src/workflow/inspector/InspectorPanel.vue'),
+    'utf8',
+  )
+  assert.match(inspector, /node\.type\s*===\s*['"]agent['"]/)
+})
