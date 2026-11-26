@@ -204,6 +204,7 @@ import type {
   UploadItem,
 } from './types'
 import {
+  ingestErrorStageLabel,
   ingestProgress,
   ingestStageLabel,
   isActiveIngestStatus,
@@ -417,11 +418,20 @@ function applyIngestDocument(
       : document.status === 'failed'
         ? 'failed'
         : 'processing'
-  item.stage = ingestStageLabel(document.status)
+  item.stage =
+    document.status === 'failed' && document.errorStage
+      ? ingestErrorStageLabel(document.errorStage)
+      : ingestStageLabel(document.status)
   item.progress = ingestProgress(document.status, document.progress)
   item.error =
     document.status === 'failed'
-      ? (document.error ?? '索引失败，请重试或重建索引。')
+      ? [
+          document.errorCode,
+          document.error ?? '索引失败，请重试或重建索引。',
+          document.errorRetryable === false ? '不可自动重试' : '',
+        ]
+          .filter(Boolean)
+          .join('：')
       : undefined
   return item
 }
@@ -453,9 +463,9 @@ async function saveKnowledgeBase(value: { name: string; description: string }) {
       ? await updateKnowledgeBase(editingKbId.value, value)
       : await createKnowledgeBase({
           ...value,
-          embeddingProvider: 'openai',
-          embeddingModel: 'text-embedding-3-small',
-          embeddingDimension: 1536,
+          embeddingProvider: 'ollama',
+          embeddingModel: 'nomic-embed-text',
+          embeddingDimension: 768,
         })
     createOpen.value = false
     await loadKnowledgeBases()
@@ -683,8 +693,11 @@ function closeDocumentPreview() {
 
 function showDocumentError(document: KnowledgeDocument) {
   notifyError({
-    title: '文档处理失败',
-    description: document.error || '服务端未返回详细错误。',
+    title: ingestErrorStageLabel(document.errorStage) || '文档处理失败',
+    description:
+      [document.errorCode, document.error]
+        .filter(Boolean)
+        .join('：') || '服务端未返回详细错误。',
     retry: () => void retryDocument(document),
   })
 }

@@ -293,6 +293,32 @@ export function orderEventBacklog<T extends { seq: number }>(
 }
 
 /**
+ * 持续读取 backlog 直到没有下一页，避免终态之前漏掉事件。
+ * @param fetchPage 按游标读取一页事件。
+ * @param afterSeq 初始游标。
+ * @param limit 单页上限。
+ * @returns 按 seq 排好序的全部事件。
+ */
+export async function readAllInvocationEvents<T extends { seq: number }>(
+  fetchPage: (afterSeq: number, limit: number) => Promise<T[]>,
+  afterSeq = 0,
+  limit = 200,
+) {
+  const pageSize = Math.min(1000, Math.max(1, limit))
+  const events: T[] = []
+  let cursor = afterSeq
+  while (true) {
+    const page = await fetchPage(cursor, pageSize)
+    const ordered = orderEventBacklog(page, cursor)
+    if (!ordered.length) break
+    events.push(...ordered)
+    cursor = ordered.at(-1)!.seq
+    if (page.length < pageSize) break
+  }
+  return events
+}
+
+/**
  * 格式化单条 SSE 事件。
  * @param event 带 seq 和 type 的事件。
  * @returns SSE frame。

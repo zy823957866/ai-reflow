@@ -166,39 +166,52 @@ export async function executeClaimedIngest(input: {
 }) {
   const internal = new AbortController()
   const signal = AbortSignal.any([input.signal, internal.signal])
+  const claim = {
+    workerId: input.workerId,
+    attempt: input.job.attempt,
+  }
   const heartbeat = setInterval(() => {
     void input.jobs
       .heartbeat(
         input.job.id,
         input.workerId,
+        input.job.attempt,
         input.leaseMs ?? 120_000,
       )
+      .then((shouldStop) => {
+        if (!shouldStop || internal.signal.aborted) return
+        internal.abort(new Error('知识库入库任务已取消或租约丢失'))
+      })
       .catch((error) => {
         console.error('Knowledge ingest heartbeat failed', error)
       })
   }, input.heartbeatIntervalMs ?? 2000)
 
   try {
-    await input.jobs.updateStage(input.job.id, input.job.stage)
+    await input.jobs.updateStage(input.job.id, input.job.stage, claim)
     const result = await input.process({
       job: input.job,
       signal,
       async setStage(stage) {
-        await input.jobs.updateStage(input.job.id, stage)
+        await input.jobs.updateStage(input.job.id, stage, claim)
       },
     })
+    if (signal.aborted) return
     await input.jobs.complete(
       input.job.id,
       result?.metadata ?? {},
+      claim,
     )
   } catch (error) {
+    // 用户取消、worker 关闭或租约丢失都不是处理失败，不能覆盖队列状态。
+    if (signal.aborted) return
     const normalized = normalizeIngestError(error)
     await input.jobs.fail(input.job.id, {
       stage: normalized.stage ?? input.job.stage,
       code: normalized.code,
       message: normalized.message,
       retryable: normalized.retryable,
-    })
+    }, claim)
   } finally {
     clearInterval(heartbeat)
   }

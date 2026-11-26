@@ -60,6 +60,9 @@ export function createPostgresToolHistoryPort(
         finishedAt: cached.finishedAt,
       } satisfies AgentToolHistoryRecord
     },
+    async started(idempotencyKey) {
+      return repository.startedToolCall(invocationId, idempotencyKey)
+    },
     async start(record) {
       await repository.startToolCall(invocationId, {
         id: record.toolCallId,
@@ -82,6 +85,16 @@ export function createPostgresToolHistoryPort(
       })
     },
   }
+}
+
+/**
+ * 只有真正写入 agent_invocations 的调用才能使用 Postgres 工具历史。
+ * 工作流 Agent 节点目前以 run/node 为标识，不创建 invocation 行。
+ */
+export function shouldUseInvocationToolHistory(
+  input: Pick<AgentInvokeInput, 'kind'>,
+) {
+  return input.kind === 'chat' || input.kind === 'external'
 }
 
 export interface AgentRuntimeFactoryInput {
@@ -138,10 +151,12 @@ export function createAgentRuntimeFactory(
     mcp: input.services.mcp,
     checkpointer: input.checkpointer,
     toolHistory: (invocation: AgentInvokeInput) =>
-      createPostgresToolHistoryPort(
-        invocation.invocationId,
-        invocations,
-      ),
+      shouldUseInvocationToolHistory(invocation)
+        ? createPostgresToolHistoryPort(
+            invocation.invocationId,
+            invocations,
+          )
+        : undefined,
   })
   return { runtime, invocations }
 }

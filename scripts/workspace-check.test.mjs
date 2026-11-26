@@ -265,3 +265,21 @@ test('knowledge UI follows real ingest jobs and renders degraded retrieval', asy
   assert.match(table, /reindex/)
   assert.match(upload, /item\.error/)
 })
+
+test('knowledge creation uses the local 768d embedding policy', async () => {
+  const page = await readFile(
+    path.join(root, 'apps/web/src/pages/knowledge-page/index.vue'),
+    'utf8',
+  )
+  const dialog = await readFile(
+    path.join(
+      root,
+      'apps/web/src/pages/knowledge-page/components/KnowledgeBaseDialog.vue',
+    ),
+    'utf8',
+  )
+  assert.doesNotMatch(page, /text-embedding-3-small|embeddingDimension:\s*1536/)
+  assert.doesNotMatch(dialog, />1536</)
+  assert.match(dialog, /nomic-embed-text/)
+  assert.match(dialog, />768</)
+})

@@ -46,6 +46,11 @@ export interface AgentToolHistoryStartRecord {
 
 export interface AgentToolHistoryPort {
   get(idempotencyKey: string): Promise<AgentToolHistoryRecord | undefined>
+  /**
+   * 检查工具是否已进入执行态但没有落库结果。
+   * 返回 true 时运行时必须 fail closed，避免重复外部副作用。
+   */
+  started?(idempotencyKey: string): Promise<boolean>
   start?(record: AgentToolHistoryStartRecord): Promise<void>
   save(record: AgentToolHistoryRecord): Promise<void>
 }

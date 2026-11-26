@@ -123,6 +123,11 @@ export function createAgentRuntime(
       const internal = new AbortController()
       active.set(input.invocationId, internal)
       const signal = AbortSignal.any([input.signal, internal.signal])
+      let timedOut = false
+      const timeout = setTimeout(() => {
+        timedOut = true
+        internal.abort(new Error('Agent invocation timed out'))
+      }, input.definition.timeoutMs)
       const progress: InvocationProgress = { partialText: '' }
       const tools = createAgentTools(input.definition, dependencies.mcp)
       const toolHistory =
@@ -140,17 +145,13 @@ export function createAgentRuntime(
       const graph = checkpointer
         ? builder.compile({ checkpointer })
         : builder.compile()
-      const baseConfig = {
-        configurable: {
-          thread_id: input.threadId,
-          ...(input.resumeCheckpointId
-            ? { checkpoint_id: input.resumeCheckpointId }
-            : {}),
-        },
+      const threadConfig = {
+        configurable: { thread_id: input.threadId },
       }
 
       try {
         if (signal.aborted) {
+          if (timedOut) throw invocationTimeout(input.definition.timeoutMs)
           return await cancelledResult({
             graph,
             input,
@@ -160,19 +161,34 @@ export function createAgentRuntime(
           })
         }
         const previous = checkpointer
-          ? await graph.getState(baseConfig)
+          ? await graph.getState(threadConfig)
           : undefined
         const previousMessages = readMessages(previous?.values)
-        const initialMessages = input.resumeCheckpointId
-          ? []
-          : messagesForInvocation(input, previousMessages.length > 0)
-        if (input.resumeCheckpointId && input.emit) {
+        const resumeCheckpointId =
+          input.resumeCheckpointId ??
+          (isRetryAttempt(input.attempt)
+            ? checkpointIdOf(previous?.config)
+            : undefined)
+        const initialMessages = initialMessagesForInvocation({
+          input,
+          previousMessages,
+          resumeCheckpointId,
+        })
+        if (resumeCheckpointId && input.emit) {
           await input.emit({
             type: 'invocation.resumed',
             payload: {
-              checkpointId: input.resumeCheckpointId,
+              checkpointId: resumeCheckpointId,
             },
           })
+        }
+        const baseConfig = {
+          configurable: {
+            thread_id: input.threadId,
+            ...(resumeCheckpointId
+              ? { checkpoint_id: resumeCheckpointId }
+              : {}),
+          },
         }
 
         const graphInput: AgentGraphStateValue = {
@@ -210,6 +226,20 @@ export function createAgentRuntime(
         }
         return result
       } catch (error) {
+        if (timedOut) {
+          const normalized = invocationTimeout(input.definition.timeoutMs)
+          if (input.emit) {
+            await input.emit({
+              type: 'invocation.failed',
+              payload: {
+                code: normalized.code,
+                message: normalized.message,
+                retryable: normalized.retryable,
+              },
+            })
+          }
+          throw normalized
+        }
         if (isAbortError(error) || signal.aborted) {
           return await cancelledResult({
             graph,
@@ -232,6 +262,7 @@ export function createAgentRuntime(
         }
         throw normalized
       } finally {
+        clearTimeout(timeout)
         active.delete(input.invocationId)
       }
     },
@@ -509,6 +540,25 @@ function createAgentGraphBuilder(context: {
           continue
         }
 
+        if (toolHistory?.started && (await toolHistory.started(idempotencyKey))) {
+          const message = `工具 ${call.name} 上次已开始执行，但结果没有落库，不能自动重试。`
+          if (input.emit) {
+            await input.emit({
+              type: 'tool.failed',
+              payload: {
+                toolCallId: startedCall.id,
+                name: startedCall.name,
+                code: 'TOOL_OUTCOME_UNKNOWN',
+                message,
+                retryable: false,
+              },
+            })
+          }
+          throw new AgentRuntimeError('TOOL_OUTCOME_UNKNOWN', message, {
+            retryable: false,
+          })
+        }
+
         try {
           if (toolHistory?.start) {
             try {
@@ -706,8 +756,54 @@ function messagesForInvocation(
       )
     }
   }
-  messages.push(new HumanMessage(inputText(input.input)))
+  const currentUserMessage = input.input.userMessageId
+  messages.push(
+    new HumanMessage({
+      content: inputText(input.input),
+      additional_kwargs: {
+        invocationId: input.invocationId,
+        ...(typeof currentUserMessage === 'string'
+          ? { userMessageId: currentUserMessage }
+          : {}),
+      },
+    }),
+  )
   return messages
+}
+
+function initialMessagesForInvocation(input: {
+  input: AgentInvokeInput
+  previousMessages: BaseMessage[]
+  resumeCheckpointId?: string
+}) {
+  const retrying =
+    Boolean(input.resumeCheckpointId) || isRetryAttempt(input.input.attempt)
+  if (!retrying) {
+    return messagesForInvocation(
+      input.input,
+      input.previousMessages.length > 0,
+    )
+  }
+  const alreadyPresent = input.previousMessages.some(
+    (message) =>
+      message.type === 'human' &&
+      message.additional_kwargs.invocationId === input.input.invocationId,
+  )
+  return alreadyPresent
+    ? []
+    : messagesForInvocation(input.input, false)
+}
+
+function isRetryAttempt(attempt: number | undefined) {
+  return typeof attempt === 'number' && attempt > 1
+}
+
+function invocationTimeout(timeoutMs: number) {
+  return new AgentRuntimeError(
+    'AGENT_TIMEOUT',
+    `Agent 调用超过 ${timeoutMs} 毫秒，已停止执行。`,
+    { retryable: true },
+  )
 }
 
 function systemInstructions(definition: AgentDefinition) {

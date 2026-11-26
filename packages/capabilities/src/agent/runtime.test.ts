@@ -419,6 +419,110 @@ test('agent runtime fails closed when a tool history result cannot be saved', as
   )
 })
 
+test('agent runtime fails closed when a previous tool outcome is unknown', async () => {
+  const chat = new ScriptedChatProvider([
+    toolCallChunk('call_unknown', 'lookup_order', {
+      orderId: 'UNKNOWN-1',
+    }),
+  ])
+  let mcpCalls = 0
+  const runtime = createAgentRuntime({
+    chat,
+    toolHistory: {
+      async get() {
+        return undefined
+      },
+      async started() {
+        return true
+      },
+      async save() {},
+    } as AgentToolHistoryPort,
+    mcp: {
+      async call() {
+        mcpCalls += 1
+        return { status: 'must-not-run' }
+      },
+    },
+  })
+
+  await assert.rejects(
+    runtime.invoke(
+      makeInvocation({
+        definition: agentDefinition({
+          mcpTools: [
+            {
+              serverId: 'orders',
+              toolName: 'lookup_order',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
+        }),
+      }),
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code ===
+        'TOOL_OUTCOME_UNKNOWN',
+  )
+  assert.equal(mcpCalls, 0)
+})
+
+test('agent runtime resumes a failed invocation without duplicating user input', async () => {
+  const chat = new FailOnceThenAnswerChatProvider()
+  const runtime = createAgentRuntime({ chat })
+  const first = makeInvocation({
+    invocationId: 'inv_resume',
+    input: { text: '恢复测试问题' },
+  })
+
+  await assert.rejects(runtime.invoke(first), /worker interrupted/)
+  const resumed = await runtime.invoke({
+    ...first,
+    attempt: 2,
+  })
+
+  assert.equal(resumed.text, '恢复回答')
+  assert.equal(chat.calls.length, 2)
+  assert.equal(
+    chat.calls[1].messages.filter(
+      (message) =>
+        message.type === 'human' &&
+        messageText(message) === '恢复测试问题',
+    ).length,
+    1,
+  )
+})
+
+test('agent runtime applies the definition timeout to the whole invocation', {
+  timeout: 2_000,
+}, async () => {
+  const chat = new BlockingChatProvider()
+  const runtime = createAgentRuntime({ chat })
+  const events: AgentRuntimeEvent[] = []
+
+  await assert.rejects(
+    runtime.invoke(
+      makeInvocation({
+        definition: agentDefinition({ timeoutMs: 30 }),
+        async emit(event) {
+          events.push(event)
+        },
+      }),
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code === 'AGENT_TIMEOUT',
+  )
+  assert.equal(
+    events.some(
+      (event) =>
+        event.type === 'invocation.failed' &&
+        event.payload.code === 'AGENT_TIMEOUT',
+    ),
+    true,
+  )
+})
+
 class ScriptedChatProvider implements AgentChatProvider {
   readonly calls: AgentChatProviderInput[] = []
 
@@ -435,6 +539,23 @@ class ScriptedChatProvider implements AgentChatProvider {
     const chunk = typeof response === 'function' ? response(input) : response
     return (async function* () {
       yield chunk
+    })()
+  }
+}
+
+class FailOnceThenAnswerChatProvider implements AgentChatProvider {
+  readonly calls: AgentChatProviderInput[] = []
+
+  async stream(input: AgentChatProviderInput) {
+    this.calls.push(input)
+    if (this.calls.length === 1) {
+      return (async function* () {
+        yield new AIMessageChunk({ content: '' })
+        throw new Error('worker interrupted')
+      })()
+    }
+    return (async function* () {
+      yield new AIMessageChunk({ content: '恢复回答' })
     })()
   }
 }

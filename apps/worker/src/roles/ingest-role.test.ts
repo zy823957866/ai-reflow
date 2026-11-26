@@ -55,6 +55,50 @@ test('ingest role records a real failure instead of fake success', async () => {
   ])
 })
 
+test('ingest cancellation aborts active work without recording failure or success', {
+  timeout: 2_000,
+}, async () => {
+  let completed = 0
+  let failures = 0
+  let heartbeatCount = 0
+  const jobs = {
+    async heartbeat() {
+      heartbeatCount += 1
+      return heartbeatCount > 1
+    },
+    async updateStage() {},
+    async complete() {
+      completed += 1
+    },
+    async fail() {
+      failures += 1
+    },
+  } as unknown as Pick<
+    KnowledgeIngestRepository,
+    'heartbeat' | 'updateStage' | 'complete' | 'fail'
+  >
+
+  await executeClaimedIngest({
+    job: makeClaimedIngestJob(),
+    jobs,
+    workerId: 'worker_1',
+    signal: new AbortController().signal,
+    heartbeatIntervalMs: 10,
+    async process({ signal }) {
+      await new Promise<void>((_resolve, reject) => {
+        signal.addEventListener(
+          'abort',
+          () => reject(new Error('aborted')),
+          { once: true },
+        )
+      })
+    },
+  })
+
+  assert.equal(completed, 0)
+  assert.equal(failures, 0)
+})
+
 function makeClaimedIngestJob(): ClaimedIngestJob {
   return {
     id: '018f0000-0000-7000-8000-000000000020',

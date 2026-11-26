@@ -142,9 +142,9 @@ export async function seedDemoData(databaseUrl: string) {
             ${WORKSPACE_ID},
             ${'产品文档'},
             ${'Acme 产品帮助中心与版本说明'},
-            ${'openai'},
-            ${'text-embedding-3-small'},
-            ${1536},
+            ${'ollama'},
+            ${'nomic-embed-text'},
+            ${768},
             ${'ready'},
             ${jsonb(transaction, { documentCount: 2, chunkCount: 4 })}
           ),
@@ -154,9 +154,9 @@ export async function seedDemoData(databaseUrl: string) {
             ${WORKSPACE_ID},
             ${'售后与政策'},
             ${'退款、退货、服务等级与合规政策'},
-            ${'openai'},
-            ${'text-embedding-3-small'},
-            ${1536},
+            ${'ollama'},
+            ${'nomic-embed-text'},
+            ${768},
             ${'ready'},
             ${jsonb(transaction, { documentCount: 1, chunkCount: 2 })}
           ),
@@ -166,9 +166,9 @@ export async function seedDemoData(databaseUrl: string) {
             ${WORKSPACE_ID},
             ${'销售赋能'},
             ${'产品报价、竞品对比与销售话术'},
-            ${'openai'},
-            ${'text-embedding-3-small'},
-            ${1536},
+            ${'ollama'},
+            ${'nomic-embed-text'},
+            ${768},
             ${'indexing'},
             ${jsonb(transaction, { documentCount: 1, chunkCount: 1 })}
           )
@@ -469,7 +469,7 @@ async function seedDocuments(transaction: SeedTransaction) {
         ${'企业版试用支持 14 天，申请时需要企业邮箱、公司名称与预计使用人数。'},
         ${35},
         ${jsonb(transaction, { title: '试用申请', source: 'seed' })},
-        ${'text-embedding-3-small'},
+        ${'nomic-embed-text'},
         ${'pending'},
         ${transaction`to_tsvector('simple', ${'企业版试用 企业邮箱 公司名称 预计使用人数'})`}
       ),
@@ -480,7 +480,7 @@ async function seedDocuments(transaction: SeedTransaction) {
         ${'产品文档支持 Markdown、PDF 与 DOCX 导入，预览会保留页码与标题层级。'},
         ${38},
         ${jsonb(transaction, { title: '文档导入', source: 'seed' })},
-        ${'text-embedding-3-small'},
+        ${'nomic-embed-text'},
         ${'pending'},
         ${transaction`to_tsvector('simple', ${'产品文档 Markdown PDF DOCX 导入 页码 标题层级'})`}
       ),
@@ -491,7 +491,7 @@ async function seedDocuments(transaction: SeedTransaction) {
         ${'未拆封商品支持 7 天无理由退货，企业版服务在订阅生效后 30 天内可申请退款。'},
         ${42},
         ${jsonb(transaction, { title: '退款政策', page: 3, source: 'seed' })},
-        ${'text-embedding-3-small'},
+        ${'nomic-embed-text'},
         ${'pending'},
         ${transaction`to_tsvector('simple', ${'未拆封 7 天 无理由退货 企业版 30 天 退款'})`}
       )

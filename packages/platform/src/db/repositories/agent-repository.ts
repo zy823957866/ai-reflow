@@ -37,6 +37,7 @@ export interface ConversationRow {
   created_at: Date
   updated_at: Date
   agent_name?: string
+  agent_public_id?: string
   message_count?: number
   last_message_preview?: string | null
 }
@@ -97,7 +98,7 @@ export function toAgentDto(row: AgentRow) {
 export function toAgentConversationDto(row: ConversationRow) {
   return {
     id: row.public_id,
-    agentId: row.agent_id,
+    agentId: row.agent_public_id ?? row.agent_id,
     agentName: row.agent_name,
     revision: row.agent_revision,
     title: row.title,
@@ -272,7 +273,7 @@ export class AgentConversationRepository {
   async list(agentId: string) {
     const rows = await this.sql<ConversationRow[]>`
       select
-        c.*, a.name as agent_name,
+        c.*, a.name as agent_name, a.public_id as agent_public_id,
         (
           select count(*)::int
           from agent_messages m
@@ -385,111 +386,146 @@ export class AgentConversationRepository {
       idempotencyKey?: string
     },
   ) {
-    return this.sql.begin(async (transaction) => {
-      const conversation = await this.require(conversationId, transaction, true)
-      if (conversation.status !== 'active') {
-        throw new AppError({
-          code: 'CONVERSATION_ARCHIVED',
-          message: '会话已归档，不能继续发送消息。',
-          status: 409,
-        })
-      }
-      await this.assertNotBusy(transaction, conversation.id)
-      const history = await this.history(transaction, conversation.id)
-      const [latest] = await transaction<Array<{ seq: number }>>`
-        select coalesce(max(seq), 0)::int as seq
-        from agent_messages
-        where conversation_id = ${conversation.id}
-      `
-      const userPublicId = publicId('msg')
-      const assistantPublicId = publicId('msg')
-      const userSeq = latest.seq + 1
-      const assistantSeq = userSeq + 1
-      await transaction`
-        insert into agent_messages (
-          public_id, workspace_id, conversation_id, seq, role, content,
-          status, citations, usage
-        )
-        values (
-          ${userPublicId}, ${this.workspaceId}, ${conversation.id}, ${userSeq},
-          'user', ${jsonb(transaction, { text: input.content })}, 'completed',
-          ${jsonb(transaction, [])}, ${jsonb(transaction, {})}
-        )
-      `
-      await transaction`
-        insert into agent_messages (
-          public_id, workspace_id, conversation_id, seq, role, content,
-          status, citations, usage
-        )
-        values (
-          ${assistantPublicId}, ${this.workspaceId}, ${conversation.id},
-          ${assistantSeq}, 'assistant', ${jsonb(transaction, { text: '' })},
-          'pending', ${jsonb(transaction, [])}, ${jsonb(transaction, {})}
-        )
-      `
-      const invocationPublicId = publicId('agi')
-      const [invocation] = await transaction<Array<{ id: string }>>`
-        insert into agent_invocations (
-          public_id, workspace_id, agent_id, conversation_id, kind, status,
-          definition_snapshot, request, thread_id, idempotency_key
-        )
-        values (
-          ${invocationPublicId}, ${this.workspaceId}, ${conversation.agent_id},
-          ${conversation.id}, 'chat', 'queued',
-          ${jsonb(transaction, conversation.agent_snapshot)},
-          ${jsonb(transaction, {
-            content: input.content,
-            attachments: input.attachments ?? [],
-            metadata: input.metadata ?? {},
-            userMessageId: userPublicId,
-            assistantMessageId: assistantPublicId,
-            history,
-          })},
-          ${conversation.thread_id}, ${input.idempotencyKey ?? null}
-        )
-        returning id
-      `
-      await transaction`
-        update agent_messages
-        set invocation_id = ${invocation.id}
-        where conversation_id = ${conversation.id}
-          and public_id in (${userPublicId}, ${assistantPublicId})
-      `
-      await appendInvocationEventRecord(
-        transaction,
-        this.workspaceId,
-        invocation.id,
-        'invocation.queued',
-        { status: 'queued' },
-      )
-      await transaction`
-        update agent_conversations
-        set
-          title = case
-            when title = '新会话' then left(${input.content}, 40)
-            else title
-          end,
-          last_message_at = now(),
-          updated_at = now()
-        where id = ${conversation.id}
-      `
-      const messages = await transaction<AgentMessageRow[]>`
-        select *
-        from agent_messages
-        where conversation_id = ${conversation.id}
-          and public_id in (${userPublicId}, ${assistantPublicId})
-        order by seq
-      `
-      return {
+    if (input.idempotencyKey) {
+      const replay = await this.findIdempotentSend(
         conversationId,
-        userMessageId: userPublicId,
-        assistantMessageId: assistantPublicId,
-        invocationId: invocationPublicId,
-        status: 'queued' as const,
-        events: `/api/agent-invocations/${invocationPublicId}/events`,
-        messages: messages.map(toAgentMessageDto),
+        input.idempotencyKey,
+      )
+      if (replay) return replay
+    }
+    try {
+      return await this.sql.begin(async (transaction) => {
+        const conversation = await this.require(
+          conversationId,
+          transaction,
+          true,
+        )
+        // 同一 key 的并发请求可能在事务外都看不到首条记录。
+        // 拿到会话锁后必须再查一次，否则会被 active 检查错误阻断。
+        if (input.idempotencyKey) {
+          const replay = await this.findIdempotentSend(
+            conversationId,
+            input.idempotencyKey,
+            transaction,
+          )
+          if (replay) return replay
+        }
+        if (conversation.status !== 'active') {
+          throw new AppError({
+            code: 'CONVERSATION_ARCHIVED',
+            message: '会话已归档，不能继续发送消息。',
+            status: 409,
+          })
+        }
+        await this.assertNotBusy(transaction, conversation.id)
+        const history = await this.history(transaction, conversation.id)
+        const [latest] = await transaction<Array<{ seq: number }>>`
+          select coalesce(max(seq), 0)::int as seq
+          from agent_messages
+          where conversation_id = ${conversation.id}
+        `
+        const userPublicId = publicId('msg')
+        const assistantPublicId = publicId('msg')
+        const userSeq = latest.seq + 1
+        const assistantSeq = userSeq + 1
+        await transaction`
+          insert into agent_messages (
+            public_id, workspace_id, conversation_id, seq, role, content,
+            status, citations, usage
+          )
+          values (
+            ${userPublicId}, ${this.workspaceId}, ${conversation.id}, ${userSeq},
+            'user', ${jsonb(transaction, { text: input.content })}, 'completed',
+            ${jsonb(transaction, [])}, ${jsonb(transaction, {})}
+          )
+        `
+        await transaction`
+          insert into agent_messages (
+            public_id, workspace_id, conversation_id, seq, role, content,
+            status, citations, usage
+          )
+          values (
+            ${assistantPublicId}, ${this.workspaceId}, ${conversation.id},
+            ${assistantSeq}, 'assistant', ${jsonb(transaction, { text: '' })},
+            'pending', ${jsonb(transaction, [])}, ${jsonb(transaction, {})}
+          )
+        `
+        const invocationPublicId = publicId('agi')
+        const [invocation] = await transaction<Array<{ id: string }>>`
+          insert into agent_invocations (
+            public_id, workspace_id, agent_id, conversation_id, kind, status,
+            definition_snapshot, request, thread_id, idempotency_key
+          )
+          values (
+            ${invocationPublicId}, ${this.workspaceId}, ${conversation.agent_id},
+            ${conversation.id}, 'chat', 'queued',
+            ${jsonb(transaction, conversation.agent_snapshot)},
+            ${jsonb(transaction, {
+              content: input.content,
+              attachments: input.attachments ?? [],
+              metadata: input.metadata ?? {},
+              userMessageId: userPublicId,
+              assistantMessageId: assistantPublicId,
+              history,
+            })},
+            ${conversation.thread_id}, ${input.idempotencyKey ?? null}
+          )
+          returning id
+        `
+        await transaction`
+          update agent_messages
+          set invocation_id = ${invocation.id}
+          where conversation_id = ${conversation.id}
+            and public_id in (${userPublicId}, ${assistantPublicId})
+        `
+        await appendInvocationEventRecord(
+          transaction,
+          this.workspaceId,
+          invocation.id,
+          'invocation.queued',
+          { status: 'queued' },
+        )
+        await transaction`
+          update agent_conversations
+          set
+            title = case
+              when title = '新会话' then left(${input.content}, 40)
+              else title
+            end,
+            last_message_at = now(),
+            updated_at = now()
+          where id = ${conversation.id}
+        `
+        const messages = await transaction<AgentMessageRow[]>`
+          select *
+          from agent_messages
+          where conversation_id = ${conversation.id}
+            and public_id in (${userPublicId}, ${assistantPublicId})
+          order by seq
+        `
+        return {
+          conversationId,
+          userMessageId: userPublicId,
+          assistantMessageId: assistantPublicId,
+          invocationId: invocationPublicId,
+          status: 'queued' as const,
+          events: `/api/agent-invocations/${invocationPublicId}/events`,
+          messages: messages.map(toAgentMessageDto),
+        }
+      })
+    } catch (error) {
+      if (
+        input.idempotencyKey &&
+        isIdempotencyUniqueViolation(error)
+      ) {
+        const replay = await this.findIdempotentSend(
+          conversationId,
+          input.idempotencyKey,
+        )
+        if (replay) return replay
       }
-    })
+      throw error
+    }
   }
 
   /**
@@ -601,17 +637,38 @@ export class AgentConversationRepository {
    * @param messageId 外部消息 ID。
    * @param text 当前累计文本。
    */
-  async updateAssistantDraft(messageId: string, text: string) {
-    await this.sql`
-      update agent_messages
+  async updateAssistantDraft(
+    messageId: string,
+    text: string,
+    claim?: { workerId: string; attempt: number },
+  ) {
+    const [updated] = await this.sql<Array<{ public_id: string }>>`
+      update agent_messages m
       set
         content = ${jsonb(this.sql, { text })},
         status = 'streaming',
         updated_at = now()
-      where workspace_id = ${this.workspaceId}
-        and public_id = ${messageId}
-        and role = 'assistant'
+      where m.workspace_id = ${this.workspaceId}
+        and m.public_id = ${messageId}
+        and m.role = 'assistant'
+        ${claim
+          ? this.sql`and exists (
+              select 1
+              from agent_invocations i
+              where i.id = m.invocation_id
+                and i.workspace_id = m.workspace_id
+                and i.status = 'running'
+                and i.worker_id = ${claim.workerId}
+                and i.attempts = ${claim.attempt}
+                and (
+                  i.lease_expires_at is null
+                  or i.lease_expires_at > now()
+                )
+            )`
+          : this.sql``}
+      returning m.public_id
     `
+    return Boolean(updated)
   }
 
   /**
@@ -628,9 +685,10 @@ export class AgentConversationRepository {
       usage?: Record<string, unknown>
       error?: Record<string, unknown>
     },
+    claim?: { workerId: string; attempt: number },
   ) {
-    await this.sql`
-      update agent_messages
+    const [updated] = await this.sql<Array<{ public_id: string }>>`
+      update agent_messages m
       set
         content = ${jsonb(this.sql, { text: input.text })},
         status = ${input.status},
@@ -638,10 +696,27 @@ export class AgentConversationRepository {
         usage = ${jsonb(this.sql, input.usage ?? {})},
         error = ${input.error ? jsonb(this.sql, input.error) : null},
         updated_at = now()
-      where workspace_id = ${this.workspaceId}
-        and public_id = ${messageId}
-        and role = 'assistant'
+      where m.workspace_id = ${this.workspaceId}
+        and m.public_id = ${messageId}
+        and m.role = 'assistant'
+        ${claim
+          ? this.sql`and exists (
+              select 1
+              from agent_invocations i
+              where i.id = m.invocation_id
+                and i.workspace_id = m.workspace_id
+                and i.status = 'running'
+                and i.worker_id = ${claim.workerId}
+                and i.attempts = ${claim.attempt}
+                and (
+                  i.lease_expires_at is null
+                  or i.lease_expires_at > now()
+                )
+            )`
+          : this.sql``}
+      returning m.public_id
     `
+    if (!updated) return false
     await this.sql`
       update agent_conversations c
       set last_message_at = now(), updated_at = now()
@@ -650,6 +725,7 @@ export class AgentConversationRepository {
         and m.workspace_id = ${this.workspaceId}
         and m.conversation_id = c.id
     `
+    return true
   }
 
   private async require(
@@ -658,7 +734,7 @@ export class AgentConversationRepository {
     lock = false,
   ) {
     const [row] = await sql<ConversationRow[]>`
-      select c.*, a.name as agent_name
+      select c.*, a.name as agent_name, a.public_id as agent_public_id
       from agent_conversations c
       join agents a on a.id = c.agent_id
       where c.workspace_id = ${this.workspaceId}
@@ -715,4 +791,80 @@ export class AgentConversationRepository {
       createdAt: iso(row.created_at),
     }))
   }
+
+  private async findIdempotentSend(
+    conversationId: string,
+    idempotencyKey: string,
+    sql: DatabaseClient | Transaction = this.sql,
+  ) {
+    const [row] = await sql<Array<{
+      public_id: string
+      conversation_public_id: string
+      status: string
+      request: Record<string, unknown>
+    }>>`
+      select
+        i.public_id, c.public_id as conversation_public_id,
+        i.status, i.request
+      from agent_invocations i
+      join agent_conversations c on c.id = i.conversation_id
+      where i.workspace_id = ${this.workspaceId}
+        and i.idempotency_key = ${idempotencyKey}
+      limit 1
+    `
+    if (!row) return null
+    if (row.conversation_public_id !== conversationId) {
+      throw new AppError({
+        code: 'IDEMPOTENCY_KEY_CONFLICT',
+        message: '该 Idempotency-Key 已用于其他会话。',
+        status: 409,
+      })
+    }
+    const userMessageId = stringValue(row.request.userMessageId)
+    const assistantMessageId = stringValue(
+      row.request.assistantMessageId,
+    )
+    if (!userMessageId || !assistantMessageId) return null
+    const messages = await sql<AgentMessageRow[]>`
+      select *
+      from agent_messages
+      where workspace_id = ${this.workspaceId}
+        and conversation_id = (
+          select id from agent_conversations
+          where workspace_id = ${this.workspaceId}
+            and public_id = ${conversationId}
+        )
+        and public_id in (${userMessageId}, ${assistantMessageId})
+      order by seq
+    `
+    return {
+      conversationId,
+      userMessageId,
+      assistantMessageId,
+      invocationId: row.public_id,
+      status: row.status,
+      events: `/api/agent-invocations/${row.public_id}/events`,
+      messages: messages.map(toAgentMessageDto),
+    }
+  }
+}
+
+function stringValue(value: unknown) {
+  return typeof value === 'string' && value ? value : undefined
+}
+
+function isIdempotencyUniqueViolation(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+  const record = error as {
+    code?: unknown
+    constraint?: unknown
+    constraint_name?: unknown
+  }
+  return (
+    record.code === '23505' &&
+    (record.constraint ===
+      'uq_agent_invocations_workspace_idempotency' ||
+      record.constraint_name ===
+        'uq_agent_invocations_workspace_idempotency')
+  )
 }

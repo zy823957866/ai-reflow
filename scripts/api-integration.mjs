@@ -1,5 +1,12 @@
 import assert from 'node:assert/strict'
-import { createDatabase } from '@ai-reflow/platform'
+import { createAgentRuntime } from '@ai-reflow/capabilities'
+import {
+  AgentConversationRepository,
+  AgentInvocationRepository,
+  KnowledgeRepository,
+  createDatabase,
+} from '@ai-reflow/platform'
+import { createPostgresAgentCheckpointer } from '../apps/worker/src/agent-runtime-factory.ts'
 
 const apiBaseUrl = process.env.API_BASE_URL
   ?? `http://${process.env.API_HOST ?? '127.0.0.1'}:${process.env.API_PORT ?? '8787'}`
@@ -325,9 +332,13 @@ async function testKnowledge() {
   })
   const knowledgeBaseId = created.data.id
   assert.ok(knowledgeBaseId)
+  assert.equal(created.data.embeddingModel, 'nomic-embed-text')
+  assert.equal(created.data.dimensions, 768)
 
   const fetched = await api(`/api/knowledge-bases/${knowledgeBaseId}`)
   assert.equal(fetched.data.id, knowledgeBaseId)
+  assert.equal(fetched.data.embeddingModel, 'nomic-embed-text')
+  assert.equal(fetched.data.dimensions, 768)
   const updated = await api(`/api/knowledge-bases/${knowledgeBaseId}`, {
     method: 'PATCH',
     body: { description: '已完成更新验证。' },
@@ -346,6 +357,456 @@ async function testKnowledge() {
     method: 'DELETE',
   })
   assert.equal(removed.data.deleted, true)
+}
+
+/**
+ * 验证 Agent 会话发送的幂等重放，包括同一 key 的并发请求。
+ */
+async function testAgentIdempotency() {
+  const models = await api('/api/model-connections')
+  const model = models.data.find((item) => item.enabled)
+  assert.ok(model?.id, '幂等测试需要至少一个启用的模型连接。')
+  const agent = await api('/api/agents', {
+    method: 'POST',
+    expectedStatus: [201],
+    body: {
+      name: `集成幂等 Agent ${runStamp}`,
+      description: '验证会话发送的幂等语义。',
+      config: {
+        instructions: '你只回答集成测试问题。',
+        modelConnectionId: model.id,
+        mcpTools: [],
+        maxSteps: 2,
+        timeoutMs: 5000,
+        memory: { mode: 'conversation' },
+      },
+    },
+  })
+  const agentId = agent.data.id
+  const conversations = []
+  const invocationIds = new Set()
+  try {
+    const conversation = await api(
+      `/api/agents/${agentId}/conversations`,
+      {
+        method: 'POST',
+        expectedStatus: [201],
+        body: { title: '幂等重放验证' },
+      },
+    )
+    conversations.push(conversation.data.id)
+    const key = `integration-message-${runStamp}`
+    const path = `/api/agent-conversations/${conversation.data.id}/messages`
+    const options = {
+      method: 'POST',
+      expectedStatus: [202],
+      headers: { 'Idempotency-Key': key },
+      body: { content: '请返回幂等测试结果。' },
+    }
+    const first = await api(path, options)
+    const replay = await api(path, options)
+    invocationIds.add(first.data.invocationId)
+    assert.equal(replay.data.invocationId, first.data.invocationId)
+    assert.equal(replay.data.userMessageId, first.data.userMessageId)
+    assert.equal(
+      replay.data.assistantMessageId,
+      first.data.assistantMessageId,
+    )
+
+    const concurrentConversation = await api(
+      `/api/agents/${agentId}/conversations`,
+      {
+        method: 'POST',
+        expectedStatus: [201],
+        body: { title: '并发幂等重放验证' },
+      },
+    )
+    conversations.push(concurrentConversation.data.id)
+    const concurrentKey = `integration-concurrent-${runStamp}`
+    const concurrentPath =
+      `/api/agent-conversations/${concurrentConversation.data.id}/messages`
+    const concurrentOptions = {
+      method: 'POST',
+      expectedStatus: [202],
+      headers: { 'Idempotency-Key': concurrentKey },
+      body: { content: '请并发返回同一个调用。' },
+    }
+    const [left, right] = await Promise.all([
+      api(concurrentPath, concurrentOptions),
+      api(concurrentPath, concurrentOptions),
+    ])
+    invocationIds.add(left.data.invocationId)
+    assert.equal(right.data.invocationId, left.data.invocationId)
+    assert.equal(right.data.userMessageId, left.data.userMessageId)
+    assert.equal(
+      right.data.assistantMessageId,
+      left.data.assistantMessageId,
+    )
+  } finally {
+    for (const invocationId of invocationIds) {
+      await api(`/api/agent-invocations/${invocationId}/cancel`, {
+        method: 'POST',
+      }).catch(() => undefined)
+    }
+    for (const conversationId of conversations) {
+      await api(`/api/agent-conversations/${conversationId}`, {
+        method: 'PATCH',
+        body: { status: 'archived' },
+      }).catch(() => undefined)
+    }
+    await api(`/api/agents/${agentId}`, {
+      method: 'DELETE',
+    }).catch(() => undefined)
+  }
+}
+
+/**
+ * 使用真实 PostgresSaver 验证中断后从 checkpoint 恢复。
+ */
+async function testPostgresCheckpointResume() {
+  const checkpointer = await createPostgresAgentCheckpointer(databaseUrl)
+  let calls = 0
+  const chat = {
+    async *stream() {
+      calls += 1
+      yield checkpointChunk('')
+      if (calls === 1) throw new Error('worker interrupted')
+      yield checkpointChunk('checkpoint 恢复成功')
+    },
+  }
+  const runtime = createAgentRuntime({ chat, checkpointer })
+  const definition = {
+    instructions: '你只回答 checkpoint 测试。',
+    modelConnectionId: 'mc_checkpoint',
+    mcpTools: [],
+    maxSteps: 2,
+    timeoutMs: 5000,
+    memory: { mode: 'conversation' },
+  }
+  const invocation = {
+    invocationId: `agi_checkpoint_${runStamp}`,
+    workspaceId: process.env.DEFAULT_WORKSPACE_ID,
+    kind: 'chat',
+    threadId: `conversation:checkpoint_${runStamp}`,
+    definition,
+    input: { text: '请验证 checkpoint 恢复。' },
+    signal: new AbortController().signal,
+  }
+  try {
+    await assert.rejects(
+      runtime.invoke({ ...invocation, attempt: 1 }),
+      /worker interrupted/,
+    )
+    const resumed = await runtime.invoke({
+      ...invocation,
+      attempt: 2,
+    })
+    assert.equal(resumed.text, 'checkpoint 恢复成功')
+    const userMessages = resumed.messages.filter(
+      (message) =>
+        message.role === 'user' &&
+        message.content === '请验证 checkpoint 恢复。',
+    )
+    assert.equal(userMessages.length, 1)
+  } finally {
+    await checkpointer.end()
+  }
+}
+
+/**
+ * 构造运行时所需的最小流式消息分片。
+ *
+ * @param {string} content 文本内容。
+ * @returns {Record<string, unknown>} 可拼接的消息分片。
+ */
+function checkpointChunk(content) {
+  return {
+    content,
+    tool_calls: [],
+    invalid_tool_calls: [],
+    additional_kwargs: {},
+    response_metadata: {},
+    usage_metadata: undefined,
+    concat(next) {
+      return checkpointChunk(String(this.content ?? '') + String(next.content ?? ''))
+    },
+  }
+}
+
+/**
+ * 验证 Agent 租约 fencing 和 reindex 活动任务保护。
+ *
+ * @param {import('@ai-reflow/platform').DatabaseClient} sql PostgreSQL 客户端。
+ */
+async function testRuntimeFencing(sql) {
+  const workspaceId = process.env.DEFAULT_WORKSPACE_ID
+  assert.ok(workspaceId, '缺少 DEFAULT_WORKSPACE_ID。')
+  const [agent] = await sql`
+    select id
+    from agents
+    where workspace_id = ${workspaceId} and status = 'active'
+    order by created_at
+    limit 1
+  `
+  assert.ok(agent?.id, '租约 fencing 测试需要至少一个活动 Agent。')
+
+  const invocationPublicId = `agi_fence_${runStamp}`
+  const [invocation] = await sql`
+    insert into agent_invocations (
+      public_id, workspace_id, agent_id, kind, status,
+      definition_snapshot, request, thread_id, attempts,
+      worker_id, lease_expires_at
+    )
+    values (
+      ${invocationPublicId}, ${workspaceId}, ${agent.id}, ${'external'},
+      ${'running'},
+      ${jsonb(sql, {
+        instructions: 'fencing test',
+        modelConnectionId: 'mc_fence',
+        mcpTools: [],
+        maxSteps: 1,
+        timeoutMs: 1000,
+        memory: { mode: 'none' },
+      })},
+      ${jsonb(sql, {})}, ${`test:fence:${runStamp}`}, ${1},
+      ${'worker_old'}, now() + interval '1 hour'
+    )
+    returning id
+  `
+  const cancelledInvocationPublicId = `agi_cancel_fence_${runStamp}`
+  const [cancelledInvocation] = await sql`
+    insert into agent_invocations (
+      public_id, workspace_id, agent_id, kind, status,
+      definition_snapshot, request, thread_id, attempts,
+      worker_id, lease_expires_at, cancel_requested_at, created_at
+    )
+    values (
+      ${cancelledInvocationPublicId}, ${workspaceId}, ${agent.id},
+      ${'external'}, ${'running'},
+      ${jsonb(sql, {
+        instructions: 'cancel fence test',
+        modelConnectionId: 'mc_fence',
+        mcpTools: [],
+        maxSteps: 1,
+        timeoutMs: 1000,
+        memory: { mode: 'none' },
+      })},
+      ${jsonb(sql, {})}, ${`test:cancel-fence:${runStamp}`}, ${1},
+      ${'worker_cancel_old'}, now() - interval '1 minute', now(),
+      ${'2000-01-01T00:00:00.000Z'}
+    )
+    returning id
+  `
+
+  const knowledgeBasePublicId = `kb_fence_${runStamp}`
+  const documentPublicId = `doc_fence_${runStamp}`
+  const [knowledgeBase] = await sql`
+    insert into knowledge_bases (
+      public_id, workspace_id, name, description,
+      embedding_provider, embedding_model, embedding_dimension,
+      status, metadata
+    )
+    values (
+      ${knowledgeBasePublicId}, ${workspaceId}, ${'租约测试知识库'},
+      ${'仅用于运行中任务保护验证。'}, ${'ollama'},
+      ${'nomic-embed-text'}, ${768}, ${'ready'}, ${jsonb(sql, {})}
+    )
+    returning id
+  `
+  const [document] = await sql`
+    insert into documents (
+      public_id, workspace_id, kb_id, name, mime, extension,
+      size_bytes, sha256, storage_key, status
+    )
+    values (
+      ${documentPublicId}, ${workspaceId}, ${knowledgeBase.id},
+      ${'fencing.txt'}, ${'text/plain'}, ${'txt'}, ${8},
+      ${`fence-${runStamp}`}, ${`fence/${runStamp}.txt`}, ${'ready'}
+    )
+    returning id
+  `
+  await sql`
+    insert into knowledge_ingest_jobs (
+      public_id, workspace_id, document_id, kind, status, stage,
+      attempt, max_attempts, worker_id, lease_expires_at
+    )
+    values (
+      ${`kij_fence_${runStamp}`}, ${workspaceId}, ${document.id},
+      ${'reindex'}, ${'running'}, ${'parse'}, ${1}, ${3},
+      ${'worker_fence'}, now() + interval '1 hour'
+    )
+  `
+  const conversationPublicId = `conv_fence_${runStamp}`
+  const [conversation] = await sql`
+    insert into agent_conversations (
+      public_id, workspace_id, agent_id, agent_revision,
+      agent_snapshot, thread_id, title, status
+    )
+    values (
+      ${conversationPublicId}, ${workspaceId}, ${agent.id}, ${1},
+      ${jsonb(sql, {
+        instructions: 'fencing test',
+        modelConnectionId: 'mc_fence',
+        mcpTools: [],
+        maxSteps: 1,
+        timeoutMs: 1000,
+        memory: { mode: 'conversation' },
+      })},
+      ${`conversation:${conversationPublicId}`}, ${'租约测试会话'},
+      ${'active'}
+    )
+    returning id
+  `
+  const assistantMessagePublicId = `msg_fence_${runStamp}`
+  await sql`
+    insert into agent_messages (
+      public_id, workspace_id, conversation_id, invocation_id, seq,
+      role, content, status, citations, usage
+    )
+    values (
+      ${assistantMessagePublicId}, ${workspaceId}, ${conversation.id},
+      ${invocation.id}, ${2}, ${'assistant'},
+      ${jsonb(sql, { text: '' })}, ${'pending'},
+      ${jsonb(sql, [])}, ${jsonb(sql, {})}
+    )
+  `
+  const cancelledAssistantMessagePublicId =
+    `msg_cancel_fence_${runStamp}`
+  await sql`
+    insert into agent_messages (
+      public_id, workspace_id, conversation_id, invocation_id, seq,
+      role, content, status, citations, usage
+    )
+    values (
+      ${cancelledAssistantMessagePublicId}, ${workspaceId},
+      ${conversation.id}, ${cancelledInvocation.id}, ${3}, ${'assistant'},
+      ${jsonb(sql, { text: '等待取消' })}, ${'streaming'},
+      ${jsonb(sql, [])}, ${jsonb(sql, {})}
+    )
+  `
+
+  try {
+    await sql`
+      update agent_invocations
+      set worker_id = ${'worker_new'}, attempts = ${2}
+      where id = ${invocation.id}
+    `
+    const repository = new AgentInvocationRepository(sql, workspaceId)
+    assert.equal(
+      await repository.heartbeat(invocation.id, 'worker_old', 1),
+      true,
+    )
+    const conversations = new AgentConversationRepository(sql, workspaceId)
+    assert.equal(
+      await conversations.updateAssistantDraft(
+        assistantMessagePublicId,
+        '旧 worker 草稿',
+        { workerId: 'worker_old', attempt: 1 },
+      ),
+      false,
+    )
+    assert.equal(
+      await conversations.completeAssistantMessage(
+        assistantMessagePublicId,
+        { text: '旧 worker 结果', status: 'completed' },
+        { workerId: 'worker_old', attempt: 1 },
+      ),
+      false,
+    )
+    const [staleMessage] = await sql`
+      select content, status
+      from agent_messages
+      where id = ${(
+        await sql`
+          select id from agent_messages
+          where public_id = ${assistantMessagePublicId}
+        `
+      )[0].id}
+    `
+    assert.deepEqual(staleMessage, {
+      content: { text: '' },
+      status: 'pending',
+    })
+    await assert.rejects(
+      repository.complete(
+        invocationPublicId,
+        {
+          text: '',
+          messages: [],
+          steps: [],
+          toolCalls: [],
+          citations: [],
+          usage: {},
+          finishReason: 'complete',
+        },
+        { workerId: 'worker_old', attempt: 1 },
+      ),
+      (error) =>
+        error?.code === 'INVOCATION_CLAIM_LOST',
+    )
+
+    const knowledge = new KnowledgeRepository(sql, workspaceId)
+    await assert.rejects(
+      knowledge.reindexDocument(documentPublicId),
+      (error) => error?.code === 'KNOWLEDGE_INGEST_BUSY',
+    )
+
+    const claimed = await repository.claimNext('worker_cancel_sweep')
+    if (claimed && claimed.publicId !== cancelledInvocationPublicId) {
+      await sql`
+        update agent_invocations
+        set status = 'queued', worker_id = null, lease_expires_at = null
+        where id = ${claimed.id}
+      `
+    }
+    const [cancelledRow] = await sql`
+      select status, worker_id, lease_expires_at, finished_at
+      from agent_invocations
+      where id = ${cancelledInvocation.id}
+    `
+    assert.equal(cancelledRow.status, 'cancelled')
+    assert.equal(cancelledRow.worker_id, null)
+    assert.equal(cancelledRow.lease_expires_at, null)
+    assert.ok(cancelledRow.finished_at)
+    const [cancelledMessage] = await sql`
+      select status, error
+      from agent_messages
+      where public_id = ${cancelledAssistantMessagePublicId}
+    `
+    assert.equal(cancelledMessage.status, 'cancelled')
+    assert.equal(cancelledMessage.error.code, 'INVOCATION_CANCELLED')
+    const cancelledEvents = await sql`
+      select type
+      from agent_invocation_events
+      where invocation_id = ${cancelledInvocation.id}
+      order by seq
+    `
+    assert.ok(
+      cancelledEvents.some((event) => event.type === 'invocation.cancelled'),
+      '租约过期的取消调用必须写入 cancelled 事件。',
+    )
+  } finally {
+    await sql`delete from agent_conversations where id = ${conversation.id}`
+    await sql`
+      delete from knowledge_ingest_jobs
+      where document_id = ${document.id}
+    `
+    await sql`delete from documents where id = ${document.id}`
+    await sql`delete from knowledge_bases where id = ${knowledgeBase.id}`
+    await sql`
+      delete from agent_invocation_events
+      where invocation_id = ${invocation.id}
+    `
+    await sql`delete from agent_invocations where id = ${invocation.id}`
+    await sql`
+      delete from agent_invocation_events
+      where invocation_id = ${cancelledInvocation.id}
+    `
+    await sql`
+      delete from agent_invocations
+      where id = ${cancelledInvocation.id}
+    `
+  }
 }
 
 /**
@@ -712,10 +1173,13 @@ async function runIntegrationSuite() {
     })
     await test('模型连接闭环', testModels)
     await test('知识库闭环', testKnowledge)
+    await test('Agent 消息幂等闭环', testAgentIdempotency)
+    await test('Postgres checkpoint 恢复', testPostgresCheckpointResume)
     await test('出站 MCP 闭环', testOutboundMcp)
     await test('模板克隆闭环', testTemplates)
     await test('插件生命周期闭环', () => testPlugins(sql))
     await test('入站 MCP 协议闭环', testInboundMcp)
+    await test('运行时租约与 reindex 保护', () => testRuntimeFencing(sql))
   } finally {
     await sql.end()
   }

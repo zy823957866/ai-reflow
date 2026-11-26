@@ -17,11 +17,11 @@
           <div class="grid grid-cols-2 gap-px overflow-hidden rounded-[6px] border border-line bg-line">
             <div class="flex min-h-[48px] flex-col justify-center gap-0.5 bg-[var(--surface-2)] px-2.5 py-2 text-[12px]">
               <span class="text-subtle">embedding 模型</span>
-              <strong class="truncate font-mono text-muted">text-embedding-3-small</strong>
+              <strong class="truncate font-mono text-muted">nomic-embed-text</strong>
             </div>
             <div class="flex min-h-[48px] flex-col justify-center gap-0.5 bg-[var(--surface-2)] px-2.5 py-2 text-[12px]">
               <span class="text-subtle">维度</span>
-              <strong class="text-muted">1536</strong>
+              <strong class="text-muted">768</strong>
             </div>
           </div>
           <DialogFooter class="mt-2">

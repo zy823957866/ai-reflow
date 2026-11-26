@@ -59,6 +59,11 @@ export interface ClaimedAgentInvocation {
   attempts: number
 }
 
+export interface AgentInvocationClaim {
+  workerId: string
+  attempt: number
+}
+
 /**
  * 判断调用状态是否仍占用会话。
  * @param status invocation 状态。
@@ -244,18 +249,52 @@ export class AgentInvocationRepository {
     leaseMs = 60_000,
   ): Promise<ClaimedAgentInvocation | null> {
     return this.sql.begin(async (transaction) => {
-      await transaction`
-        update agent_invocations
-        set
-          status = 'interrupted',
-          worker_id = null,
-          lease_expires_at = null,
-          updated_at = now()
+      const expired = await transaction<Array<{
+        id: string
+        cancel_requested_at: Date | null
+      }>>`
+        select id, cancel_requested_at
+        from agent_invocations
         where workspace_id = ${this.workspaceId}
           and status = 'running'
           and lease_expires_at is not null
           and lease_expires_at < now()
+        for update skip locked
       `
+      for (const row of expired) {
+        // 已请求取消的调用不能因为 worker 死亡而在租约过期后重新执行。
+        const cancelled = Boolean(row.cancel_requested_at)
+        await transaction`
+          update agent_invocations
+          set
+            status = ${cancelled ? 'cancelled' : 'interrupted'},
+            worker_id = null,
+            lease_expires_at = null,
+            finished_at = case
+              when ${cancelled} then now()
+              else finished_at
+            end,
+            updated_at = now()
+          where id = ${row.id}
+        `
+        if (cancelled) {
+          await markAssistantMessagesCancelled(
+            transaction,
+            this.workspaceId,
+            row.id,
+          )
+          await appendInvocationEventRecord(
+            transaction,
+            this.workspaceId,
+            row.id,
+            'invocation.cancelled',
+            {
+              code: 'INVOCATION_CANCELLED',
+              message: 'Agent 调用已取消。',
+            },
+          )
+        }
+      }
       const [candidate] = await transaction<Array<{
         id: string
         status: string
@@ -319,6 +358,7 @@ export class AgentInvocationRepository {
   async heartbeat(
     invocationInternalId: string,
     workerId: string,
+    attempt?: number,
     leaseMs = 60_000,
   ) {
     const [row] = await this.sql<Array<{ cancel_requested_at: Date | null }>>`
@@ -329,10 +369,14 @@ export class AgentInvocationRepository {
       where id = ${invocationInternalId}
         and workspace_id = ${this.workspaceId}
         and worker_id = ${workerId}
+        ${attempt === undefined
+          ? this.sql``
+          : this.sql`and attempts = ${attempt}`}
         and status = 'running'
       returning cancel_requested_at
     `
-    return Boolean(row?.cancel_requested_at)
+    // 行不存在说明租约已丢失或已被其它 worker 接管，必须立即停止旧执行。
+    return !row || Boolean(row.cancel_requested_at)
   }
 
   /**
@@ -484,6 +528,11 @@ export class AgentInvocationRepository {
         where id = ${row.id}
       `
       if (cancellableNow) {
+        await markAssistantMessagesCancelled(
+          transaction,
+          this.workspaceId,
+          row.id,
+        )
         await appendInvocationEventRecord(
           transaction,
           this.workspaceId,
@@ -508,7 +557,11 @@ export class AgentInvocationRepository {
    * @param result 运行时结果。
    * @returns 更新后的调用 DTO。
    */
-  async complete(invocationId: string, result: AgentInvokeResult) {
+  async complete(
+    invocationId: string,
+    result: AgentInvokeResult,
+    claim: AgentInvocationClaim,
+  ) {
     const terminal = invocationCompletion(result)
     await this.sql.begin(async (transaction) => {
       const [row] = await transaction<AgentInvocationRow[]>`
@@ -519,6 +572,7 @@ export class AgentInvocationRepository {
         for update
       `
       if (!row) throw notFound('Agent 调用')
+      assertInvocationClaim(row, claim)
       await transaction`
         update agent_invocations
         set
@@ -535,6 +589,9 @@ export class AgentInvocationRepository {
           )::int,
           updated_at = now()
         where id = ${row.id}
+          and worker_id = ${claim.workerId}
+          and attempts = ${claim.attempt}
+          and status = 'running'
       `
       await appendInvocationEventRecord(
         transaction,
@@ -561,6 +618,7 @@ export class AgentInvocationRepository {
   async fail(
     invocationId: string,
     error: { code: string; message: string; retryable?: boolean },
+    claim: AgentInvocationClaim,
   ) {
     await this.sql.begin(async (transaction) => {
       const [row] = await transaction<AgentInvocationRow[]>`
@@ -571,6 +629,7 @@ export class AgentInvocationRepository {
         for update
       `
       if (!row) throw notFound('Agent 调用')
+      assertInvocationClaim(row, claim)
       const errorPayload = redact(compactJsonValue(error))
       await transaction`
         update agent_invocations
@@ -584,6 +643,9 @@ export class AgentInvocationRepository {
           )::int,
           updated_at = now()
         where id = ${row.id}
+          and worker_id = ${claim.workerId}
+          and attempts = ${claim.attempt}
+          and status = 'running'
       `
       await appendInvocationEventRecord(
         transaction,
@@ -675,6 +737,26 @@ export class AgentInvocationRepository {
   }
 
   /**
+   * 查询工具是否已经写入 started 但尚无终态结果。
+   * @param invocationId 外部 invocation ID。
+   * @param idempotencyKey 工具幂等键。
+   * @returns 是否存在未知副作用的工具执行。
+   */
+  async startedToolCall(invocationId: string, idempotencyKey: string) {
+    const [row] = await this.sql<Array<{ id: string }>>`
+      select t.id
+      from agent_tool_calls t
+      join agent_invocations i on i.id = t.invocation_id
+      where t.workspace_id = ${this.workspaceId}
+        and i.public_id = ${invocationId}
+        and t.idempotency_key = ${idempotencyKey}
+        and t.status = 'started'
+      limit 1
+    `
+    return Boolean(row)
+  }
+
+  /**
    * 记录工具调用开始。
    * @param invocationId 外部 invocation ID。
    * @param call 运行时工具调用。
@@ -720,4 +802,55 @@ export class AgentInvocationRepository {
         and idempotency_key = ${call.idempotencyKey}
     `
   }
+}
+
+function assertInvocationClaim(
+  row: AgentInvocationRow,
+  claim: AgentInvocationClaim,
+) {
+  const leaseExpiresAt = timestampMs(row.lease_expires_at)
+  const leaseExpired =
+    leaseExpiresAt !== undefined && leaseExpiresAt <= Date.now()
+  if (
+    row.status !== 'running' ||
+    row.worker_id !== claim.workerId ||
+    row.attempts !== claim.attempt ||
+    leaseExpired
+  ) {
+    throw new AppError({
+      code: 'INVOCATION_CLAIM_LOST',
+      message: 'Agent 调用的执行租约已失效，旧 worker 不能写入终态。',
+      status: 409,
+    })
+  }
+}
+
+function timestampMs(value: unknown) {
+  if (!value) return undefined
+  const timestamp =
+    value instanceof Date
+      ? value.getTime()
+      : new Date(String(value)).getTime()
+  return Number.isFinite(timestamp) ? timestamp : undefined
+}
+
+async function markAssistantMessagesCancelled(
+  transaction: Transaction,
+  workspaceId: string,
+  invocationInternalId: string,
+) {
+  await transaction`
+    update agent_messages
+    set
+      status = 'cancelled',
+      error = ${jsonb(transaction, {
+        code: 'INVOCATION_CANCELLED',
+        message: 'Agent 调用已取消。',
+      })},
+      updated_at = now()
+    where workspace_id = ${workspaceId}
+      and invocation_id = ${invocationInternalId}
+      and role = 'assistant'
+      and status in ('pending', 'streaming')
+  `
 }

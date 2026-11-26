@@ -23,6 +23,14 @@ const stageProgress: Record<string, number> = {
   failed: 0,
 }
 
+const errorStageLabels: Record<string, string> = {
+  parse: '解析失败',
+  normalize: '规范化失败',
+  chunk: '分块失败',
+  embedding: '向量化失败',
+  index: '索引失败',
+}
+
 /**
  * 判断文档是否仍在 ingest 流水线中。
  *
@@ -41,6 +49,15 @@ export function isActiveIngestStatus(status: string) {
  */
 export function ingestStageLabel(status: string) {
   return stageLabels[status] ?? status
+}
+
+/**
+ * 将服务端阶段错误转换为失败阶段文案。
+ * @param stage ingest 阶段。
+ * @returns 可读的错误阶段。
+ */
+export function ingestErrorStageLabel(stage?: string) {
+  return stage ? (errorStageLabels[stage] ?? stage) : ''
 }
 
 /**

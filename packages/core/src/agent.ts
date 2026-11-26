@@ -113,6 +113,8 @@ export interface AgentInvokeInput {
   input: Record<string, unknown>
   history?: AgentConversationMessage[]
   resumeCheckpointId?: string
+  /** 同一 invocation 的领取次数，用于识别中断后的重试。 */
+  attempt?: number
   signal: AbortSignal
   emit?: (event: AgentRuntimeEvent) => Promise<void>
 }

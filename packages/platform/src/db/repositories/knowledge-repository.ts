@@ -50,6 +50,24 @@ export interface KnowledgeEmbeddingConfig {
 }
 
 /**
+ * 当前部署只允许本地 768 维 embedding 模型，忽略客户端自报配置。
+ * @returns 固定 provider、模型和维度。
+ */
+export function normalizeKnowledgeEmbeddingConfig(
+  _input: {
+    embeddingProvider?: string
+    embeddingModel?: string
+    embeddingDimension?: number
+  } = {},
+) {
+  return {
+    embeddingProvider: 'ollama',
+    embeddingModel: 'nomic-embed-text',
+    embeddingDimension: 768,
+  }
+}
+
+/**
  * 知识库、文档、切片、检索和预览管理的数据访问层。
  */
 export class KnowledgeRepository {
@@ -156,6 +174,7 @@ export class KnowledgeRepository {
     embeddingModel?: string
     embeddingDimension?: number
   }) {
+    const embedding = normalizeKnowledgeEmbeddingConfig(input)
     const [created] = await this.sql<Array<{ public_id: string }>>`
       insert into knowledge_bases (
         public_id, workspace_id, name, description, embedding_provider,
@@ -163,9 +182,8 @@ export class KnowledgeRepository {
       )
       values (
         ${publicId('kb')}, ${this.workspaceId}, ${input.name},
-        ${input.description ?? ''}, ${input.embeddingProvider ?? 'ollama'},
-        ${input.embeddingModel ?? 'nomic-embed-text'},
-        ${input.embeddingDimension ?? 768}, ${'ready'}
+        ${input.description ?? ''}, ${embedding.embeddingProvider},
+        ${embedding.embeddingModel}, ${embedding.embeddingDimension}, ${'ready'}
       )
       returning public_id
     `
@@ -327,6 +345,18 @@ export class KnowledgeRepository {
                 ? 25
                 : 0,
       error: row.stage_error?.message,
+      errorStage:
+        typeof row.stage_error?.stage === 'string'
+          ? row.stage_error.stage
+          : undefined,
+      errorCode:
+        typeof row.stage_error?.code === 'string'
+          ? row.stage_error.code
+          : undefined,
+      errorRetryable:
+        typeof row.stage_error?.retryable === 'boolean'
+          ? row.stage_error.retryable
+          : undefined,
       metadata: row.metadata,
       updatedAt: iso(row.updated_at)!,
     }))
@@ -453,6 +483,18 @@ export class KnowledgeRepository {
       previewStatus: row.preview_status,
       progress: row.status === 'ready' ? 100 : 0,
       error: row.stage_error?.message,
+      errorStage:
+        typeof row.stage_error?.stage === 'string'
+          ? row.stage_error.stage
+          : undefined,
+      errorCode:
+        typeof row.stage_error?.code === 'string'
+          ? row.stage_error.code
+          : undefined,
+      errorRetryable:
+        typeof row.stage_error?.retryable === 'boolean'
+          ? row.stage_error.retryable
+          : undefined,
       metadata: row.metadata,
       updatedAt: iso(row.updated_at)!,
     }
@@ -507,24 +549,9 @@ export class KnowledgeRepository {
    * @returns 新状态；当前部署缺少 ingest worker 时返回稳定错误。
    */
   async reindexDocument(documentId: string) {
-    const document = await this.requireDocument(documentId)
-    await this.sql.begin(async (transaction) => {
-      await transaction`
-        delete from document_chunks
-        where workspace_id = ${this.workspaceId}
-          and document_id = ${document.id}
-      `
-      await transaction`
-        update documents
-        set
-          status = 'queued',
-          preview_status = 'none',
-          stage_error = null,
-          updated_at = now()
-        where workspace_id = ${this.workspaceId}
-          and id = ${document.id}
-      `
-    })
+    // 旧切片保留到处理器成功解析后由 replaceDocumentChunks 原子替换。
+    // 创建作业本身会在文档锁内拒绝并发的活动任务。
+    await this.requireDocument(documentId)
     return new KnowledgeIngestRepository(
       this.sql,
       this.workspaceId,

@@ -81,7 +81,7 @@ import {
   AgentApiOperations,
   initialEventSeq,
   isTerminalInvocationStatus,
-  orderEventBacklog,
+  readAllInvocationEvents,
   sseFrame,
 } from './agent-api'
 
@@ -537,12 +537,12 @@ class ApiController {
     }
     try {
       while (!closed && !response.writableEnded) {
-        const page = await this.invocations().eventsPage(
-          id,
+        const events = await readAllInvocationEvents(
+          (after, limit) =>
+            this.invocations().eventsPage(id, after, limit),
           lastSeq,
           200,
         )
-        const events = orderEventBacklog(page, lastSeq)
         events.forEach(send)
         const invocation = await this.invocations().get(id)
         if (isTerminalInvocationStatus(invocation.status)) break

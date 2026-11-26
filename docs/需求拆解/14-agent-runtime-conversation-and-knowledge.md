@@ -1,7 +1,7 @@
 # 14 Agent 运行时、会话记忆与知识库
 
 > 优先级：P0。
-> 状态：设计待确认。
+> 状态：已实施（2026-11-26）。
 > 目标：用 TypeScript 实现一个可被工作流 `agent` 节点和独立问答界面共同调用的 Agent 运行时，支持 LangGraph 工具循环、知识库检索、多轮记忆、会话恢复、流式输出、取消、重试与知识库文档入库。
 > 相关包：`@ai-reflow/core`、`@ai-reflow/capabilities`、`@ai-reflow/platform`、`@ai-reflow/engine`、`apps/server`、`apps/worker`、`apps/web`。
 

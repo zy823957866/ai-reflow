@@ -99,6 +99,9 @@ export interface KnowledgeDocumentDto {
   previewStatus: 'none' | 'converting' | 'ready' | 'failed' | 'unsupported'
   progress: number
   error?: string
+  errorStage?: 'parse' | 'normalize' | 'chunk' | 'embedding' | 'index'
+  errorCode?: string
+  errorRetryable?: boolean
   metadata?: Record<string, unknown>
   updatedAt: string
 }
@@ -1839,6 +1842,9 @@ export function subscribeAgentInvocationEvents(input: {
 }) {
   const controller = new AbortController()
   let ended = false
+  let cursor = input.afterSeq ?? 0
+  let retries = 0
+  let terminalSeen = false
 
   function finish() {
     if (ended) return
@@ -1846,85 +1852,140 @@ export function subscribeAgentInvocationEvents(input: {
     input.onEnd()
   }
 
-  void (async () => {
-    try {
-      const query = input.afterSeq
-        ? `?after=${encodeURIComponent(String(input.afterSeq))}`
-        : ''
-      const response = await fetch(
-        `/api/agent-invocations/${encodeURIComponent(input.invocationId)}/events${query}`,
-        {
-          headers: {
-            Accept: 'text/event-stream',
-            ...(input.afterSeq
-              ? { 'Last-Event-ID': String(input.afterSeq) }
-              : {}),
-          },
-          signal: controller.signal,
+  async function consume() {
+    const query = cursor ? `?after=${encodeURIComponent(String(cursor))}` : ''
+    const response = await fetch(
+      `/api/agent-invocations/${encodeURIComponent(input.invocationId)}/events${query}`,
+      {
+        headers: {
+          Accept: 'text/event-stream',
+          ...(cursor ? { 'Last-Event-ID': String(cursor) } : {}),
         },
-      )
-      if (!response.ok) {
-        let message = response.statusText || 'Agent 事件流请求失败。'
+        signal: controller.signal,
+      },
+    )
+    if (!response.ok) {
+      let message = response.statusText || 'Agent 事件流请求失败。'
+      try {
+        const body = (await response.json()) as {
+          error?: { message?: string }
+        }
+        message = body.error?.message ?? message
+      } catch {
+        // Keep the HTTP status text when the server did not return JSON.
+      }
+      throw new ApiError({
+        status: response.status,
+        code: `HTTP_${response.status}`,
+        message,
+        retryable: response.status >= 500 || response.status === 429,
+      })
+    }
+    if (!response.body) {
+      throw new ApiError({
+        status: 0,
+        code: 'SSE_BODY_MISSING',
+        message: 'Agent 事件流没有响应正文。',
+        retryable: true,
+      })
+    }
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (!controller.signal.aborted) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const blocks = buffer.split(/\r?\n\r?\n/)
+      buffer = blocks.pop() ?? ''
+      for (const block of blocks) {
+        const parsed = parseAgentSseBlock(block)
+        if (!parsed) continue
+        let event: AgentInvocationEventDto
         try {
-          const body = (await response.json()) as {
-            error?: { message?: string }
-          }
-          message = body.error?.message ?? message
+          event = JSON.parse(parsed.data) as AgentInvocationEventDto
         } catch {
-          // Keep the HTTP status text when the server did not return JSON.
+          throw new Error('收到无法解析的 Agent 事件。')
+        }
+        if (parsed.event) event.type = parsed.event
+        if (Number.isFinite(parsed.id) && parsed.id > 0) event.seq = parsed.id
+        if (Number.isFinite(event.seq)) {
+          cursor = Math.max(cursor, event.seq)
+        }
+        if (isTerminalAgentEvent(event.type)) terminalSeen = true
+        input.onEvent(event)
+      }
+    }
+  }
+
+  async function connect() {
+    while (!ended && !controller.signal.aborted) {
+      try {
+        await consume()
+        if (terminalSeen) {
+          finish()
+          return
         }
         throw new ApiError({
-          status: response.status,
-          code: `HTTP_${response.status}`,
-          message,
-          retryable: response.status >= 500,
-        })
-      }
-      if (!response.body) {
-        throw new ApiError({
           status: 0,
-          code: 'SSE_BODY_MISSING',
-          message: 'Agent 事件流没有响应正文。',
+          code: 'SSE_DISCONNECTED',
+          message: 'Agent 事件流连接中断。',
           retryable: true,
         })
+      } catch (error) {
+        if (ended || controller.signal.aborted) return
+        const normalized =
+          error instanceof Error ? error : new Error(String(error))
+        if (
+          (error instanceof ApiError && !error.retryable) ||
+          retries >= 8
+        ) {
+          input.onError(normalized)
+          finish()
+          return
+        }
+        retries += 1
+        await waitForRetry(
+          Math.min(5_000, 500 * 2 ** (retries - 1)),
+          controller.signal,
+        )
       }
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (!controller.signal.aborted) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const blocks = buffer.split(/\r?\n\r?\n/)
-        buffer = blocks.pop() ?? ''
-        blocks.forEach((block) => {
-          const parsed = parseAgentSseBlock(block)
-          if (!parsed) return
-          try {
-            const event = JSON.parse(parsed.data) as AgentInvocationEventDto
-            if (parsed.event) event.type = parsed.event
-            if (parsed.id) event.seq = parsed.id
-            input.onEvent(event)
-          } catch {
-            input.onError(new Error('收到无法解析的 Agent 事件。'))
-          }
-        })
-      }
-      finish()
-    } catch (error) {
-      if (controller.signal.aborted) return
-      input.onError(
-        error instanceof Error ? error : new Error(String(error)),
-      )
-      finish()
     }
-  })()
+  }
+
+  void connect()
 
   return () => {
     if (ended) return
     ended = true
     controller.abort()
   }
+}
+
+function isTerminalAgentEvent(type: string) {
+  return (
+    type === 'invocation.completed' ||
+    type === 'invocation.failed' ||
+    type === 'invocation.cancelled'
+  )
+}
+
+function waitForRetry(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    if (signal.aborted) {
+      resolve()
+      return
+    }
+    const timer = setTimeout(resolve, delayMs)
+    signal.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer)
+        resolve()
+      },
+      { once: true },
+    )
+  })
 }
 
 /**

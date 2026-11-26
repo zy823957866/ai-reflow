@@ -112,3 +112,224 @@ test('vector dimension guard rejects mixed embeddings', async () => {
       error.status === 422,
   )
 })
+
+test('knowledge embedding configuration is fixed to the local 768d model', async () => {
+  const module = await import('./knowledge-repository')
+  assert.deepEqual(
+    module.normalizeKnowledgeEmbeddingConfig({
+      embeddingProvider: 'openai',
+      embeddingModel: 'text-embedding-3-small',
+      embeddingDimension: 1536,
+    }),
+    {
+      embeddingProvider: 'ollama',
+      embeddingModel: 'nomic-embed-text',
+      embeddingDimension: 768,
+    },
+  )
+})
+
+test('sendMessage replays the first invocation for the same idempotency key', async () => {
+  const { AgentConversationRepository } = await import('./agent-repository')
+  const createdAt = new Date('2026-11-26T08:02:00.000Z')
+  let began = 0
+  const sql = Object.assign(
+    (strings: TemplateStringsArray) => {
+      const query = strings.join('?')
+      if (query.includes('from agent_invocations i')) {
+        return [{
+          public_id: 'agi_existing',
+          conversation_public_id: 'conv_1',
+          status: 'running',
+          request: {
+            userMessageId: 'msg_user',
+            assistantMessageId: 'msg_assistant',
+          },
+        }]
+      }
+      if (query.includes('from agent_messages')) {
+        return [
+          {
+            id: '018f0000-0000-7000-8000-000000000011',
+            public_id: 'msg_user',
+            workspace_id: '018f0000-0000-7000-8000-000000000001',
+            conversation_id: '018f0000-0000-7000-8000-000000000004',
+            invocation_id: '018f0000-0000-7000-8000-000000000012',
+            seq: 1,
+            role: 'user',
+            content: { text: '重复请求' },
+            status: 'completed',
+            citations: [],
+            usage: {},
+            error: null,
+            created_at: createdAt,
+            updated_at: createdAt,
+          },
+          {
+            id: '018f0000-0000-7000-8000-000000000013',
+            public_id: 'msg_assistant',
+            workspace_id: '018f0000-0000-7000-8000-000000000001',
+            conversation_id: '018f0000-0000-7000-8000-000000000004',
+            invocation_id: '018f0000-0000-7000-8000-000000000012',
+            seq: 2,
+            role: 'assistant',
+            content: { text: '' },
+            status: 'pending',
+            citations: [],
+            usage: {},
+            error: null,
+            created_at: createdAt,
+            updated_at: createdAt,
+          },
+        ]
+      }
+      return []
+    },
+    {
+      async begin() {
+        began += 1
+        throw new Error('idempotent replay must not create a new transaction')
+      },
+    },
+  )
+  const repository = new AgentConversationRepository(
+    sql as never,
+    '018f0000-0000-7000-8000-000000000001',
+  )
+
+  const result = await repository.sendMessage('conv_1', {
+    content: '重复请求',
+    idempotencyKey: 'idem_replay',
+  })
+
+  assert.equal(began, 0)
+  assert.equal(result.invocationId, 'agi_existing')
+  assert.equal(result.userMessageId, 'msg_user')
+  assert.equal(result.assistantMessageId, 'msg_assistant')
+  assert.deepEqual(
+    result.messages.map((message) => message.content),
+    ['重复请求', ''],
+  )
+})
+
+test('concurrent same-key send replays after acquiring the conversation lock', async () => {
+  const { AgentConversationRepository } = await import('./agent-repository')
+  const createdAt = new Date('2026-11-26T08:03:00.000Z')
+  let busyChecks = 0
+  const conversationRow = {
+    id: '018f0000-0000-7000-8000-000000000004',
+    public_id: 'conv_1',
+    workspace_id: '018f0000-0000-7000-8000-000000000001',
+    agent_id: '018f0000-0000-7000-8000-000000000002',
+    agent_revision: 1,
+    agent_snapshot: {
+      instructions: '你是售后助手。',
+      modelConnectionId: 'mc_local',
+      mcpTools: [],
+      maxSteps: 4,
+      timeoutMs: 30_000,
+      memory: { mode: 'conversation' },
+    },
+    thread_id: 'conversation:conv_1',
+    title: '重复请求',
+    status: 'active',
+    metadata: {},
+    last_message_at: createdAt,
+    created_at: createdAt,
+    updated_at: createdAt,
+    agent_name: '售后助手',
+    agent_public_id: 'agent_1',
+  }
+  const messages = [
+    {
+      id: '018f0000-0000-7000-8000-000000000011',
+      public_id: 'msg_user',
+      workspace_id: conversationRow.workspace_id,
+      conversation_id: conversationRow.id,
+      invocation_id: '018f0000-0000-7000-8000-000000000012',
+      seq: 1,
+      role: 'user',
+      content: { text: '重复请求' },
+      status: 'completed',
+      citations: [],
+      usage: {},
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    },
+    {
+      id: '018f0000-0000-7000-8000-000000000013',
+      public_id: 'msg_assistant',
+      workspace_id: conversationRow.workspace_id,
+      conversation_id: conversationRow.id,
+      invocation_id: '018f0000-0000-7000-8000-000000000012',
+      seq: 2,
+      role: 'assistant',
+      content: { text: '' },
+      status: 'pending',
+      citations: [],
+      usage: {},
+      error: null,
+      created_at: createdAt,
+      updated_at: createdAt,
+    },
+  ]
+  const transaction = (strings: TemplateStringsArray) => {
+    const query = strings.join('?')
+    if (
+      query.includes('from agent_invocations i') &&
+      query.includes('join agent_conversations')
+    ) {
+      return [{
+        public_id: 'agi_existing',
+        conversation_public_id: 'conv_1',
+        status: 'queued',
+        request: {
+          userMessageId: 'msg_user',
+          assistantMessageId: 'msg_assistant',
+        },
+      }]
+    }
+    if (
+      query.includes('from agent_invocations') &&
+      query.includes('status in')
+    ) {
+      busyChecks += 1
+      return [{ public_id: 'agi_existing' }]
+    }
+    if (query.includes('from agent_conversations c')) {
+      return [conversationRow]
+    }
+    if (query.includes('from agent_messages')) {
+      return messages
+    }
+    return []
+  }
+  const sql = Object.assign(
+    (strings: TemplateStringsArray) => {
+      const query = strings.join('?')
+      // 模拟第一次查询发生在首个事务提交之前。
+      if (query.includes('from agent_invocations i')) return []
+      return []
+    },
+    {
+      async begin(task: (query: typeof transaction) => Promise<unknown>) {
+        return task(transaction)
+      },
+    },
+  )
+  const repository = new AgentConversationRepository(
+    sql as never,
+    '018f0000-0000-7000-8000-000000000001',
+  )
+
+  const result = await repository.sendMessage('conv_1', {
+    content: '重复请求',
+    idempotencyKey: 'idem_concurrent',
+  })
+
+  assert.equal(busyChecks, 0)
+  assert.equal(result.invocationId, 'agi_existing')
+  assert.equal(result.userMessageId, 'msg_user')
+  assert.equal(result.assistantMessageId, 'msg_assistant')
+})

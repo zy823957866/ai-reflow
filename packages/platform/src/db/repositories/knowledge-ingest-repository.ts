@@ -121,30 +121,55 @@ export class KnowledgeIngestRepository {
   ) {
     const document = await this.requireDocument(documentId)
     const jobPublicId = publicId('kij')
-    await this.sql`
-      insert into knowledge_ingest_jobs (
-        public_id, workspace_id, document_id, kind, status, stage,
-        attempt, max_attempts
-      )
-      values (
-        ${jobPublicId}, ${this.workspaceId}, ${document.id}, ${kind},
-        'queued', ${stage}, 0, 3
-      )
-    `
-    const documentStatus =
-      stage === 'parse'
-        ? 'queued'
-        : stage === 'normalize' || stage === 'chunk'
-          ? 'chunking'
-          : 'embedding'
-    await this.sql`
-      update documents
-      set
-        status = ${documentStatus},
-        stage_error = null,
-        updated_at = now()
-      where workspace_id = ${this.workspaceId} and id = ${document.id}
-    `
+    await this.sql.begin(async (transaction) => {
+      await transaction`
+        select id
+        from documents
+        where workspace_id = ${this.workspaceId} and id = ${document.id}
+        for update
+      `
+      const [active] = await transaction<Array<{ public_id: string }>>`
+        select public_id
+        from knowledge_ingest_jobs
+        where workspace_id = ${this.workspaceId}
+          and document_id = ${document.id}
+          and status in ('queued', 'running')
+        limit 1
+      `
+      if (active) {
+        throw new AppError({
+          code: 'KNOWLEDGE_INGEST_BUSY',
+          message: '该文档已有排队或运行中的入库任务。',
+          status: 409,
+          details: { jobId: active.public_id },
+        })
+      }
+      await transaction`
+        insert into knowledge_ingest_jobs (
+          public_id, workspace_id, document_id, kind, status, stage,
+          attempt, max_attempts
+        )
+        values (
+          ${jobPublicId}, ${this.workspaceId}, ${document.id}, ${kind},
+          'queued', ${stage}, 0, 3
+        )
+      `
+      const documentStatus =
+        stage === 'parse'
+          ? 'queued'
+          : stage === 'normalize' || stage === 'chunk'
+            ? 'chunking'
+            : 'embedding'
+      await transaction`
+        update documents
+        set
+          status = ${documentStatus},
+          preview_status = 'none',
+          stage_error = null,
+          updated_at = now()
+        where workspace_id = ${this.workspaceId} and id = ${document.id}
+      `
+    })
     return this.getJob(jobPublicId)
   }
 
@@ -292,15 +317,26 @@ export class KnowledgeIngestRepository {
    * @param workerId worker ID。
    * @param leaseMs 租约毫秒数。
    */
-  async heartbeat(jobInternalId: string, workerId: string, leaseMs = 120_000) {
-    await this.sql`
+  async heartbeat(
+    jobInternalId: string,
+    workerId: string,
+    attempt?: number,
+    leaseMs = 120_000,
+  ) {
+    const [row] = await this.sql<Array<{ id: string }>>`
       update knowledge_ingest_jobs
       set lease_expires_at = now() + (${leaseMs} * interval '1 millisecond')
       where id = ${jobInternalId}
         and workspace_id = ${this.workspaceId}
         and worker_id = ${workerId}
+        ${attempt === undefined
+          ? this.sql``
+          : this.sql`and attempt = ${attempt}`}
         and status = 'running'
+      returning id
     `
+    // 取消或租约丢失后行不再匹配，旧 worker 必须立即停止。
+    return !row
   }
 
   /**
@@ -311,6 +347,7 @@ export class KnowledgeIngestRepository {
   async updateStage(
     jobInternalId: string,
     stage: KnowledgeIngestJobRow['stage'],
+    claim?: { workerId: string; attempt: number },
   ) {
     const documentStatus =
       stage === 'parse'
@@ -324,6 +361,10 @@ export class KnowledgeIngestRepository {
         set stage = ${stage}, updated_at = now()
         where id = ${jobInternalId}
           and workspace_id = ${this.workspaceId}
+          and status = 'running'
+          ${claim
+            ? transaction`and worker_id = ${claim.workerId} and attempt = ${claim.attempt}`
+            : transaction``}
         returning document_id
       `
       if (!job) return
@@ -344,8 +385,9 @@ export class KnowledgeIngestRepository {
   async complete(
     jobInternalId: string,
     metadata: Record<string, unknown> = {},
+    claim: { workerId: string; attempt: number },
   ) {
-    await this.sql.begin(async (transaction) => {
+    return this.sql.begin(async (transaction) => {
       const [job] = await transaction<Array<{ document_id: string }>>`
         update knowledge_ingest_jobs
         set
@@ -357,9 +399,12 @@ export class KnowledgeIngestRepository {
           updated_at = now()
         where id = ${jobInternalId}
           and workspace_id = ${this.workspaceId}
+          and worker_id = ${claim.workerId}
+          and attempt = ${claim.attempt}
+          and status = 'running'
         returning document_id
       `
-      if (!job) return
+      if (!job) return false
       await transaction`
         update documents
         set
@@ -371,6 +416,7 @@ export class KnowledgeIngestRepository {
         where id = ${job.document_id}
           and workspace_id = ${this.workspaceId}
       `
+      return true
     })
   }
 
@@ -388,6 +434,7 @@ export class KnowledgeIngestRepository {
       message: string
       retryable: boolean
     },
+    claim: { workerId: string; attempt: number },
   ) {
     return this.sql.begin(async (transaction) => {
       const [job] = await transaction<KnowledgeIngestJobRow[]>`
@@ -398,13 +445,21 @@ export class KnowledgeIngestRepository {
         for update
       `
       if (!job) throw notFound('知识库入库作业')
+      if (
+        job.status !== 'running' ||
+        job.worker_id !== claim.workerId ||
+        job.attempt !== claim.attempt
+      ) {
+        return null
+      }
       const retry =
         input.retryable &&
-        job.attempt < job.max_attempts &&
-        job.status !== 'cancelled'
+        job.attempt < job.max_attempts
       const status = retry ? 'queued' : 'failed'
       const delayMs = retry ? nextIngestRetryDelayMs(job.attempt) : 0
-      await transaction`
+      const [updated] = await transaction<Array<{
+        next_retry_at: Date | null
+      }>>`
         update knowledge_ingest_jobs
         set
           status = ${status},
@@ -418,6 +473,10 @@ export class KnowledgeIngestRepository {
           lease_expires_at = null,
           updated_at = now()
         where id = ${job.id}
+          and worker_id = ${claim.workerId}
+          and attempt = ${claim.attempt}
+          and status = 'running'
+        returning next_retry_at
       `
       await transaction`
         update documents
@@ -437,12 +496,7 @@ export class KnowledgeIngestRepository {
         jobId: job.public_id,
         status,
         stage: input.stage,
-        retryAt:
-          retry && job.next_retry_at
-            ? iso(job.next_retry_at)
-            : retry
-              ? new Date(Date.now() + delayMs).toISOString()
-              : undefined,
+        retryAt: retry ? iso(updated?.next_retry_at) : undefined,
       }
     })
   }

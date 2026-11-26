@@ -569,6 +569,103 @@ async function auditKnowledgeErrorToast(browser, failures, outputDir) {
 }
 
 /**
+ * 验收 Agent 工作台桌面三栏与移动端标签布局。
+ * @param browser Playwright 浏览器实例。
+ * @param failures 失败列表。
+ * @param outputDir 截图目录。
+ */
+async function auditAgentWorkbench(browser, failures, outputDir) {
+  let agentId = ''
+  try {
+    const response = await fetch(`${baseUrl}/api/agents`)
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const agents = await response.json()
+    agentId = Array.isArray(agents) ? String(agents[0]?.id ?? '') : ''
+  } catch (error) {
+    failures.push(
+      `Agent 工作台无法加载验收数据：${error instanceof Error ? error.message : String(error)}`,
+    )
+    return
+  }
+  if (!agentId) {
+    failures.push('Agent 工作台缺少可验收的 Agent')
+    return
+  }
+
+  const desktop = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const page = await desktop.newPage()
+  await openRoute(page, `/agents/${encodeURIComponent(agentId)}`)
+  const grid = page.locator('.agent-workbench-grid:visible')
+  if (!(await grid.count())) {
+    failures.push('Agent 桌面端未显示工作台网格')
+  } else {
+    const children = page.locator('.agent-workbench-grid:visible > *')
+    const count = await children.count()
+    const boxes = []
+    for (let index = 0; index < count; index += 1) {
+      const box = await children.nth(index).boundingBox()
+      if (box) boxes.push(box)
+    }
+    if (boxes.length < 3) {
+      failures.push('Agent 桌面端工作台可见栏位少于 3 个')
+    } else if (
+      Math.abs(boxes[0].y - boxes[1].y) > 2 ||
+      Math.abs(boxes[1].y - boxes[2].y) > 2 ||
+      boxes[0].x >= boxes[1].x ||
+      boxes[1].x >= boxes[2].x
+    ) {
+      failures.push('Agent 桌面端三栏未按左中右并排')
+    }
+  }
+  const desktopOverflow = await horizontalOverflow(page)
+  if (desktopOverflow.overflowing) {
+    failures.push(
+      `Agent 桌面端横向溢出 ${desktopOverflow.documentWidth}px > ${desktopOverflow.viewport}px`,
+    )
+  }
+  await auditStandardPage(page, 'agent-workbench', failures)
+  await page.screenshot({
+    path: path.join(outputDir, 'agent-workbench-1440x900.png'),
+    fullPage: true,
+  })
+  await desktop.close()
+
+  const mobile = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const mobilePage = await mobile.newPage()
+  await openRoute(mobilePage, `/agents/${encodeURIComponent(agentId)}`)
+  if (await mobilePage.locator('.agent-workbench-grid:visible').count()) {
+    failures.push('Agent 移动端仍渲染桌面三栏')
+  }
+  for (const label of ['Agent', '会话', '对话', '配置']) {
+    const tab = mobilePage.getByRole('button', { name: label, exact: true }).first()
+    if (!(await tab.isVisible())) {
+      failures.push(`Agent 移动端缺少“${label}”标签`)
+    }
+  }
+  const agentTab = mobilePage.getByRole('button', { name: 'Agent', exact: true }).first()
+  if (await agentTab.isVisible()) {
+    await agentTab.click()
+    await mobilePage.waitForTimeout(200)
+  }
+  const settingsTab = mobilePage.getByRole('button', { name: '配置', exact: true }).first()
+  if (await settingsTab.isVisible()) {
+    await settingsTab.click()
+    await mobilePage.waitForTimeout(200)
+  }
+  const mobileOverflow = await horizontalOverflow(mobilePage)
+  if (mobileOverflow.overflowing) {
+    failures.push(
+      `Agent 移动端横向溢出 ${mobileOverflow.documentWidth}px > ${mobileOverflow.viewport}px`,
+    )
+  }
+  await mobilePage.screenshot({
+    path: path.join(outputDir, 'agent-workbench-390x844.png'),
+    fullPage: true,
+  })
+  await mobile.close()
+}
+
+/**
  * 打开页面并等待首屏稳定。
  * @param page Playwright 页面。
  * @param route 路由地址。
@@ -595,6 +692,7 @@ async function runSmoke() {
   const failures = []
   const desktopRoutes = [
     ['home', '/'],
+    ['agents', '/agents'],
     ['runs', '/runs'],
     ['knowledge', '/knowledge'],
     ['mcp', '/mcp'],
@@ -670,6 +768,7 @@ async function runSmoke() {
     await wide.close()
 
     await auditKnowledgeLayouts(browser, failures, outputDir)
+    await auditAgentWorkbench(browser, failures, outputDir)
     const focusContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
     const focusPage = await focusContext.newPage()
     await openRoute(focusPage, '/knowledge')

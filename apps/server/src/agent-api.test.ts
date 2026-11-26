@@ -6,6 +6,7 @@ import {
   AgentApiOperations,
   initialEventSeq,
   orderEventBacklog,
+  readAllInvocationEvents,
   sseFrame,
   validateKnowledgeUpload,
 } from './agent-api'
@@ -129,6 +130,21 @@ test('SSE cursor prefers Last-Event-ID over the query cursor', () => {
     12,
   )
   assert.equal(initialEventSeq({}, { after: '7' }), 7)
+})
+
+test('SSE drains every backlog page before terminal handling', async () => {
+  const source = Array.from({ length: 450 }, (_, index) => ({
+    seq: index + 1,
+  }))
+  const events = await readAllInvocationEvents(async (after, limit) => {
+    return source
+      .filter((event) => event.seq > after)
+      .slice(0, limit)
+  }, 0)
+
+  assert.equal(events.length, 450)
+  assert.equal(events[0].seq, 1)
+  assert.equal(events.at(-1)?.seq, 450)
 })
 
 test('upload validation rejects oversized and legacy office files', () => {

@@ -84,9 +84,20 @@ export async function executeAgentInvocation(input: {
   const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 1000
   const draftFlushIntervalMs = input.draftFlushIntervalMs ?? 120
   const leaseMs = input.leaseMs ?? 60_000
+  const claim = {
+    workerId: input.workerId,
+    attempt: input.invocation.attempts,
+  }
+  const shutdownRequested = () =>
+    input.signal.aborted && !internal.signal.aborted
   const heartbeat = setInterval(() => {
     void input.invocations
-      .heartbeat(input.invocation.id, input.workerId, leaseMs)
+      .heartbeat(
+        input.invocation.id,
+        input.workerId,
+        claim.attempt,
+        leaseMs,
+      )
       .then((cancelled) => {
         if (!cancelled) return
         internal.abort(new Error('Agent 调用已取消'))
@@ -112,6 +123,7 @@ export async function executeAgentInvocation(input: {
     await input.conversations.updateAssistantDraft(
       prepared.assistantMessageId,
       draftText,
+      claim,
     )
   }
 
@@ -127,6 +139,7 @@ export async function executeAgentInvocation(input: {
       history: prepared.history,
       resumeCheckpointId:
         input.invocation.resumeCheckpointId ?? undefined,
+      attempt: input.invocation.attempts,
       signal,
       async emit(event: AgentRuntimeEvent) {
         if (event.type === 'message.delta') {
@@ -149,6 +162,9 @@ export async function executeAgentInvocation(input: {
         }
       },
     })
+    // 进程优雅退出不是用户取消。保留 running 租约，等新 worker 在租约
+    // 过期后按 interrupted 恢复，避免把可续跑任务永久标记为 cancelled。
+    if (shutdownRequested()) return result
     await flushDraft(true)
     if (prepared.assistantMessageId) {
       await input.conversations.completeAssistantMessage(
@@ -162,30 +178,37 @@ export async function executeAgentInvocation(input: {
           citations: result.citations,
           usage: result.usage,
         },
+        claim,
       )
     }
     await input.invocations.complete(
       input.invocation.publicId,
       result,
+      claim,
     )
     return result
   } catch (error) {
+    if (shutdownRequested()) throw error
     await flushDraft(true)
     const normalized = normalizeInvocationError(error)
-    if (prepared.assistantMessageId) {
-      await input.conversations.completeAssistantMessage(
-        prepared.assistantMessageId,
-        {
-          text: draftText,
-          status: 'failed',
-          error: normalized,
-        },
+    if (!isClaimLost(error)) {
+      if (prepared.assistantMessageId) {
+        await input.conversations.completeAssistantMessage(
+          prepared.assistantMessageId,
+          {
+            text: draftText,
+            status: 'failed',
+            error: normalized,
+          },
+          claim,
+        )
+      }
+      await input.invocations.fail(
+        input.invocation.publicId,
+        normalized,
+        claim,
       )
     }
-    await input.invocations.fail(
-      input.invocation.publicId,
-      normalized,
-    )
     throw error
   } finally {
     clearInterval(heartbeat)
@@ -297,6 +320,14 @@ function normalizeInvocationError(error: unknown) {
     message: String(error),
     retryable: true,
   }
+}
+
+function isClaimLost(error: unknown) {
+  return (
+    error instanceof Error &&
+    (error as Error & { code?: unknown }).code ===
+      'INVOCATION_CLAIM_LOST'
+  )
 }
 
 function stringValue(value: unknown) {

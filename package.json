@@ -18,7 +18,8 @@
     "test:workspace": "node --test scripts/workspace-check.test.mjs",
     "db:migrate": "tsx --env-file=.env packages/platform/src/db/migrate.ts",
     "db:seed": "tsx --env-file=.env packages/platform/src/db/seed.ts",
-    "test:api": "tsx --env-file=.env scripts/api-integration.mjs"
+    "test:api": "tsx --env-file=.env scripts/api-integration.mjs",
+    "test:knowledge-embedding": "node scripts/knowledge-embedding-e2e.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",

@@ -3,7 +3,10 @@ import test from 'node:test'
 import type {
   AgentInvocationRepository,
 } from '@ai-reflow/platform'
-import { createPostgresToolHistoryPort } from './agent-runtime-factory'
+import {
+  createPostgresToolHistoryPort,
+  shouldUseInvocationToolHistory,
+} from './agent-runtime-factory'
 
 test('postgres tool history maps runtime records to repository calls', async () => {
   const started: Array<Record<string, unknown>> = []
@@ -67,4 +70,13 @@ test('postgres tool history maps runtime records to repository calls', async () 
   assert.equal(finished.length, 1)
   assert.equal(finished[0].status, 'succeeded')
   assert.deepEqual(finished[0].result, { status: 'shipped' })
+})
+
+test('workflow agent nodes do not write tool history under a missing invocation', () => {
+  assert.equal(
+    shouldUseInvocationToolHistory({ kind: 'workflow_node' }),
+    false,
+  )
+  assert.equal(shouldUseInvocationToolHistory({ kind: 'chat' }), true)
+  assert.equal(shouldUseInvocationToolHistory({ kind: 'external' }), true)
 })
