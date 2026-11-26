@@ -209,6 +209,7 @@ async function auditKnowledgeCrud(page, groupPanel, failures, outputDir) {
         await route.continue()
         return
       }
+      await new Promise((resolve) => setTimeout(resolve, 600))
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -236,7 +237,16 @@ async function auditKnowledgeCrud(page, groupPanel, failures, outputDir) {
       mimeType: 'text/plain',
       buffer: Buffer.from('知识库上传自动验收内容。'),
     })
-    await page.waitForTimeout(350)
+    const uploadProgress = page.locator('[data-testid="knowledge-upload-progress"]:visible').first()
+    await uploadProgress.waitFor({ state: 'visible', timeout: 1500 })
+    const progressValue = Number(await uploadProgress.getAttribute('data-progress'))
+    if (!(progressValue >= 0 && progressValue <= 100)) {
+      failures.push(`知识库上传进度不可观察：${progressValue}`)
+    }
+    if ((await uploadProgress.getAttribute('data-state')) !== 'processing') {
+      failures.push('知识库上传期间未保留处理中状态')
+    }
+    await page.waitForTimeout(750)
     if (!(await page.locator('[data-testid="knowledge-document-panel"]:visible').getByText('smoke-upload.txt', { exact: true }).first().isVisible())) {
       failures.push('知识库上传后未显示上传记录')
     }
@@ -375,6 +385,138 @@ async function auditKnowledgeLayouts(browser, failures, outputDir) {
   if (mobileOverflow.overflowing) failures.push(`知识库手机端横向溢出 ${mobileOverflow.documentWidth}px > ${mobileOverflow.viewport}px`)
   await mobilePage.screenshot({ path: path.join(outputDir, 'knowledge-mobile-search-390x844.png'), fullPage: true })
   await mobile.close()
+}
+
+/**
+ * 验收通用附件、试运行输入和设计器文件控件的上传状态。
+ * @param browser Playwright 浏览器实例。
+ * @param failures 失败列表。
+ * @param outputDir 截图目录。
+ */
+async function auditAttachmentUploads(browser, failures, outputDir) {
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  const page = await context.newPage()
+
+  try {
+    await page.route('**/api/files', async (route) => {
+      if (route.request().method() !== 'POST') {
+        await route.continue()
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 650))
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'file_smoke_upload',
+          name: 'smoke-attachment.txt',
+          mime: 'text/plain',
+          size: 24,
+          sha256: 'a'.repeat(64),
+        }),
+      })
+    })
+    await page.route('**/api/workflows/wf_support/versions/ver_support_12', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue()
+        return
+      }
+      const response = await route.fetch()
+      const body = await response.json()
+      const start = body.definition?.nodes?.find((node) => node.type === 'start')
+      const properties = start?.config?.inputSchema?.properties
+      if (properties?.files) {
+        properties.files.items = { type: 'object', format: 'file-ref' }
+      }
+      await route.fulfill({ response, json: body })
+    })
+    await page.route('**/api/workflows/wf_support/versions/ver_support_12/readiness', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          ready: true,
+          blockers: [],
+          warnings: [],
+          checked: { models: 0, knowledgeBases: 0, mcpServers: 0, nodes: 9 },
+        }),
+      })
+    })
+
+    await openRoute(page, '/workflows/wf_support/trial?versionId=ver_support_12')
+    const trialField = page.getByTestId('trial-file-field').first()
+    if (!(await trialField.count())) {
+      failures.push('试运行台缺少 FileRef 附件控件')
+    } else {
+      const sideEffectConfirmation = page.getByLabel('我确认执行带副作用的工具')
+      if ((await sideEffectConfirmation.count()) && !(await sideEffectConfirmation.isChecked())) {
+        await sideEffectConfirmation.check()
+      }
+      const runButton = page.getByTestId('trial-run')
+      if (await runButton.isDisabled()) {
+        failures.push('试运行台附件上传前运行按钮未启用')
+      }
+      await trialField.locator('input[type="file"]').setInputFiles({
+        name: 'smoke-attachment.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('试运行附件自动验收内容。'),
+      })
+      const progress = trialField.getByTestId('attachment-upload-progress').first()
+      await progress.waitFor({ state: 'visible', timeout: 1500 })
+      if ((await progress.getAttribute('data-state')) !== 'uploading') {
+        failures.push('试运行台附件上传期间没有可观察的上传状态')
+      }
+      if (!(await runButton.isDisabled())) {
+        failures.push('试运行台附件上传期间运行按钮未禁用')
+      }
+      await progress.waitFor({ state: 'hidden', timeout: 3000 })
+      await trialField.getByText('smoke-attachment.txt', { exact: true }).waitFor({
+        state: 'visible',
+        timeout: 3000,
+      })
+      if (await runButton.isDisabled()) {
+        failures.push('试运行台附件上传完成后运行按钮未恢复')
+      }
+    }
+    await page.screenshot({
+      path: path.join(outputDir, 'trial-attachment-1440x900.png'),
+      fullPage: true,
+    })
+
+    await openRoute(page, '/workflows/wf_support')
+    const knowledgeNode = page.locator('.vue-flow__node').filter({ hasText: '知识库检索' }).first()
+    if (!(await knowledgeNode.count())) {
+      failures.push('设计器未找到知识库节点，无法验收文件控件')
+    } else {
+      await knowledgeNode.click()
+      await page.getByRole('button', { name: '写入索引', exact: true }).click()
+      const designerField = page.getByTestId('designer-file-field').first()
+      await designerField.waitFor({ state: 'visible', timeout: 3000 })
+      await designerField.locator('input[type="file"]').setInputFiles({
+        name: 'designer-attachment.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('设计器附件自动验收内容。'),
+      })
+      const designerProgress = designerField.getByTestId('attachment-upload-progress').first()
+      await designerProgress.waitFor({ state: 'visible', timeout: 1500 })
+      if ((await designerProgress.getAttribute('data-state')) !== 'uploading') {
+        failures.push('设计器文件控件没有可观察的上传状态')
+      }
+      await designerProgress.waitFor({ state: 'hidden', timeout: 3000 })
+      await designerField.getByText('smoke-attachment.txt', { exact: true }).waitFor({
+        state: 'visible',
+        timeout: 3000,
+      })
+    }
+    await page.screenshot({
+      path: path.join(outputDir, 'designer-file-upload-1440x900.png'),
+      fullPage: true,
+    })
+  } catch (error) {
+    failures.push(`附件上传验收异常：${error instanceof Error ? error.message : String(error)}`)
+  } finally {
+    await context.close()
+  }
 }
 
 /**
@@ -614,6 +756,7 @@ async function runSmoke() {
     await wide.close()
 
     await auditKnowledgeLayouts(browser, failures, outputDir)
+    await auditAttachmentUploads(browser, failures, outputDir)
     const focusContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
     const focusPage = await focusContext.newPage()
     await openRoute(focusPage, '/knowledge')

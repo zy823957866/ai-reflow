@@ -201,19 +201,15 @@
             </template>
 
             <template v-else-if="field.widget === 'file'">
-              <div class="file-control flex h-40px items-center gap-8px border border-dashed border-border-strong rounded-7px bg-surface-2 px-10px text-[12px] text-subtle">
-                <FileUp :size="15" />
-                <span class="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">{{ fileName(field.key) || '选择一个文件' }}</span>
-                <button type="button" class="border-0 bg-transparent text-[12px] text-primary" :disabled="disabled || !services?.uploadFile" @click="chooseFile(field.key)">
-                  {{ services?.uploadFile ? '上传' : '未接入' }}
-                </button>
-                <input
-                  :ref="(el) => setFileInput(field.key, el as HTMLInputElement | null)"
-                  type="file"
-                  hidden
-                  @change="uploadFile(field.key, $event)"
-                />
-              </div>
+              <FileRefField
+                :model-value="fileRefValue(field.key)"
+                :disabled="disabled"
+                :upload="services?.uploadFile"
+                test-id="designer-file-field"
+                @update:model-value="update(field.key, $event)"
+                @busy="setFileBusy(field.key, $event)"
+                @error="setFileError(field.key, $event)"
+              />
             </template>
 
             <template v-else-if="field.widget === 'conditions' || field.widget === 'list'">
@@ -290,17 +286,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import {
   Braces,
   ChevronDown,
-  FileUp,
   Info,
   Plus,
   X,
 } from 'lucide-vue-next'
+import FileRefField from '@/components/FileRefField.vue'
 import type {
   DesignerServices,
+  FileRef,
   ManifestField,
   NodeManifest,
   SelectOption,
@@ -325,7 +322,8 @@ const emit = defineEmits<{
 }>()
 
 const collapsed = ref(new Set<string>())
-const fileInputs = new Map<string, HTMLInputElement>()
+const fileErrors = reactive<Record<string, string>>({})
+const fileBusy = reactive<Record<string, number>>({})
 const variableOptions = computed(() => [
   { label: '$input.question', value: '{{ $input.question }}' },
   { label: '$node.n_kb.output.context', value: '{{ $node.n_kb.output.context }}' },
@@ -388,6 +386,7 @@ function commaValue(key: string): string {
  */
 function update(key: string, next: unknown) {
   if (props.disabled) return
+  delete fileErrors[key]
   emit('update-field', key, next)
   emit('commit', { ...props.modelValue, [key]: next })
 }
@@ -398,7 +397,7 @@ function update(key: string, next: unknown) {
  * @returns 错误文案。
  */
 function errorFor(key: string) {
-  return props.errors?.find((item) => item.field === key)?.message
+  return fileErrors[key] ?? props.errors?.find((item) => item.field === key)?.message
 }
 
 /**
@@ -646,45 +645,35 @@ function insertVariable(key: string) {
 }
 
 /**
- * 缓存文件输入控件引用。
+ * 读取字段中的 FileRef。
+ *
  * @param key 字段键。
- * @param input 文件输入控件。
+ * @returns 结构化文件引用。
  */
-function setFileInput(key: string, input: HTMLInputElement | null) {
-  if (input) fileInputs.set(key, input)
-}
-
-/**
- * 打开指定字段的文件选择器。
- * @param key 字段键。
- */
-function chooseFile(key: string) {
-  fileInputs.get(key)?.click()
-}
-
-/**
- * 上传文件并将文件引用写入字段。
- * @param key 字段键。
- * @param event 文件选择事件。
- */
-async function uploadFile(key: string, event: Event) {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file || !props.services?.uploadFile) return
-  const fileRef = await props.services.uploadFile(file)
-  update(key, fileRef)
-  emit('commit', { ...props.modelValue, [key]: fileRef })
-}
-
-/**
- * 返回已上传文件的名称。
- * @param key 字段键。
- * @returns 文件名。
- */
-function fileName(key: string) {
+function fileRefValue(key: string): FileRef | undefined {
   const current = value(key)
-  if (current && typeof current === 'object' && 'name' in current) {
-    return String((current as { name: unknown }).name)
-  }
-  return ''
+  if (!current || typeof current !== 'object' || Array.isArray(current)) return undefined
+  return current as FileRef
+}
+
+/**
+ * 记录字段当前上传任务数。
+ *
+ * @param key 字段键。
+ * @param count 上传任务数。
+ */
+function setFileBusy(key: string, count: number) {
+  if (count) fileBusy[key] = count
+  else delete fileBusy[key]
+}
+
+/**
+ * 展示字段级上传错误。
+ *
+ * @param key 字段键。
+ * @param message 错误文案。
+ */
+function setFileError(key: string, message: string) {
+  fileErrors[key] = message
 }
 </script>

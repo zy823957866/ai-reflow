@@ -15,6 +15,8 @@ interface ErrorEnvelope {
   error?: Partial<ApiErrorBody>
 }
 
+export type UploadProgressHandler = (percent: number) => void
+
 /**
  * 统一 API 异常，保留 HTTP 状态、稳定错误码和字段级问题。
  */
@@ -85,6 +87,29 @@ async function throwResponseError(response: Response): Promise<never> {
     status: response.status,
     code: body?.error?.code ?? `HTTP_${response.status}`,
     message: body?.error?.message ?? (response.statusText || '请求失败。'),
+    retryable: body?.error?.retryable,
+    details: body?.error?.details,
+    issues: body?.error?.issues,
+  })
+}
+
+/**
+ * 把 XHR 错误响应转换为统一 ApiError。
+ *
+ * @param status HTTP 状态。
+ * @param statusText HTTP 状态文本。
+ * @param body 已解析的错误响应。
+ * @returns 统一 API 异常。
+ */
+function apiErrorFromXhr(
+  status: number,
+  statusText: string,
+  body?: ErrorEnvelope,
+) {
+  return new ApiError({
+    status,
+    code: body?.error?.code ?? `HTTP_${status}`,
+    message: body?.error?.message ?? (statusText || '请求失败。'),
     retryable: body?.error?.retryable,
     details: body?.error?.details,
     issues: body?.error?.issues,
@@ -170,10 +195,59 @@ export function apiDelete<T>(path: string) {
  *
  * @param path API 路径。
  * @param formData 待上传表单。
+ * @param onProgress 上传百分比回调。
  * @returns 响应数据。
  */
-export function apiUpload<T>(path: string, formData: FormData) {
-  return apiRequest<T>(path, { method: 'POST', body: formData })
+export function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  onProgress?: UploadProgressHandler,
+) {
+  return new Promise<T>((resolve, reject) => {
+    const request = new XMLHttpRequest()
+    request.open('POST', path)
+    request.setRequestHeader('Accept', 'application/json')
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable || !event.total) return
+      onProgress?.(Math.min(100, Math.round((event.loaded / event.total) * 100)))
+    }
+    request.onerror = () => {
+      reject(new ApiError({
+        status: 0,
+        code: 'NETWORK_ERROR',
+        message: '无法连接上传服务，请检查网络后重试。',
+        retryable: true,
+      }))
+    }
+    request.onabort = () => {
+      reject(new ApiError({
+        status: 0,
+        code: 'UPLOAD_ABORTED',
+        message: '上传已取消。',
+      }))
+    }
+    request.onload = () => {
+      let body: ErrorEnvelope | T | undefined
+      if (request.responseText) {
+        try {
+          body = JSON.parse(request.responseText) as ErrorEnvelope | T
+        } catch {
+          body = request.responseText as T
+        }
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve((request.status === 204 ? undefined : body) as T)
+        return
+      }
+      reject(apiErrorFromXhr(
+        request.status,
+        request.statusText,
+        body && typeof body === 'object' ? body as ErrorEnvelope : undefined,
+      ))
+    }
+    onProgress?.(0)
+    request.send(formData)
+  })
 }
 
 /**

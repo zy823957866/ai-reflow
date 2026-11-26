@@ -19,9 +19,11 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import WorkflowDesigner from '@/workflow/WorkflowDesigner.vue'
 import { openapiPort } from '@/workflow/api/openapiPort'
-import { apiGet, apiUpload } from '@/api/client'
+import { apiGet } from '@/api/client'
+import { uploadAttachment } from '@/services/reflowApi'
 import type {
   DesignerServices,
+  FileRef,
   PublishResult,
   SaveResult,
   SelectOption,
@@ -104,16 +106,8 @@ const designerServices: DesignerServices = {
       label: workflow.name,
     }))
   },
-  async uploadFile(file) {
-    const form = new FormData()
-    form.append('file', file)
-    return apiUpload<{
-      id: string
-      name: string
-      mime: string
-      size: number
-      url?: string
-    }>('/api/files', form)
+  async uploadFile(file, onProgress): Promise<FileRef> {
+    return uploadAttachment(file, onProgress)
   },
   async confirm(message) {
     return window.confirm(message)

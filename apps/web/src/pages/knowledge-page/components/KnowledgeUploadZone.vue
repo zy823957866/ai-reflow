@@ -21,7 +21,7 @@
         class="hidden"
         type="file"
         multiple
-        accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.md,.markdown,.txt,.html"
+        :accept="KNOWLEDGE_ACCEPT"
         @change="handleFileInput"
       />
     </div>
@@ -39,7 +39,12 @@
           <strong class="block truncate">{{ item.name }}</strong>
           <small class="block truncate text-[12px] text-subtle">{{ item.sizeLabel }} · {{ item.stage }}</small>
         </span>
-        <span class="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]">
+        <span
+          class="h-1 overflow-hidden rounded-full bg-[var(--surface-3)]"
+          data-testid="knowledge-upload-progress"
+          :data-state="item.status"
+          :data-progress="item.progress"
+        >
           <i class="block h-full rounded-full bg-primary transition-[width]" :style="{ width: `${item.progress}%` }" />
         </span>
         <span class="flex items-center gap-1">
@@ -57,6 +62,7 @@
 import { ref } from 'vue'
 import { FileText, UploadCloud } from 'lucide-vue-next'
 import StatusBadge from '@/components/StatusBadge.vue'
+import { KNOWLEDGE_ACCEPT } from '@/shared/files'
 import type { UploadItem } from '../types'
 
 const props = defineProps<{

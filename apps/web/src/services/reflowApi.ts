@@ -1,5 +1,6 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiUpload } from '@/api/client'
 import type {
+  FileRef,
   RunEvent,
   RunRecord,
   WorkflowCard,
@@ -7,6 +8,7 @@ import type {
   WorkflowDraft,
   WorkflowVersion,
 } from '@/shared/types'
+import type { UploadProgressHandler } from '@/api/client'
 
 export interface ApiIssue {
   code: string
@@ -813,15 +815,34 @@ export function listKnowledgeDocuments(knowledgeBaseId: string) {
  *
  * @param knowledgeBaseId 知识库 ID。
  * @param file 待上传文件。
+ * @param onProgress 上传百分比回调。
  * @returns 上传后文档记录。
  */
-export function uploadKnowledgeDocument(knowledgeBaseId: string, file: File) {
+export function uploadKnowledgeDocument(
+  knowledgeBaseId: string,
+  file: File,
+  onProgress?: UploadProgressHandler,
+) {
   const formData = new FormData()
   formData.append('file', file)
   return apiUpload<KnowledgeDocumentDto>(
     `/api/knowledge-bases/${knowledgeBaseId}/documents`,
     formData,
+    onProgress,
   )
+}
+
+/**
+ * 上传工作流通用附件。
+ *
+ * @param file 待上传文件。
+ * @param onProgress 上传百分比回调。
+ * @returns 公开 FileRef。
+ */
+export function uploadAttachment(file: File, onProgress?: UploadProgressHandler) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiUpload<FileRef>('/api/files', formData, onProgress)
 }
 
 /**

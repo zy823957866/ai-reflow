@@ -185,6 +185,7 @@ import {
   type KnowledgePreviewDto,
   type KnowledgeStatsDto,
 } from '@/services/reflowApi'
+import { formatFileSize, selectedFileError } from '@/shared/files'
 import { notifyError } from '@/shared/toast'
 import type {
   KnowledgeBaseItem,
@@ -383,9 +384,9 @@ async function removeKnowledgeBase(knowledgeBase: KnowledgeBaseItem) {
 }
 
 async function queueFiles(files: File[]) {
-  const allowed = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'md', 'markdown', 'txt', 'html']
-  await Promise.all(files.map(async (file) => {
-    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const knowledgeBaseId = activeKbId.value
+  if (!knowledgeBaseId) return
+  for (const file of files) {
     const item = reactive<UploadItem>({
       id: `upload_${Math.random().toString(36).slice(2, 7)}`,
       name: file.name,
@@ -394,42 +395,48 @@ async function queueFiles(files: File[]) {
       stage: 'queued',
       status: 'processing',
       file,
+      knowledgeBaseId,
     })
     uploadQueue.value.unshift(item)
-    if (!allowed.includes(extension)) {
-      Object.assign(item, { status: 'failed', stage: '格式不支持', progress: 0 })
+    const validation = selectedFileError(file, 'knowledge')
+    if (validation) {
+      Object.assign(item, { status: 'failed', stage: '文件校验失败', progress: 0 })
       notifyError({
-        title: '文件格式不支持',
-        description: `${file.name} 不是支持的文档格式。`,
+        title: '文件无法上传',
+        description: validation,
       })
-      return
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      Object.assign(item, { status: 'failed', stage: '超过 50 MB', progress: 0 })
-      notifyError({
-        title: '文件过大',
-        description: `${file.name} 超过 50 MB 单文件限制。`,
-      })
-      return
+      continue
     }
     await uploadFile(item)
-  }))
+  }
 }
 
 async function uploadFile(item: UploadItem) {
-  if (!item.file || !activeKbId.value) return
+  const knowledgeBaseId = item.knowledgeBaseId ?? activeKbId.value
+  if (!item.file || !knowledgeBaseId) return
   item.status = 'processing'
   item.progress = 0
-  item.stage = 'uploading'
+  item.stage = '上传中'
   try {
-    const document = await uploadKnowledgeDocument(activeKbId.value, item.file)
-    item.status = document.status === 'failed' ? 'failed' : 'ready'
+    const document = await uploadKnowledgeDocument(
+      knowledgeBaseId,
+      item.file,
+      (percent) => {
+        item.progress = Math.max(0, Math.min(100, Math.round(percent)))
+        item.stage = percent >= 100 ? '处理中' : `上传中 ${item.progress}%`
+      },
+    )
+    item.status = document.status === 'failed'
+      ? 'failed'
+      : document.status === 'ready'
+        ? 'ready'
+        : 'processing'
     item.progress = document.status === 'ready' ? 100 : document.progress
     item.stage = document.status
     await loadActiveKnowledge()
   } catch (error) {
     item.status = 'failed'
-    item.stage = errorText(error)
+    item.stage = '上传失败'
     item.progress = 0
     notifyError({
       title: '文档上传失败',
@@ -568,11 +575,6 @@ async function runSearch(request: SearchRequest) {
   } finally {
     testLoading.value = false
   }
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`
 }
 
 onMounted(() => {

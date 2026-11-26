@@ -131,8 +131,18 @@
                   </span>
                   <p v-if="field.description" class="-mt-0.5 mb-0.25 text-[12px] text-subtle">{{ field.description }}</p>
 
+                  <FileRefField
+                    v-if="field.format === 'file-ref' || field.itemsFormat === 'file-ref'"
+                    :model-value="fileFieldValue(field)"
+                    :multiple="field.itemsFormat === 'file-ref'"
+                    :upload="uploadAttachmentFile"
+                    test-id="trial-file-field"
+                    @update:model-value="updateFileField(field.name, $event)"
+                    @busy="setUploadBusy(field.name, $event)"
+                    @error="setFieldError(field.name, $event)"
+                  />
                   <input
-                    v-if="field.type === 'string'"
+                    v-else-if="field.type === 'string'"
                     v-model="inputData[field.name] as string"
                     class="min-h-9 rounded-[6px] px-2.5 py-2 text-[12px]"
                     :placeholder="field.description"
@@ -188,10 +198,15 @@
                 <CircleAlert :size="14" />
                 <span>{{ inputError }}</span>
               </div>
+              <div v-if="uploadBusyCount" class="mx-3.5 mt-[11px] flex items-center gap-[7px] text-[12px] text-subtle">
+                <LoaderCircle :size="14" class="animate-spin text-primary" />
+                <span>附件上传中，完成后即可运行。</span>
+              </div>
 
               <button
                 class="mx-3.5 mb-2 mt-auto flex h-10 items-center justify-center gap-[7px] rounded-[7px] border border-primary bg-primary text-[12px] font-600 text-white disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-3 disabled:text-subtle"
                 :disabled="!canRun"
+                data-testid="trial-run"
                 @click="startTrial"
               >
                 <LoaderCircle v-if="isRunning" :size="16" class="animate-spin" />
@@ -364,6 +379,7 @@ import {
 } from 'reka-ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
+import FileRefField from '@/components/FileRefField.vue'
 import ExecutionTabs from '@/workflow/shared/ExecutionTabs.vue'
 import { subscribeRunEvents } from '@/api/client'
 import {
@@ -375,11 +391,14 @@ import {
   getWorkflowReadiness,
   listRuns,
   replayRun as replayRunRequest,
+  uploadAttachment,
   type ReadinessResponse,
 } from '@/services/reflowApi'
 import { clonePlain } from '@/shared/clone'
 import { formatDateTime, formatDuration } from '@/shared/format'
+import { isFileRef } from '@/shared/files'
 import type {
+  FileRef,
   NodeRunStatus,
   RunEvent,
   RunRecord,
@@ -406,6 +425,7 @@ const jsonDraft = ref('{}')
 const inputData = reactive<Record<string, unknown>>({})
 const inputError = ref('')
 const fieldErrors = reactive<Record<string, string>>({})
+const uploadBusy = reactive<Record<string, number>>({})
 const readinessOpen = ref(false)
 const callInfoOpen = ref(false)
 const sideEffectConfirmed = ref(false)
@@ -436,8 +456,18 @@ const inputFields = computed<SchemaField[]>(() => {
     type: String(value.type ?? 'string'),
     required: required.includes(name),
     description: value.description ? String(value.description) : value.title ? String(value.title) : '',
+    format: typeof value.format === 'string' ? value.format : undefined,
+    itemsFormat:
+      value.items
+      && typeof value.items === 'object'
+      && typeof (value.items as Record<string, unknown>).format === 'string'
+        ? String((value.items as Record<string, unknown>).format)
+        : undefined,
   }))
 })
+const uploadBusyCount = computed(() =>
+  Object.values(uploadBusy).reduce((total, count) => total + count, 0),
+)
 
 const readinessItems = computed(() => {
   const definition = version.value?.definition
@@ -587,7 +617,7 @@ const nodeProgress = computed(() => {
   return total ? Math.round((completedNodeCount.value / total) * 100) : 0
 })
 const canRun = computed(() => {
-  if (!readinessReady.value || isRunning.value) return false
+  if (!readinessReady.value || isRunning.value || uploadBusyCount.value > 0) return false
   if (hasSideEffect.value && !sideEffectConfirmed.value) return false
   return true
 })
@@ -655,6 +685,12 @@ function initializeInput() {
   } else {
     Object.entries(defaults as Record<string, Record<string, unknown>>).forEach(([key, value]) => {
       if (value.default !== undefined) inputData[key] = clonePlain(value.default)
+      else if (value.format === 'file-ref') inputData[key] = null
+      else if (
+        value.items
+        && typeof value.items === 'object'
+        && (value.items as Record<string, unknown>).format === 'file-ref'
+      ) inputData[key] = []
       else if (value.type === 'array') inputData[key] = []
       else if (value.type === 'number') inputData[key] = 0
       else if (value.type === 'boolean') inputData[key] = false
@@ -723,6 +759,99 @@ function complexFieldText(key: string) {
 }
 
 /**
+ * 将输入数据转换为 FileRef 控件模型。
+ *
+ * @param field 当前 Schema 字段。
+ * @returns 单文件、多文件或空值。
+ */
+function fileFieldValue(field: SchemaField): FileRef | FileRef[] | null {
+  const current = inputData[field.name]
+  if (field.itemsFormat === 'file-ref') {
+    return Array.isArray(current) ? current.filter(isFileRef) : []
+  }
+  return isFileRef(current) ? current : null
+}
+
+/**
+ * 写回附件字段并清除字段错误。
+ *
+ * @param name 字段名。
+ * @param value FileRef 控件值。
+ */
+function updateFileField(name: string, value: FileRef | FileRef[] | null) {
+  inputData[name] = value
+  delete fieldErrors[name]
+}
+
+/**
+ * 记录附件字段的上传任务数。
+ *
+ * @param name 字段名。
+ * @param count 上传任务数。
+ */
+function setUploadBusy(name: string, count: number) {
+  if (count) uploadBusy[name] = count
+  else delete uploadBusy[name]
+}
+
+/**
+ * 展示指定字段错误。
+ *
+ * @param name 字段名。
+ * @param message 错误文案。
+ */
+function setFieldError(name: string, message: string) {
+  fieldErrors[name] = message
+}
+
+/**
+ * 上传试运行输入附件。
+ *
+ * @param file 待上传文件。
+ * @param onProgress 上传进度回调。
+ * @returns 公开 FileRef。
+ */
+function uploadAttachmentFile(
+  file: File,
+  onProgress?: (percent: number) => void,
+) {
+  return uploadAttachment(file, onProgress)
+}
+
+/**
+ * 判断 Schema 字段是否声明为 FileRef。
+ *
+ * @param field 输入字段。
+ * @returns 是否使用附件控件。
+ */
+function isFileField(field: SchemaField) {
+  return field.format === 'file-ref' || field.itemsFormat === 'file-ref'
+}
+
+/**
+ * 校验附件字段的公开契约和必填状态。
+ *
+ * @param field 输入字段。
+ * @returns 错误文案；通过时返回空字符串。
+ */
+function validateFileField(field: SchemaField) {
+  const raw = inputData[field.name]
+  const multiple = field.itemsFormat === 'file-ref'
+  const empty = multiple
+    ? !Array.isArray(raw) || raw.length === 0
+    : raw === null || raw === undefined
+  if (field.required && empty) {
+    return multiple ? '请至少选择一个附件。' : '请选择一个附件。'
+  }
+  if (empty) return ''
+  if (multiple) {
+    if (!Array.isArray(raw) || !raw.every(isFileRef)) return '附件列表包含无效文件引用。'
+    return ''
+  }
+  return isFileRef(raw) ? '' : '附件引用格式无效。'
+}
+
+/**
  * 解析复杂字段 JSON 并写回输入模型。
  * @param key 输入字段键。
  * @param text 用户编辑的 JSON 文本。
@@ -756,6 +885,11 @@ function validateInput() {
   }
   inputError.value = ''
   for (const field of inputFields.value) {
+    if (isFileField(field)) {
+      const fileError = validateFileField(field)
+      if (fileError) fieldErrors[field.name] = fileError
+      continue
+    }
     const raw = inputData[field.name]
     if (field.required && (raw === '' || raw === null || raw === undefined)) {
       fieldErrors[field.name] = '必填项不能为空。'
@@ -790,6 +924,10 @@ function validateInput() {
 /** 校验输入后发起固定版本试运行。 */
 async function startTrial() {
   if (!version.value || !readinessReady.value) return
+  if (uploadBusyCount.value) {
+    inputError.value = '附件仍在上传，请等待上传完成后再运行。'
+    return
+  }
   const input = validateInput()
   if (!input) return
   if (hasSideEffect.value && !sideEffectConfirmed.value) {
@@ -1023,6 +1161,7 @@ async function loadData() {
   activeRun.value = undefined
   runEvents.value = []
   streamState.value = 'idle'
+  Object.keys(uploadBusy).forEach((key) => delete uploadBusy[key])
   loadError.value = ''
   if (!versionId.value) {
     version.value = undefined

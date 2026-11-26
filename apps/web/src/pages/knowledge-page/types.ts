@@ -20,6 +20,7 @@ export interface UploadItem {
   stage: string
   status: 'processing' | 'ready' | 'failed'
   file?: File
+  knowledgeBaseId?: string
 }
 
 export type SearchResult = KnowledgeSearchChunk & { citationId?: string }

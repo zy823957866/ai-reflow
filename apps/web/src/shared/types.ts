@@ -33,6 +33,16 @@ export interface SchemaField {
   type: string
   required?: boolean
   description?: string
+  format?: string
+  itemsFormat?: string
+}
+
+export interface FileRef {
+  id: string
+  name: string
+  mime: string
+  size: number
+  sha256?: string
 }
 
 export interface SelectOption {
@@ -325,13 +335,7 @@ export interface DesignerServices {
   loadMcpServers?: () => Promise<SelectOption[]>
   loadMcpTools?: (serverId: string) => Promise<SelectOption[]>
   loadWorkflowOptions?: () => Promise<SelectOption[]>
-  uploadFile?: (file: File) => Promise<{
-    id: string
-    name: string
-    mime: string
-    size: number
-    url?: string
-  }>
+  uploadFile?: (file: File, onProgress?: (percent: number) => void) => Promise<FileRef>
   confirm?: (message: string) => Promise<boolean>
   notify?: (level: 'info' | 'warn' | 'error', message: string) => void
 }
