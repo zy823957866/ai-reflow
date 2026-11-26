@@ -156,6 +156,25 @@ export const artifacts = pgTable('artifacts', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+export const fileAssets = pgTable('file_assets', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  publicId: text('public_id').notNull(),
+  workspaceId: uuid('workspace_id').notNull(),
+  storageKey: text('storage_key').notNull(),
+  name: text('name').notNull(),
+  mime: text('mime').notNull(),
+  extension: text('extension').notNull(),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull(),
+  sha256: text('sha256').notNull(),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  unique('uq_file_assets_workspace_public').on(table.workspaceId, table.publicId),
+  index('ix_file_assets_workspace_created').on(table.workspaceId, table.createdAt),
+  index('ix_file_assets_workspace_sha256').on(table.workspaceId, table.sha256),
+])
+
 export const knowledgeBases = pgTable('knowledge_bases', {
   id: uuid('id').defaultRandom().primaryKey(),
   publicId: text('public_id').notNull(),
@@ -291,6 +310,7 @@ export const schema = {
   nodeRuns,
   runEvents,
   artifacts,
+  fileAssets,
   knowledgeBases,
   documents,
   documentChunks,

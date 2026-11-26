@@ -49,6 +49,10 @@ export {
   type McpServerInput,
 } from './db/repositories/mcp-repository'
 export {
+  FileRepository,
+  type FileContent,
+} from './db/repositories/file-repository'
+export {
   McpExposureRepository,
   type AuthenticatedMcpExposure,
   type McpExposureInput,
