@@ -24,7 +24,7 @@
 | --- | --- | --- |
 | `ENG-F01` | Vite + Vue 3 SFC | `<script setup lang="ts">`；无 Options API 业务组件 |
 | `ENG-F02` | 设计令牌与 UnoCSS | 禁止魔法色值；暗色模式 |
-| `ENG-F03` | Reka UI 封装 | Dialog/Popover/Select/Tabs 先封装后使用 |
+| `ENG-F03` | shadcn-vue 组件 | Button/Input/Select/Dialog 等统一维护在 `@ai-reflow/ui`；底层使用 Reka UI，页面不得重复封装 |
 | `ENG-F04` | OpenAPI client | 生成 types/client；组件无裸 fetch |
 | `ENG-F05` | TanStack Query | 服务端数据缓存/失效/错误态 |
 | `ENG-F06` | Pinia 边界 | 画布/选中/undo 栈；不塞服务端数据 |

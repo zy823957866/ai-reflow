@@ -76,7 +76,7 @@ apps/web/src/workflow/                 # 独立流程设计器子应用
 ```text
 apps/web/src/workflow
   -> @ai-reflow/core            # Manifest、registerNode、协议类型
-  -> @ai-reflow/ui              # 设计令牌、Reka UI 封装、无业务组件
+  -> @ai-reflow/ui              # 设计令牌、shadcn-vue 组件、无业务组件
   -> @ai-reflow/engine/graph    # 纯编译/校验（禁止 I/O）
   -> OpenAPI generated client   # 仅默认 Port 适配器使用
   -> Vue / Vue Flow / Pinia / TanStack Query

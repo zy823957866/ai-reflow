@@ -11,7 +11,7 @@
         <div id="page-header-actions" class="flex min-w-0 max-w-[75%] items-center justify-end gap-2 overflow-x-auto py-1" />
       </header>
       <main class="min-h-0 flex-1 overflow-y-auto">
-        <div data-testid="app-content" class="mx-auto min-h-full w-full max-w-[1440px]">
+        <div data-testid="app-content" class="mx-auto min-h-full w-full" :class="route.name === 'knowledge' ? '' : 'max-w-[1440px]'">
           <RouterView />
         </div>
       </main>

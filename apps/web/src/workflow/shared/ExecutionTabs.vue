@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="flex gap-[18px] border-b border-line px-3.5">
-      <button
+      <Button variant="unstyled" type="button"
         v-for="tab in tabs"
         :key="tab.key"
         class="flex h-[38px] items-center gap-[5px] border-0 border-b-2 border-transparent bg-transparent px-px text-[12px]"
@@ -10,7 +10,7 @@
       >
         {{ tab.label }}
         <span v-if="tab.badge !== undefined" class="inline-flex h-4 min-w-4 items-center justify-center rounded-[4px] bg-surface-3 text-[12px]">{{ tab.badge }}</span>
-      </button>
+      </Button>
     </div>
     <div class="min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
       <template v-if="activeTab === 'input'">
@@ -25,19 +25,19 @@
               <i class="font-mono text-[12px] not-italic text-primary">{{ field.type }}</i>
               <em v-if="field.required" class="rounded-[3px] bg-warning-soft px-1 py-0.25 text-[12px] not-italic text-warning">必填</em>
             </span>
-            <input
+            <Input
               v-if="field.type === 'string'"
               class="min-h-[35px] rounded-[8px] px-2.5 py-2 text-[12px]"
-              :value="String(input[field.name] ?? '')"
+              :model-value="String(input[field.name] ?? '')"
               :disabled="readonly"
-              @input="updateInput(field.name, ($event.target as HTMLInputElement).value)"
+              @update:model-value="updateInput(field.name, String($event))"
             />
-            <textarea
+            <Textarea
               v-else
               class="min-h-[76px] resize-y rounded-[8px] px-2.5 py-2 font-mono text-[12px]"
-              :value="formatValue(input[field.name])"
+              :model-value="formatValue(input[field.name])"
               :disabled="readonly"
-              @input="updateJsonInput(field.name, ($event.target as HTMLTextAreaElement).value)"
+              @update:model-value="updateJsonInput(field.name, String($event))"
             />
           </label>
           <div v-if="!inputFields.length" class="flex min-h-[90px] flex-col items-center justify-center gap-[7px] rounded-[7px] border border-dashed border-line text-[12px] text-subtle">当前运行没有输入字段。</div>
@@ -86,6 +86,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { CheckCircle2, Info, LoaderCircle } from 'lucide-vue-next'
+import { Button, Input, Textarea } from '@ai-reflow/ui'
 import type { RunEvent, RunRecord, SchemaField } from '@/shared/types'
 
 const props = withDefaults(

@@ -2,7 +2,7 @@
   <div class="schema-form flex flex-col gap-2px">
     <template v-for="group in groups" :key="group.name">
       <section v-if="group.fields.length" class="form-group border-b border-line px-16px pb-17px pt-14px last:border-b-0">
-        <button
+        <Button variant="unstyled"
           v-if="isCollapsible(group.name)"
           type="button"
           class="group-header mb-13px flex items-center gap-5px border-0 bg-transparent p-0 text-[12px] font-[650] uppercase tracking-[0.02em] text-subtle"
@@ -10,7 +10,7 @@
         >
           <ChevronDown :size="14" class="transition-transform duration-150" :class="isCollapsed(group.name) ? '-rotate-90' : ''" />
           <span>{{ group.name }}</span>
-        </button>
+        </Button>
         <div v-else class="group-title mb-13px text-[12px] font-[650] uppercase tracking-[0.02em] text-subtle">{{ group.name }}</div>
         <div v-show="!isCollapsed(group.name)" class="group-fields flex flex-col gap-16px">
           <div
@@ -24,15 +24,17 @@
               <span>{{ field.label }}</span>
               <span v-if="field.required" class="text-danger">*</span>
               <span v-if="field.sensitive" class="ml-1px rounded-3px bg-warning-soft px-4px py-1px text-[12px] font-600 text-warning">敏感</span>
-              <button
+              <Button
                 v-if="field.variable"
                 type="button"
-                class="variable-button ml-auto inline-flex border-0 bg-transparent p-2px text-primary"
+                variant="ghost"
+                size="icon-sm"
+                class="variable-button ml-auto !h-5 !w-5 text-primary"
                 title="插入变量"
                 @click="insertVariable(field.key)"
               >
                 <Braces :size="12" />
-              </button>
+              </Button>
             </div>
 
             <template v-if="field.widget === 'richtext'">
@@ -47,28 +49,28 @@
             </template>
 
             <template v-else-if="field.widget === 'textarea'">
-              <textarea
+              <Textarea
                 class="h-auto min-h-76px resize-y px-10px py-9px text-12px leading-1.6"
-                :value="textValue(field.key)"
+                :model-value="textValue(field.key)"
                 :placeholder="field.placeholder"
                 :rows="field.rows ?? 4"
                 :disabled="disabled"
-                @input="update(field.key, ($event.target as HTMLTextAreaElement).value)"
+                @update:model-value="update(field.key, String($event))"
                 @blur="$emit('flush')"
               />
             </template>
 
             <template v-else-if="field.widget === 'number'">
               <div class="relative flex items-center">
-                <input
+                <Input
                   class="h-35px pl-10px pr-68px font-mono text-[12px]"
                   type="number"
-                  :value="value(field.key)"
+                  :model-value="textValue(field.key)"
                   :min="field.min"
                   :max="field.max"
                   :step="field.step"
                   :disabled="disabled"
-                  @input="update(field.key, Number(($event.target as HTMLInputElement).value))"
+                  @update:model-value="update(field.key, Number($event))"
                   @blur="$emit('flush')"
                 />
                 <span v-if="field.max" class="absolute right-10px text-[12px] text-subtle">{{ value(field.key) }} / {{ field.max }}</span>
@@ -76,69 +78,67 @@
             </template>
 
             <template v-else-if="field.widget === 'boolean'">
-              <button
-                type="button"
-                class="switch relative h-21px w-38px border rounded-full p-0 transition-[background,border-color] duration-150"
-                :class="Boolean(value(field.key)) ? 'border-primary bg-primary' : 'border-border-strong bg-surface-3'"
+              <Switch
+                :model-value="Boolean(value(field.key))"
                 :disabled="disabled"
-                @click="update(field.key, !value(field.key))"
-              >
-                <span
-                  class="absolute left-3px top-3px h-13px w-13px rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.15)] transition-transform duration-150"
-                  :class="Boolean(value(field.key)) ? 'translate-x-17px' : ''"
-                />
-              </button>
+                @update:model-value="update(field.key, $event)"
+              />
             </template>
 
             <template v-else-if="field.widget === 'select'">
-              <select
-                class="h-35px px-10px text-12px"
-                :value="value(field.key)"
+              <Select
+                :model-value="selectValue(field.key)"
                 :disabled="disabled"
-                @change="update(field.key, ($event.target as HTMLSelectElement).value)"
-                @blur="$emit('flush')"
+                @update:model-value="updateSelect(field.key, $event)"
               >
-                <option
-                  v-for="option in field.options ?? []"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
+                <SelectTrigger class="h-35px px-10px text-12px">
+                  <SelectValue :placeholder="field.placeholder || '请选择'" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in field.options ?? []"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </template>
 
             <template v-else-if="field.widget === 'multiselect'">
               <div class="flex flex-wrap gap-5px">
-                <button
+                <Button
                   v-for="option in optionsFor(field)"
                   :key="option.value"
                   type="button"
-                  class="h-27px border rounded-5px bg-surface px-8px text-[12px] text-muted"
-                  :class="isSelected(field.key, option.value) ? 'border-[#c3bdf9] bg-primary-soft text-primary' : 'border-line'"
+                  variant="outline"
+                  size="xs"
+                  class="h-27px rounded-5px px-8px text-[12px]"
+                  :class="isSelected(field.key, option.value) ? '!border-[#c3bdf9] !bg-primary-soft !text-primary' : ''"
                   :disabled="disabled"
                   @click="toggleMulti(field, option.value)"
                 >
                   {{ option.label }}
-                </button>
+                </Button>
               </div>
-              <button v-if="!optionsFor(field).length && field.widget === 'multiselect'" type="button" class="h-28px w-full border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" disabled>
+              <div v-if="!optionsFor(field).length" class="flex h-28px w-full items-center justify-center border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle">
                 未接入选项服务
-              </button>
+              </div>
             </template>
 
             <template v-else-if="field.widget === 'json' || field.widget === 'schema'">
               <div class="code-control overflow-hidden border border-line rounded-7px bg-[#fbfbfd]">
                 <div class="code-toolbar flex h-30px items-center justify-between border-b border-line px-9px font-mono text-[12px] text-subtle">
                   <span>{{ field.widget === 'schema' ? 'JSON Schema' : 'JSON' }}</span>
-                  <button type="button" class="border-0 bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="formatJson(field.key)">格式化</button>
+                  <Button type="button" variant="link" size="xs" class="text-subtle" :disabled="disabled" @click="formatJson(field.key)">格式化</Button>
                 </div>
-                <textarea
+                <Textarea
                   class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-[12px] leading-1.6 text-muted"
                   spellcheck="false"
-                  :value="jsonText(field.key)"
+                  :model-value="jsonText(field.key)"
                   :disabled="disabled"
-                  @input="updateJson(field.key, ($event.target as HTMLTextAreaElement).value)"
+                  @update:model-value="updateJson(field.key, String($event))"
                   @blur="$emit('flush')"
                 />
               </div>
@@ -150,13 +150,13 @@
                   <span>{{ field.language === 'sql' ? 'SQL' : 'JavaScript' }}</span>
                   <span class="h-1.5 w-1.5 rounded-full bg-success" />
                 </div>
-                <textarea
+                <Textarea
                   class="code-area min-h-122px w-full resize-y border-0 rounded-0 bg-transparent p-10px font-mono text-[12px] leading-1.6 text-[#d8dbe5]"
                   spellcheck="false"
-                  :value="textValue(field.key)"
+                  :model-value="textValue(field.key)"
                   :placeholder="field.placeholder"
                   :disabled="disabled"
-                  @input="update(field.key, ($event.target as HTMLTextAreaElement).value)"
+                  @update:model-value="update(field.key, String($event))"
                   @blur="$emit('flush')"
                 />
               </div>
@@ -165,37 +165,37 @@
             <template v-else-if="field.widget === 'keyvalue'">
               <div class="kv-list flex flex-col gap-6px">
                 <div v-for="(item, index) in keyValueRows(field.key)" :key="index" class="kv-row flex items-center gap-5px">
-                  <input
+                  <Input
                     class="h-30px min-w-0 px-8px font-mono text-[12px]"
-                    :value="item.key"
+                    :model-value="String(item.key)"
                     placeholder="key"
                     :disabled="disabled"
-                    @input="updateKeyValue(field.key, index, 'key', ($event.target as HTMLInputElement).value)"
+                    @update:model-value="updateKeyValue(field.key, index, 'key', String($event))"
                   />
-                  <input
+                  <Input
                     class="h-30px min-w-0 px-8px font-mono text-[12px]"
-                    :value="item.value"
+                    :model-value="String(item.value)"
                     placeholder="value"
                     :disabled="disabled"
-                    @input="updateKeyValue(field.key, index, 'value', ($event.target as HTMLInputElement).value)"
+                    @update:model-value="updateKeyValue(field.key, index, 'value', String($event))"
                   />
-                  <button type="button" class="icon-btn" :disabled="disabled" @click="removeKeyValue(field.key, index)">
+                  <Button type="button" variant="ghost" size="icon-sm" :disabled="disabled" @click="removeKeyValue(field.key, index)">
                     <X :size="13" />
-                  </button>
+                  </Button>
                 </div>
-                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="addKeyValue(field.key)">
+                <Button type="button" variant="outline" class="add-row h-28px border-dashed text-[12px] text-subtle" :disabled="disabled" @click="addKeyValue(field.key)">
                   <Plus :size="13" /> 添加字段
-                </button>
+                </Button>
               </div>
             </template>
 
             <template v-else-if="field.widget === 'tags'">
-              <input
+              <Input
                 class="h-35px px-10px text-12px"
-                :value="commaValue(field.key)"
+                :model-value="commaValue(field.key)"
                 :placeholder="field.placeholder || '用逗号分隔'"
                 :disabled="disabled"
-                @input="update(field.key, ($event.target as HTMLInputElement).value.split(',').map((item) => item.trim()).filter(Boolean))"
+                @update:model-value="update(field.key, String($event).split(',').map((item) => item.trim()).filter(Boolean))"
                 @blur="$emit('flush')"
               />
             </template>
@@ -204,9 +204,9 @@
               <div class="file-control flex h-40px items-center gap-8px border border-dashed border-border-strong rounded-7px bg-surface-2 px-10px text-[12px] text-subtle">
                 <FileUp :size="15" />
                 <span class="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-ellipsis">{{ fileName(field.key) || '选择一个文件' }}</span>
-                <button type="button" class="border-0 bg-transparent text-[12px] text-primary" :disabled="disabled || !services?.uploadFile" @click="chooseFile(field.key)">
+                <Button type="button" variant="link" size="xs" :disabled="disabled || !services?.uploadFile" @click="chooseFile(field.key)">
                   {{ services?.uploadFile ? '上传' : '未接入' }}
-                </button>
+                </Button>
                 <input
                   :ref="(el) => setFileInput(field.key, el as HTMLInputElement | null)"
                   type="file"
@@ -220,58 +220,61 @@
               <div class="structured-list flex flex-col gap-6px">
                 <div v-for="(item, index) in listRows(field.key)" :key="index" class="list-row flex items-center gap-5px">
                   <span class="list-index mono inline-flex h-20px w-20px shrink-0 items-center justify-center rounded-4px bg-surface-3 text-[12px] text-subtle">{{ index + 1 }}</span>
-                  <input
+                  <Input
                     class="h-30px min-w-0 px-8px font-mono text-[12px]"
-                    :value="listLabel(item)"
+                    :model-value="listLabel(item)"
                     :disabled="disabled"
-                    @input="updateList(field.key, index, ($event.target as HTMLInputElement).value)"
+                    @update:model-value="updateList(field.key, index, String($event))"
                   />
-                  <button type="button" class="icon-btn" :disabled="disabled" @click="removeList(field.key, index)">
+                  <Button type="button" variant="ghost" size="icon-sm" :disabled="disabled" @click="removeList(field.key, index)">
                     <X :size="13" />
-                  </button>
+                  </Button>
                 </div>
-                <button type="button" class="add-row inline-flex h-28px items-center justify-center gap-4px border border-dashed border-border-strong rounded-6px bg-transparent text-[12px] text-subtle" :disabled="disabled" @click="addList(field.key)">
+                <Button type="button" variant="outline" class="add-row h-28px border-dashed text-[12px] text-subtle" :disabled="disabled" @click="addList(field.key)">
                   <Plus :size="13" /> 添加项
-                </button>
+                </Button>
               </div>
             </template>
 
             <template v-else-if="field.widget === 'model-picker' || field.widget === 'mcp-server' || field.widget === 'workflow-picker'">
-              <select
-                class="h-35px px-10px text-12px"
-                :value="value(field.key)"
+              <Select
+                :model-value="selectValue(field.key)"
                 :disabled="disabled || !optionsFor(field).length"
-                @change="update(field.key, ($event.target as HTMLSelectElement).value)"
+                @update:model-value="updateSelect(field.key, $event)"
               >
-                <option value="" disabled>{{ optionsFor(field).length ? '请选择' : '未接入选项服务' }}</option>
-                <option
-                  v-for="option in optionsFor(field)"
-                  :key="option.value"
-                  :value="option.value"
-                >
-                  {{ option.label }}
-                </option>
-              </select>
+                <SelectTrigger class="h-35px px-10px text-12px">
+                  <SelectValue :placeholder="optionsFor(field).length ? '请选择' : '未接入选项服务'" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem
+                    v-for="option in optionsFor(field)"
+                    :key="option.value"
+                    :value="option.value"
+                  >
+                    {{ option.label }}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </template>
 
             <template v-else-if="field.widget === 'node-picker'">
-              <input
+              <Input
                 class="h-35px px-10px text-12px"
-                :value="commaValue(field.key)"
+                :model-value="commaValue(field.key)"
                 :placeholder="field.placeholder || '上游节点 ID'"
                 :disabled="disabled"
-                @input="update(field.key, ($event.target as HTMLInputElement).value.split(',').map((item) => item.trim()).filter(Boolean))"
+                @update:model-value="update(field.key, String($event).split(',').map((item) => item.trim()).filter(Boolean))"
                 @blur="$emit('flush')"
               />
             </template>
 
             <template v-else>
-              <input
+              <Input
                 class="h-35px px-10px text-12px"
-                :value="value(field.key)"
+                :model-value="textValue(field.key)"
                 :placeholder="field.placeholder"
                 :disabled="disabled"
-                @input="update(field.key, ($event.target as HTMLInputElement).value)"
+                @update:model-value="update(field.key, String($event))"
                 @blur="$emit('flush')"
               />
             </template>
@@ -299,6 +302,17 @@ import {
   Plus,
   X,
 } from 'lucide-vue-next'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Textarea,
+} from '@ai-reflow/ui'
 import type {
   DesignerServices,
   ManifestField,
@@ -390,6 +404,26 @@ function update(key: string, next: unknown) {
   if (props.disabled) return
   emit('update-field', key, next)
   emit('commit', { ...props.modelValue, [key]: next })
+}
+
+/**
+ * 将字段值转换为 Select 可接受的字符串值。
+ * @param key 字段键。
+ * @returns 当前选项值或空字符串。
+ */
+function selectValue(key: string) {
+  const current = value(key)
+  return current === null || current === undefined ? '' : String(current)
+}
+
+/**
+ * 更新下拉字段并立即触发持久化。
+ * @param key 字段键。
+ * @param next 新选项值。
+ */
+function updateSelect(key: string, next: unknown) {
+  update(key, next)
+  emit('flush')
 }
 
 /**

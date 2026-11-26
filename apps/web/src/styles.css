@@ -27,6 +27,23 @@
   --shadow-sm: 0 1px 2px rgba(18, 20, 26, 0.04);
   --shadow-md: 0 12px 34px rgba(18, 20, 26, 0.1);
   --shadow-lg: 0 24px 70px rgba(18, 20, 26, 0.16);
+  --background: var(--surface);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary-foreground: #ffffff;
+  --secondary: var(--surface-3);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-3);
+  --muted-foreground: var(--ink-3);
+  --accent: var(--surface-3);
+  --accent-foreground: var(--ink);
+  --destructive: var(--danger);
+  --destructive-foreground: #ffffff;
+  --input: var(--border);
+  --ring: var(--primary);
 }
 
 * {
@@ -56,10 +73,6 @@ input,
 textarea,
 select {
   font: inherit;
-}
-
-button {
-  color: inherit;
 }
 
 a {
@@ -98,34 +111,6 @@ a:focus-visible {
   background: transparent;
 }
 
-input,
-textarea,
-select {
-  width: 100%;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  outline: 2px solid transparent;
-  outline-offset: 0;
-  box-shadow: none;
-  transition: border-color 0.15s, outline-color 0.15s;
-}
-
-input:not([type="checkbox"]):not([type="radio"]),
-textarea,
-select {
-  padding: 8px 10px;
-  line-height: 1.5;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  border-color: transparent;
-  outline-color: var(--primary);
-}
-
 .control-shell {
   border: 1px solid var(--border);
   background: var(--surface);
@@ -139,90 +124,12 @@ select:focus {
   outline-color: var(--primary);
 }
 
-.control-shell :is(input, textarea, select) {
-  border: 0 !important;
-  outline: 0 !important;
-  box-shadow: none !important;
-}
-
-.btn {
-  display: inline-flex;
-  height: 36px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink-2);
-  font-weight: 500;
-  white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
-}
-
-.btn:hover {
-  border-color: var(--border-strong);
-  background: var(--surface-2);
-  color: var(--ink);
-}
-
-.btn:active {
-  transform: translateY(1px);
-}
-
-.btn-primary {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: #fff;
-  box-shadow: 0 1px 2px rgba(91, 77, 240, 0.2);
-}
-
-.btn-primary:hover {
-  border-color: var(--primary-hover);
-  background: var(--primary-hover);
-  color: #fff;
-}
-
-.btn-ghost {
+.control-shell :is(.ui-input, .ui-textarea, .ui-select-trigger),
+.control-shell :is(.ui-input, .ui-textarea, .ui-select-trigger):focus,
+.control-shell :is(.ui-input, .ui-textarea, .ui-select-trigger):focus-visible {
   border-color: transparent;
-  background: transparent;
-}
-
-.btn-ghost:hover {
-  border-color: transparent;
-  background: var(--surface-3);
-}
-
-.btn-danger {
-  border-color: #f2b8ba;
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.icon-btn {
-  display: inline-flex;
-  width: 34px;
-  height: 34px;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--ink-2);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-
-.icon-btn:hover {
-  border-color: var(--border);
-  background: var(--surface);
-  color: var(--ink);
-}
-
-.icon-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+  outline: 0 solid transparent;
+  box-shadow: none;
 }
 
 .field {
@@ -254,12 +161,6 @@ select:focus {
   color: var(--danger);
   font-size: 12px;
   line-height: 1.45;
-}
-
-input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
 }
 
 .surface {

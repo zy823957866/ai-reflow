@@ -20,9 +20,9 @@
           <span class="mono text-[12px] text-subtle">{{ node.type }}</span>
         </div>
         <p class="my-13px text-[12px] leading-1.55 text-subtle">多选时不提供批量配置写入，避免覆盖不同节点的模式字段。</p>
-        <button class="btn btn-danger h-32px w-full text-[12px]" @click="$emit('delete-nodes', selectedNodes.map((node) => node.id))">
+        <Button variant="destructive" class="h-32px w-full text-[12px]" @click="$emit('delete-nodes', selectedNodes.map((node) => node.id))">
           <Trash2 :size="14" /> 删除所选节点
-        </button>
+        </Button>
       </div>
     </template>
 
@@ -32,11 +32,11 @@
           <NodeGlyph :name="manifest.icon" :size="19" />
         </div>
         <div class="node-header-copy min-w-0 flex-1">
-          <input
+          <Input
             class="title-input h-24px border-0 bg-transparent p-0 text-15px font-700 text-ink shadow-none focus:(border border-line bg-surface px-6px shadow-none)"
-            :value="node.title"
+            :model-value="node.title"
             :disabled="disabled"
-            @change="$emit('rename-node', node.id, ($event.target as HTMLInputElement).value)"
+            @update:model-value="$emit('rename-node', node.id, String($event))"
           />
           <div class="node-header-meta mt-3px flex items-center gap-7px text-[12px] text-subtle">
             <span class="mono">{{ manifest.type }}</span>
@@ -44,13 +44,13 @@
             <span>v{{ manifest.version }}</span>
           </div>
         </div>
-        <button class="icon-btn" title="关闭" @click="$emit('close')"><X :size="16" /></button>
+        <Button variant="ghost" size="icon-sm" title="关闭" @click="$emit('close')"><X :size="16" /></Button>
       </div>
 
       <div v-if="manifest.discriminator" class="mode-row flex items-center gap-8px border-b border-line bg-surface-2 px-15px py-9px">
         <span class="font-mono text-[12px] text-subtle">{{ manifest.discriminator.key }}</span>
         <div class="mode-selector flex flex-1 gap-3px border border-line rounded-6px bg-surface p-2px">
-          <button
+          <Button variant="unstyled" type="button"
             v-for="option in manifest.discriminator.options"
             :key="option.value"
             class="h-24px min-w-0 flex-1 overflow-hidden whitespace-nowrap border-0 rounded-4px bg-transparent px-5px text-[12px] text-subtle text-ellipsis"
@@ -59,12 +59,12 @@
             @click="$emit('set-mode', node.id, manifest.discriminator!.key, option.value)"
           >
             {{ option.label }}
-          </button>
+          </Button>
         </div>
       </div>
 
       <div class="inspector-tabs flex h-42px items-end gap-16px border-b border-line px-16px">
-        <button
+        <Button variant="unstyled" type="button"
           v-for="tab in tabs"
           :key="tab.key"
           class="flex h-39px items-center gap-4px border-0 border-b-2 border-transparent bg-transparent px-1px text-[12px] text-subtle"
@@ -73,7 +73,7 @@
         >
           {{ tab.label }}
           <span v-if="tab.count !== undefined" class="inline-flex h-16px min-w-17px items-center justify-center rounded-4px bg-surface-3 text-[12px] text-subtle">{{ tab.count }}</span>
-        </button>
+        </Button>
       </div>
 
       <div v-if="activeTab === 'input'" class="inspector-scroll flex-1 overflow-y-auto">
@@ -87,10 +87,10 @@
         </div>
 
         <section class="runtime-input-section border-b border-line">
-          <button class="section-toggle flex h-36px w-full items-center gap-5px border-0 bg-transparent px-15px text-left text-[12px] font-600 text-muted" type="button" @click="runtimeOpen = !runtimeOpen">
+          <Button variant="unstyled" class="section-toggle flex h-36px w-full items-center gap-5px border-0 bg-transparent px-15px text-left text-[12px] font-600 text-muted" type="button" @click="runtimeOpen = !runtimeOpen">
             <ChevronDown :size="13" class="transition-transform duration-150" :class="!runtimeOpen ? '-rotate-90' : ''" />
             <span>运行输入（端口）</span>
-          </button>
+          </Button>
           <div v-show="runtimeOpen" class="runtime-input-list px-15px pb-12px">
             <div v-for="input in manifest.inputs" :key="input.id" class="runtime-input-row flex h-30px items-center gap-7px border-b border-dashed border-line text-[12px] text-muted">
               <span class="runtime-port flex min-w-88px items-center gap-6px"><span class="h-7px w-7px border border-[#b8bfcd] rounded-full" />{{ input.label }}</span>
@@ -122,18 +122,18 @@
         </section>
 
         <section class="advanced-section border-b border-line">
-          <button class="section-toggle flex h-36px w-full items-center gap-5px border-0 bg-transparent px-15px text-left text-[12px] font-600 text-muted" @click="advancedOpen = !advancedOpen">
+          <Button variant="unstyled" type="button" class="section-toggle flex h-36px w-full items-center gap-5px border-0 bg-transparent px-15px text-left text-[12px] font-600 text-muted" @click="advancedOpen = !advancedOpen">
             <ChevronDown :size="13" class="transition-transform duration-150" :class="!advancedOpen ? '-rotate-90' : ''" />
             <span>高级设置</span>
             <span class="advanced-count ml-auto text-[12px] text-subtle">9</span>
-          </button>
+          </Button>
           <div v-show="advancedOpen" class="advanced-grid grid gap-8px px-15px pb-13px pt-1px" style="grid-template-columns: 1fr 1fr">
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>启用</span><input class="h-16px w-auto self-start" type="checkbox" checked disabled /></label>
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>超时</span><input class="h-30px px-7px text-[12px] text-muted" value="30s" disabled /></label>
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>重试</span><input class="h-30px px-7px text-[12px] text-muted" value="2 次" disabled /></label>
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>错误策略</span><input class="h-30px px-7px text-[12px] text-muted" value="中止流程" disabled /></label>
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>输出上限</span><input class="h-30px px-7px text-[12px] text-muted" value="1 MB" disabled /></label>
-            <label class="flex flex-col gap-5px text-[12px] text-subtle"><span>日志级别</span><input class="h-30px px-7px text-[12px] text-muted" value="info" disabled /></label>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>启用</Label><Checkbox :model-value="true" class="mt-1 self-start" disabled /></div>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>超时</Label><Input class="h-30px px-7px text-[12px] text-muted" model-value="30s" disabled /></div>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>重试</Label><Input class="h-30px px-7px text-[12px] text-muted" model-value="2 次" disabled /></div>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>错误策略</Label><Input class="h-30px px-7px text-[12px] text-muted" model-value="中止流程" disabled /></div>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>输出上限</Label><Input class="h-30px px-7px text-[12px] text-muted" model-value="1 MB" disabled /></div>
+            <div class="flex flex-col gap-5px text-[12px] text-subtle"><Label>日志级别</Label><Input class="h-30px px-7px text-[12px] text-muted" model-value="info" disabled /></div>
           </div>
         </section>
       </div>
@@ -162,9 +162,9 @@
               <span v-if="field.required" class="required-mark ml-5px rounded-3px bg-danger-soft px-3px py-1px text-[12px] text-danger">必填</span>
               <p class="mb-0 ml-0 mr-0 mt-3px text-[12px] text-subtle">{{ field.description }}</p>
             </div>
-            <button class="icon-btn" title="复制引用" @click="copyReference(field.name)">
+            <Button variant="ghost" size="icon-sm" title="复制引用" @click="copyReference(field.name)">
               <Copy :size="13" />
-            </button>
+            </Button>
           </div>
         </section>
         <section class="fixture-section border-b border-line pb-13px">
@@ -214,7 +214,7 @@
           <span class="text-[12px] text-muted">{{ disabled ? '只读模式' : '自动保存已开启' }}</span>
           <small class="text-[12px] text-subtle">{{ disabled ? '发布版本不可修改' : '500ms 防抖 · 失焦立即保存' }}</small>
         </div>
-        <button v-if="!disabled" class="btn btn-primary h-31px px-11px text-[12px]" @click="$emit('flush')">保存节点</button>
+        <Button v-if="!disabled" class="h-31px px-11px text-[12px]" @click="$emit('flush')">保存节点</Button>
       </div>
     </template>
 
@@ -250,6 +250,7 @@ import {
   TriangleAlert,
   X,
 } from 'lucide-vue-next'
+import { Button, Checkbox, Input, Label } from '@ai-reflow/ui'
 import NodeGlyph from '@/components/NodeGlyph.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { getNodeRegistration } from '@/shared/registry'

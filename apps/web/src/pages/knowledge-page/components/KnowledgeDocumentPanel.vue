@@ -8,12 +8,12 @@
         </p>
       </div>
       <div v-if="activeKb" class="flex shrink-0 items-center gap-1">
-        <button class="btn btn-ghost !h-8 !px-2.5" @click="$emit('edit', activeKb)">
+        <Button variant="ghost" class="!h-8 !px-2.5" @click="$emit('edit', activeKb)">
           <Pencil :size="13" /> 编辑
-        </button>
-        <button class="btn btn-danger !h-8 !px-2.5" @click="$emit('remove', activeKb)">
+        </Button>
+        <Button variant="destructive" class="!h-8 !px-2.5" @click="$emit('remove', activeKb)">
           <Trash2 :size="13" /> 删除
-        </button>
+        </Button>
       </div>
     </header>
 
@@ -37,6 +37,7 @@
 
 <script setup lang="ts">
 import { Pencil, Trash2 } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 import type { KnowledgeBaseItem, KnowledgeDocument, UploadItem } from '../types'
 import KnowledgeDocumentTable from './KnowledgeDocumentTable.vue'
 import KnowledgeUploadZone from './KnowledgeUploadZone.vue'

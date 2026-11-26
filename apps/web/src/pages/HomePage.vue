@@ -1,16 +1,16 @@
 <template>
   <PageHeaderActions>
     <div class="ml-auto flex items-center gap-2">
-          <label class="control-shell flex h-34px w-70 items-center gap-2 rounded-7px bg-[var(--surface-2)] px-2 text-subtle max-md:hidden max-[1100px]:w-52">
+          <div class="control-shell flex h-34px w-70 items-center gap-2 rounded-7px bg-[var(--surface-2)] px-2 text-subtle max-md:hidden max-[1100px]:w-52">
             <Search :size="15" />
-            <input class="min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索工作流、运行 ID..." />
+            <Input class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索工作流、运行 ID..." />
             <kbd class="rounded-3px border border-line bg-surface px-1 py-0.5 font-sans text-[12px] text-subtle">⌘K</kbd>
-          </label>
-          <button class="icon-btn relative h-34px w-34px border-line bg-surface max-md:hidden" title="通知">
+          </div>
+          <Button variant="ghost" size="icon" class="relative h-34px w-34px border border-line bg-surface max-md:hidden" title="通知">
             <Bell :size="17" />
             <span class="absolute right-2 top-2 h-1.25 w-1.25 rounded-full bg-danger" />
-          </button>
-          <button class="btn btn-primary h-34px text-[12px]" @click="openCreate"><Plus :size="15" /> 创建工作流</button>
+          </Button>
+          <Button class="h-34px text-[12px]" @click="openCreate"><Plus :size="15" /> 创建工作流</Button>
     </div>
   </PageHeaderActions>
 
@@ -22,7 +22,7 @@
           </div>
           <div class="flex items-center gap-2.5 max-md:w-full max-md:flex-wrap">
             <div class="flex gap-px overflow-x-auto rounded-7px bg-surface p-0.75 shadow-[inset_0_0_0_1px_var(--border)]">
-              <button
+              <Button variant="unstyled" type="button"
                 v-for="option in statusOptions"
                 :key="option.value"
                 class="flex h-7 shrink-0 items-center gap-1.5 rounded-5px border-0 bg-transparent px-2.5 text-[12px] text-muted"
@@ -31,65 +31,67 @@
               >
                 {{ option.label }}
                 <span class="opacity-65">{{ countByStatus(option.value) }}</span>
-              </button>
+              </Button>
             </div>
-            <label class="control-shell flex h-35px items-center gap-1.5 rounded-7px bg-surface px-2 text-subtle">
+            <div class="control-shell flex h-35px items-center gap-1.5 rounded-7px bg-surface px-2 text-subtle">
               <ArrowUpDown :size="14" />
-              <select v-model="sortBy" class="h-auto w-auto border-0 bg-transparent py-0 pl-0 pr-3 text-[12px] shadow-none">
-                <option value="updated">最近更新</option>
-                <option value="runs">最近运行</option>
-                <option value="count">运行次数</option>
-                <option value="success">成功率</option>
-              </select>
-            </label>
+              <Select v-model="sortBy">
+                <SelectTrigger class="h-auto w-auto border-0 bg-transparent py-0 pl-0 pr-3 text-[12px] shadow-none" aria-label="工作流排序">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem v-for="option in sortOptions" :key="option.value" :value="option.value">{{ option.label }}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </section>
 
         <div v-if="actionError" class="mb-4 flex items-start gap-2 rounded-7px border border-[#efbfc1] bg-danger-soft px-3 py-2 text-[12px] text-danger">
           <CircleAlert :size="14" class="shrink-0" />
           <span class="min-w-0 flex-1 leading-1.55">{{ actionError }}</span>
-          <button class="border-0 bg-transparent p-0 text-[12px] text-danger" @click="actionError = ''">关闭</button>
+          <Button variant="link" size="xs" class="text-[12px] text-danger" @click="actionError = ''">关闭</Button>
         </div>
 
         <section class="mb-5 grid grid-cols-1 gap-px overflow-hidden rounded-8px border border-line bg-line sm:grid-cols-2 xl:grid-cols-4">
-          <button class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="statusFilter = 'all'">
+          <Button variant="unstyled" type="button" class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="statusFilter = 'all'">
             <span class="text-[12px] text-subtle">工作流总数</span>
             <div class="flex items-baseline gap-2"><strong class="text-23px font-700">{{ workflows.length }}</strong><em class="rounded-4px bg-[var(--surface-3)] px-1.5 py-0.5 text-[12px] font-600 not-italic text-subtle">服务端数据</em></div>
-          </button>
-          <button class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="statusFilter = 'published'">
+          </Button>
+          <Button variant="unstyled" type="button" class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="statusFilter = 'published'">
             <span class="text-[12px] text-subtle">已发布数</span>
             <div class="flex items-baseline gap-2"><strong class="text-23px font-700">{{ publishedCount }}</strong><em class="rounded-4px bg-success-soft px-1.5 py-0.5 text-[12px] font-600 not-italic text-success">{{ publishRate }} 占比</em></div>
-          </button>
-          <button class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="sortBy = 'runs'">
+          </Button>
+          <Button variant="unstyled" type="button" class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="sortBy = 'runs'">
             <span class="text-[12px] text-subtle">累计运行数</span>
             <div class="flex items-baseline gap-2"><strong class="text-23px font-700">{{ totalRunCount }}</strong><em class="rounded-4px bg-success-soft px-1.5 py-0.5 text-[12px] font-600 not-italic text-success">真实运行</em></div>
-          </button>
-          <button class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="sortBy = 'success'">
+          </Button>
+          <Button variant="unstyled" type="button" class="flex min-h-86px flex-col justify-center gap-2 bg-surface px-5 text-left transition-colors hover:bg-[var(--surface-2)]" @click="sortBy = 'success'">
             <span class="text-[12px] text-subtle">整体成功率</span>
             <div class="flex items-baseline gap-2"><strong class="text-23px font-700">{{ overallSuccessRate }}</strong><em class="rounded-4px bg-warning-soft px-1.5 py-0.5 text-[12px] font-600 not-italic text-warning">按运行聚合</em></div>
-          </button>
+          </Button>
         </section>
 
         <section class="mb-3 flex flex-wrap items-center justify-between gap-3 max-md:items-start">
           <div class="flex items-center gap-2 max-md:w-full">
-            <label class="control-shell flex h-34px w-[min(230px,100%)] items-center gap-1.5 rounded-7px bg-surface px-2 text-subtle max-md:flex-1">
+            <div class="control-shell flex h-34px w-[min(230px,100%)] items-center gap-1.5 rounded-7px bg-surface px-2 text-subtle max-md:flex-1">
               <Search :size="14" />
-              <input v-model="searchInput" class="min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索名称、描述、标签" @input="scheduleSearch" />
-              <button v-if="search" class="border-0 bg-transparent p-0 text-subtle" @click="clearSearch"><X :size="12" /></button>
-            </label>
-            <button class="inline-flex h-34px items-center gap-1.5 rounded-7px border border-line bg-surface px-2 text-[12px] text-muted" :class="tagFilter ? '!border-[#cdc8fb] !text-primary' : ''" @click="tagFilter = tagFilter ? '' : 'MCP'">
+              <Input v-model="searchInput" class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索名称、描述、标签" @input="scheduleSearch" />
+              <Button v-if="search" variant="ghost" size="icon-sm" class="!h-4 !w-4 text-subtle" @click="clearSearch"><X :size="12" /></Button>
+            </div>
+            <Button variant="outline" class="h-34px gap-1.5 px-2 text-[12px] text-muted" :class="tagFilter ? '!border-[#cdc8fb] !text-primary' : ''" @click="tagFilter = tagFilter ? '' : 'MCP'">
               <Filter :size="14" />
               标签
               <span v-if="tagFilter" class="rounded-3px bg-primary-soft px-1 py-0.5 text-[12px]">{{ tagFilter }}</span>
-            </button>
+            </Button>
           </div>
           <div class="flex items-center gap-2 max-md:w-full">
-            <button class="inline-flex h-34px w-34px items-center justify-center rounded-7px border border-line bg-surface text-muted" :class="viewMode === 'grid' ? '!border-[#d4d0fb] !bg-primary-soft !text-primary' : ''" title="卡片网格" @click="setView('grid')">
+            <Button variant="outline" size="icon" class="h-34px w-34px text-muted" :class="viewMode === 'grid' ? '!border-[#d4d0fb] !bg-primary-soft !text-primary' : ''" title="卡片网格" @click="setView('grid')">
               <LayoutGrid :size="15" />
-            </button>
-            <button class="inline-flex h-34px w-34px items-center justify-center rounded-7px border border-line bg-surface text-muted" :class="viewMode === 'list' ? '!border-[#d4d0fb] !bg-primary-soft !text-primary' : ''" title="紧凑列表" @click="setView('list')">
+            </Button>
+            <Button variant="outline" size="icon" class="h-34px w-34px text-muted" :class="viewMode === 'list' ? '!border-[#d4d0fb] !bg-primary-soft !text-primary' : ''" title="紧凑列表" @click="setView('list')">
               <List :size="15" />
-            </button>
+            </Button>
             <RouterLink to="/templates" class="inline-flex h-34px items-center gap-1.5 text-[12px] font-600 text-primary">
               <Sparkles :size="14" /> 从模板开始
             </RouterLink>
@@ -110,7 +112,7 @@
           :description="loadError"
           :icon="FileSearch"
         >
-          <button class="btn btn-primary" @click="reload">重新加载</button>
+          <Button @click="reload">重新加载</Button>
         </EmptyState>
 
         <EmptyState
@@ -119,8 +121,8 @@
           description="调整关键词或清除筛选，也可以从模板快速开始。"
           :icon="FileSearch"
         >
-          <button class="btn" @click="clearAllFilters">清除筛选</button>
-          <button class="btn btn-primary" @click="openCreate">创建空白工作流</button>
+          <Button variant="outline" @click="clearAllFilters">清除筛选</Button>
+          <Button @click="openCreate">创建空白工作流</Button>
         </EmptyState>
 
         <div v-else-if="viewMode === 'grid'" class="grid grid-cols-1 gap-3.25 md:grid-cols-2 lg:grid-cols-3">
@@ -132,20 +134,20 @@
             <div class="relative h-20 overflow-hidden rounded-t-8px border-b border-line bg-[linear-gradient(90deg,rgba(255,255,255,0.2),transparent),radial-gradient(circle_at_1px_1px,rgba(139,147,163,0.12)_1px,transparent_0)] bg-[length:auto,16px_16px] bg-[var(--surface-2)]">
               <WorkflowThumbnail :graph="workflow.previewGraph" class="px-[36px_21px] py-[13px]" />
               <span class="absolute right-9 top-2.5"><StatusBadge :status="workflow.status" /></span>
-              <button class="absolute right-2 top-2 flex h-6.25 w-6.25 items-center justify-center rounded-5px border-0 bg-white/85 text-subtle" title="更多操作" @click.stop="toggleMenu(workflow.id)">
+              <Button variant="ghost" size="icon-sm" class="absolute right-2 top-2 !h-6.25 !w-6.25 rounded-5px bg-white/85 text-subtle" title="更多操作" @click.stop="toggleMenu(workflow.id)">
                 <MoreHorizontal :size="16" />
-              </button>
+              </Button>
               <Transition name="menu">
                 <div v-if="activeMenu === workflow.id" class="absolute right-2 top-8.5 z-5 w-33 rounded-7px border border-line bg-surface p-1 shadow-md" @click.stop>
-                  <button class="flex h-7.5 w-full items-center gap-1.5 rounded-4px border-0 bg-transparent px-2 text-left text-[12px] text-muted hover:bg-[var(--surface-3)]" @click="openWorkflow(workflow)"><ExternalLink :size="13" /> 打开</button>
-                  <button class="flex h-7.5 w-full items-center gap-1.5 rounded-4px border-0 bg-transparent px-2 text-left text-[12px] text-muted hover:bg-[var(--surface-3)]" @click="quickRun(workflow)"><Play :size="13" /> 运行</button>
-                  <button class="flex h-7.5 w-full items-center gap-1.5 rounded-4px border-0 bg-transparent px-2 text-left text-[12px] text-muted hover:bg-[var(--surface-3)]" @click="duplicate(workflow.id)"><Copy :size="13" /> 复制</button>
-                  <button class="flex h-7.5 w-full items-center gap-1.5 rounded-4px border-0 bg-transparent px-2 text-left text-[12px] text-muted hover:bg-[var(--surface-3)]" @click="openRename(workflow)"><Pencil :size="13" /> 重命名</button>
-                  <button class="flex h-7.5 w-full items-center gap-1.5 rounded-4px border-0 bg-transparent px-2 text-left text-[12px] text-danger hover:bg-[var(--surface-3)]" @click="archive(workflow.id)"><Archive :size="13" /> 归档</button>
+                  <Button variant="ghost" size="xs" class="h-7.5 w-full justify-start gap-1.5 px-2 text-[12px] font-normal text-muted" @click="openWorkflow(workflow)"><ExternalLink :size="13" /> 打开</Button>
+                  <Button variant="ghost" size="xs" class="h-7.5 w-full justify-start gap-1.5 px-2 text-[12px] font-normal text-muted" @click="quickRun(workflow)"><Play :size="13" /> 运行</Button>
+                  <Button variant="ghost" size="xs" class="h-7.5 w-full justify-start gap-1.5 px-2 text-[12px] font-normal text-muted" @click="duplicate(workflow.id)"><Copy :size="13" /> 复制</Button>
+                  <Button variant="ghost" size="xs" class="h-7.5 w-full justify-start gap-1.5 px-2 text-[12px] font-normal text-muted" @click="openRename(workflow)"><Pencil :size="13" /> 重命名</Button>
+                  <Button variant="ghost" size="xs" class="h-7.5 w-full justify-start gap-1.5 px-2 text-[12px] font-normal text-danger" @click="archive(workflow.id)"><Archive :size="13" /> 归档</Button>
                 </div>
               </Transition>
             </div>
-            <button class="block w-full border-0 bg-transparent px-4 pb-3 pt-3.5 text-left" @click="openWorkflow(workflow)">
+            <Button variant="unstyled" type="button" class="block w-full border-0 bg-transparent px-4 pb-3 pt-3.5 text-left" @click="openWorkflow(workflow)">
               <h2 class="m-0 text-14px font-650 text-ink">{{ workflow.name }}</h2>
               <p class="mb-2 mt-1.5 line-clamp-2 min-h-8.75 text-[12px] leading-1.6 text-subtle">{{ workflow.description }}</p>
               <div class="flex min-h-5.5 flex-wrap gap-1">
@@ -163,7 +165,7 @@
                   <span class="truncate">{{ workflow.owner.name }}</span>
                 </div>
               </div>
-            </button>
+            </Button>
           </article>
         </div>
 
@@ -171,7 +173,7 @@
           <div class="grid min-w-780px h-9.5 grid-cols-[2.2fr_0.8fr_0.5fr_0.7fr_1fr_0.9fr_70px] items-center gap-3.5 border-b border-line bg-[var(--surface-2)] px-4 text-[12px] font-600 text-subtle">
             <span>名称</span><span>状态</span><span>节点</span><span>成功率</span><span>负责人</span><span>更新</span><span />
           </div>
-          <button
+          <Button variant="unstyled" type="button"
             v-for="workflow in filteredWorkflows"
             :key="workflow.id"
             class="grid min-w-780px w-full min-h-15 grid-cols-[2.2fr_0.8fr_0.5fr_0.7fr_1fr_0.9fr_70px] items-center gap-3.5 border-0 border-b border-line bg-transparent px-4 text-left text-[12px] text-muted transition-colors last:border-b-0 hover:bg-[var(--surface-2)]"
@@ -187,50 +189,44 @@
             <span class="flex items-center gap-1.25 text-subtle"><i class="inline-flex h-4.5 w-4.5 items-center justify-center rounded-full bg-primary-soft text-[12px] not-italic text-primary">{{ workflow.owner.initials }}</i>{{ workflow.owner.name }}</span>
             <span>{{ relativeTime(workflow.updatedAt) }}</span>
             <span class="inline-flex items-center gap-1 font-600 text-primary"><Play :size="13" /> 运行</span>
-          </button>
+          </Button>
         </div>
   </main>
 
-  <DialogRoot :open="createOpen" @update:open="createOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-2px" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(480px,calc(100vw-32px))] rounded-8px border border-line bg-surface p-5.5 shadow-lg -translate-1/2">
+  <Dialog v-model:open="createOpen">
+      <DialogContent class="w-[min(480px,calc(100vw-32px))]" :show-close="false">
         <DialogTitle class="m-0 text-17px font-700">创建工作流</DialogTitle>
         <DialogDescription class="mb-3.25 mt-1.5 text-[12px] leading-1.6 text-subtle">
           创建后会进入设计器。空白工作流包含一个开始节点和一个输出节点。
         </DialogDescription>
         <div class="mt-3 flex flex-col gap-1.5">
-          <label class="text-[12px] font-600 text-muted">名称</label>
-          <input v-model="createName" class="px-2.5 py-2 text-[12px]" placeholder="例如：售后政策问答" @keyup.enter="createWorkflowNow" />
+          <Label>名称</Label>
+          <Input v-model="createName" class="px-2.5 py-2 text-[12px]" placeholder="例如：售后政策问答" @keyup.enter="createWorkflowNow" />
         </div>
         <div class="mt-3 flex flex-col gap-1.5">
-          <label class="text-[12px] font-600 text-muted">描述</label>
-          <textarea v-model="createDescription" class="px-2.5 py-2 text-[12px]" rows="3" placeholder="这个工作流解决什么问题？" />
+          <Label>描述</Label>
+          <Textarea v-model="createDescription" class="px-2.5 py-2 text-[12px]" rows="3" placeholder="这个工作流解决什么问题？" />
         </div>
-        <div class="mt-5 flex justify-end gap-2">
-          <DialogClose as-child><button class="btn">取消</button></DialogClose>
-          <button class="btn btn-primary" :disabled="!createName.trim() || createPending" @click="createWorkflowNow">{{ createPending ? '创建中…' : '创建并进入编辑器' }}</button>
-        </div>
+        <DialogFooter class="mt-5">
+          <DialogClose as-child><Button variant="outline">取消</Button></DialogClose>
+          <Button :disabled="!createName.trim() || createPending" @click="createWorkflowNow">{{ createPending ? '创建中…' : '创建并进入编辑器' }}</Button>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="renameOpen" @update:open="renameOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-2px" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(390px,calc(100vw-32px))] rounded-8px border border-line bg-surface p-5.5 shadow-lg -translate-1/2">
+  <Dialog v-model:open="renameOpen">
+      <DialogContent class="w-[min(390px,calc(100vw-32px))]" :show-close="false">
         <DialogTitle class="m-0 text-17px font-700">重命名工作流</DialogTitle>
         <div class="mt-3 flex flex-col gap-1.5">
-          <label class="text-[12px] font-600 text-muted">名称</label>
-          <input v-model="renameValue" class="px-2.5 py-2 text-[12px]" @keyup.enter="confirmRename" />
+          <Label>名称</Label>
+          <Input v-model="renameValue" class="px-2.5 py-2 text-[12px]" @keyup.enter="confirmRename" />
         </div>
-        <div class="mt-5 flex justify-end gap-2">
-          <DialogClose as-child><button class="btn">取消</button></DialogClose>
-          <button class="btn btn-primary" :disabled="renamePending" @click="confirmRename">{{ renamePending ? '保存中…' : '保存名称' }}</button>
-        </div>
+        <DialogFooter class="mt-5">
+          <DialogClose as-child><Button variant="outline">取消</Button></DialogClose>
+          <Button :disabled="renamePending" @click="confirmRename">{{ renamePending ? '保存中…' : '保存名称' }}</Button>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -256,14 +252,22 @@ import {
   X,
 } from 'lucide-vue-next'
 import {
+  Button,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
+  DialogFooter,
   DialogTitle,
-} from 'reka-ui'
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@ai-reflow/ui'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
@@ -305,6 +309,13 @@ const statusOptions = [
   { value: 'draft', label: '草稿' },
   { value: 'published', label: '已发布' },
   { value: 'reviewing', label: '审核中' },
+]
+
+const sortOptions = [
+  { value: 'updated', label: '最近更新' },
+  { value: 'runs', label: '最近运行' },
+  { value: 'count', label: '运行次数' },
+  { value: 'success', label: '成功率' },
 ]
 
 const publishedCount = computed(() => workflows.value.filter((workflow) => workflow.status === 'published').length)

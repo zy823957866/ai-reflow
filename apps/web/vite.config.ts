@@ -4,12 +4,11 @@ import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
 
 export default defineConfig({
-  root: fileURLToPath(new URL('./apps/web', import.meta.url)),
   plugins: [vue(), UnoCSS()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./apps/web/src', import.meta.url)),
-      '@workflow': fileURLToPath(new URL('./apps/web/src/workflow', import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@workflow': fileURLToPath(new URL('./src/workflow', import.meta.url)),
     },
   },
   server: {

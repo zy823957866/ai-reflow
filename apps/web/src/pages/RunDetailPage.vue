@@ -1,15 +1,15 @@
 <template>
   <PageHeaderActions>
     <div class="flex items-center gap-2 max-md:flex-wrap">
-      <button class="btn btn-ghost" @click="router.push('/runs')">
+      <Button variant="ghost" @click="router.push('/runs')">
         <ArrowLeft :size="14" /> 返回列表
-      </button>
-      <button class="btn" @click="copyDiagnostics">
+      </Button>
+      <Button variant="outline" @click="copyDiagnostics">
         <Copy :size="14" /> 复制诊断包
-      </button>
-      <button class="btn" :disabled="actionPending" @click="replay">
+      </Button>
+      <Button variant="outline" :disabled="actionPending" @click="replay">
         <RotateCcw :size="14" /> 原样重跑
-      </button>
+      </Button>
     </div>
   </PageHeaderActions>
 
@@ -24,14 +24,14 @@
           <CircleAlert :size="30" class="text-danger" />
           <h1 class="m-0 text-[20px]">运行详情加载失败</h1>
           <p class="m-0 max-w-[520px] text-[12px] leading-[1.6] text-subtle">{{ loadError }}</p>
-          <button class="btn btn-primary" @click="refreshRun()">重试</button>
+          <Button @click="refreshRun()">重试</Button>
         </section>
 
         <section v-else-if="!run" class="surface flex min-h-[420px] flex-col items-center justify-center gap-3 p-10 text-center">
           <FileQuestion :size="30" />
           <h1 class="m-0 text-[24px]">运行记录不存在</h1>
           <p class="m-0 text-[12px] text-subtle"><span class="font-mono">{{ runId }}</span> 不存在或当前工作区无权访问。</p>
-          <RouterLink to="/runs" class="btn btn-primary">返回运行记录</RouterLink>
+          <Button as-child><RouterLink to="/runs">返回运行记录</RouterLink></Button>
         </section>
 
         <template v-else>
@@ -40,7 +40,7 @@
               <strong class="text-[12px]">运行操作失败</strong>
               <p class="mb-0 mt-1 text-[12px] leading-[1.55] text-[#9c4045]">{{ actionError }}</p>
             </div>
-            <button class="icon-btn !h-[30px] !w-[30px] shrink-0" title="关闭错误提示" @click="actionError = ''"><X :size="13" /></button>
+            <Button variant="ghost" size="icon-sm" class="!h-[30px] !w-[30px] shrink-0" title="关闭错误提示" @click="actionError = ''"><X :size="13" /></Button>
           </div>
 
           <section class="mb-[18px] flex items-end justify-between gap-[22px] max-md:flex-col max-md:items-start">
@@ -58,21 +58,23 @@
               </p>
             </div>
             <div class="flex shrink-0 items-center gap-2 max-md:flex-wrap">
-              <button
+              <Button
                 v-if="canCancel"
-                class="btn btn-danger"
+                variant="destructive"
                 :disabled="actionPending"
                 @click="cancelRun"
               >
                 <Square :size="13" /> 取消运行
-              </button>
-              <RouterLink
+              </Button>
+              <Button
                 v-if="run.versionId"
-                :to="{ path: `/workflows/${run.workflowId}/trial`, query: { versionId: run.versionId } }"
-                class="btn"
+                as-child
+                variant="outline"
               >
-                <GitCommitHorizontal :size="14" /> 查看固定版本
-              </RouterLink>
+                <RouterLink :to="{ path: `/workflows/${run.workflowId}/trial`, query: { versionId: run.versionId } }">
+                  <GitCommitHorizontal :size="14" /> 查看固定版本
+                </RouterLink>
+              </Button>
             </div>
           </section>
 
@@ -101,13 +103,13 @@
               <strong class="font-mono text-[12px]">{{ run.error.code }}</strong>
               <span class="text-[12px] leading-[1.45] text-[#9c4045]">{{ run.error.message }}</span>
             </div>
-            <button class="border-0 bg-transparent p-0 text-[12px] text-danger" @click="openNode(run.error.nodeId)">定位失败节点</button>
+            <Button variant="link" size="xs" class="text-danger" @click="openNode(run.error.nodeId)">定位失败节点</Button>
           </div>
 
           <div class="grid grid-cols-[minmax(0,1fr)_300px] items-start gap-3 max-[1120px]:grid-cols-1">
             <section class="surface min-w-0 overflow-hidden">
               <div class="flex min-h-[45px] items-center gap-1 overflow-x-auto border-b border-line px-3">
-                <button
+                <Button variant="unstyled" type="button"
                   v-for="tab in mainTabs"
                   :key="tab.key"
                   class="inline-flex h-[31px] shrink-0 items-center gap-[5px] rounded-[5px] border-0 px-2.5 text-[12px]"
@@ -117,7 +119,7 @@
                   <component :is="tab.icon" :size="13" />
                   {{ tab.label }}
                   <span v-if="tab.count !== undefined">{{ tab.count }}</span>
-                </button>
+                </Button>
               </div>
 
               <div v-if="activeTab === 'nodes'" class="p-3">
@@ -126,15 +128,20 @@
                     <strong class="block text-[12px]">节点执行</strong>
                     <span class="text-[12px] text-subtle">点击行查看输入、输出、attempt 与错误。</span>
                   </div>
-                  <select v-model="nodeStatusFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按节点状态筛选">
-                    <option value="">全部状态</option>
-                    <option value="succeeded">成功</option>
-                    <option value="failed">失败</option>
-                    <option value="queued">排队中</option>
-                    <option value="running">运行中</option>
-                    <option value="pending">等待</option>
-                    <option value="skipped">跳过</option>
-                  </select>
+                  <Select v-model="nodeStatusFilter">
+                    <SelectTrigger class="h-[34px] w-auto min-w-[112px] px-[9px] text-[12px]" aria-label="按节点状态筛选">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部状态</SelectItem>
+                      <SelectItem value="succeeded">成功</SelectItem>
+                      <SelectItem value="failed">失败</SelectItem>
+                      <SelectItem value="queued">排队中</SelectItem>
+                      <SelectItem value="running">运行中</SelectItem>
+                      <SelectItem value="pending">等待</SelectItem>
+                      <SelectItem value="skipped">跳过</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div class="overflow-auto rounded-[6px] border border-line">
                   <table class="w-full min-w-[720px] border-collapse [&_th]:h-[35px] [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-line [&_th]:bg-[var(--surface-2)] [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-500 [&_th]:text-subtle [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-[12px] [&_td]:text-muted [&_tbody_tr:last-child_td]:border-b-0">
@@ -187,15 +194,20 @@
                     <strong class="block text-[12px]">事件时间线</strong>
                     <span class="text-[12px] text-subtle">按 seq 排序，服务端事件已脱敏。</span>
                   </div>
-                  <select v-model="eventTypeFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按事件类型筛选">
-                    <option value="">全部事件</option>
-                    <option value="run">运行生命周期</option>
-                    <option value="node">节点事件</option>
-                    <option value="token">Token 流</option>
-                  </select>
+                  <Select v-model="eventTypeFilter">
+                    <SelectTrigger class="h-[34px] w-auto min-w-[112px] px-[9px] text-[12px]" aria-label="按事件类型筛选">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">全部事件</SelectItem>
+                      <SelectItem value="run">运行生命周期</SelectItem>
+                      <SelectItem value="node">节点事件</SelectItem>
+                      <SelectItem value="token">Token 流</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div class="max-h-[560px] overflow-y-auto rounded-[6px] border border-line">
-                  <button
+                  <Button variant="unstyled" type="button"
                     v-for="event in filteredEvents"
                     :key="event.seq"
                     class="grid min-h-[42px] w-full grid-cols-[34px_7px_minmax(0,1fr)_58px_46px] items-center gap-2 border-0 border-b border-line bg-transparent px-2.5 text-left hover:bg-[#fbfcfe] last:border-b-0"
@@ -209,7 +221,7 @@
                     </span>
                     <span class="text-right text-[12px] text-subtle">{{ formatEventTime(event.at) }}</span>
                     <span class="text-right text-[12px] text-subtle">{{ eventDuration(event) }}</span>
-                  </button>
+                  </Button>
                   <div v-if="!filteredEvents.length" class="flex min-h-[120px] items-center justify-center text-[12px] text-subtle">当前筛选没有事件。</div>
                 </div>
               </div>
@@ -220,7 +232,7 @@
                     <strong class="block text-[12px]">原始 JSON</strong>
                     <span class="text-[12px] text-subtle">展示服务端脱敏版本，大输出请从 artifact 下载。</span>
                   </div>
-                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyText(rawJson)">复制完整 JSON</button>
+                  <Button variant="link" size="xs" @click="copyText(rawJson)">复制完整 JSON</Button>
                 </div>
                 <pre class="m-0 max-h-[620px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-3 font-mono text-[12px] leading-[1.65] text-[#d8dbe5]">{{ rawJson }}</pre>
               </div>
@@ -256,11 +268,11 @@
                   <div><h2 class="m-0 text-[14px]">Artifacts</h2><p class="mb-0 mt-1 text-[12px] text-subtle">{{ artifacts.length }} 个可下载文件</p></div>
                 </div>
                 <div class="p-2">
-                  <button v-for="artifact in artifacts" :key="artifact.name" class="flex min-h-[50px] w-full items-center gap-2 border-0 border-b border-dashed border-line bg-transparent px-2 text-left last:border-b-0 hover:bg-[var(--surface-2)]" @click="downloadArtifact(artifact)">
+                  <Button variant="unstyled" type="button" v-for="artifact in artifacts" :key="artifact.name" class="flex min-h-[50px] w-full items-center gap-2 border-0 border-b border-dashed border-line bg-transparent px-2 text-left last:border-b-0 hover:bg-[var(--surface-2)]" @click="downloadArtifact(artifact)">
                     <FileText :size="15" />
                     <span class="flex min-w-0 flex-1 flex-col gap-0.5"><strong class="truncate text-[12px]">{{ artifact.name }}</strong><small class="text-[12px] text-subtle">{{ artifact.meta }}</small></span>
                     <Download :size="13" />
-                  </button>
+                  </Button>
                   <div v-if="!artifacts.length" class="flex min-h-[80px] items-center justify-center text-[12px] text-subtle">本次运行没有 artifact。</div>
                 </div>
               </section>
@@ -270,7 +282,7 @@
                   <div><h2 class="m-0 text-[14px]">诊断信息</h2><p class="mb-0 mt-1 text-[12px] text-subtle">不包含明文凭证或完整敏感输入。</p></div>
                 </div>
                 <code class="mx-[11px] mb-[9px] mt-2 block break-all rounded-[5px] bg-[var(--surface-2)] p-2 font-mono text-[12px] leading-[1.5] text-muted">{{ diagnosticText }}</code>
-                <button class="btn ml-[11px] !h-[31px] text-[12px]" @click="copyDiagnostics"><Copy :size="13" /> 复制诊断包</button>
+                <Button variant="outline" class="ml-[11px] !h-[31px] text-[12px]" @click="copyDiagnostics"><Copy :size="13" /> 复制诊断包</Button>
               </section>
             </aside>
           </div>
@@ -284,7 +296,7 @@
           <h2 class="m-0 text-[16px]">{{ selectedNode.title }}</h2>
           <p class="mb-0 mt-1 text-[12px] text-subtle"><span class="font-mono">{{ selectedNode.nodeId }}</span> · {{ selectedNode.type }}</p>
         </div>
-        <button class="icon-btn" @click="nodeDrawerOpen = false"><X :size="16" /></button>
+        <Button variant="ghost" size="icon-sm" @click="nodeDrawerOpen = false"><X :size="16" /></Button>
       </div>
       <div class="flex-1 overflow-y-auto px-4 pb-4">
         <div class="flex min-h-[42px] items-center gap-2 text-[12px] text-subtle">
@@ -294,7 +306,7 @@
         </div>
 
         <div v-if="attempts.length > 1" class="mb-2.5 flex flex-wrap gap-1 rounded-[6px] bg-[var(--surface-2)] p-1">
-          <button
+          <Button variant="unstyled" type="button"
             v-for="attempt in attempts"
             :key="attempt.attempt"
             class="rounded-[5px] border-0 px-2 py-1 text-[12px]"
@@ -303,7 +315,7 @@
           >
             attempt {{ attempt.attempt }}
             <span :class="attempt.status">{{ attempt.status }}</span>
-          </button>
+          </Button>
         </div>
 
         <div v-if="activeAttempt?.error" class="mb-2.5 flex items-start gap-2 rounded-[6px] border border-[#efbfc1] bg-danger-soft p-2.5 text-danger">
@@ -358,8 +370,8 @@
         </section>
       </div>
       <div class="flex justify-end gap-2 border-t border-line bg-[var(--surface-2)] px-4 py-3">
-        <button class="btn" @click="copyNodeDiagnostics">复制节点诊断</button>
-        <button class="btn btn-primary" @click="nodeDrawerOpen = false">完成</button>
+        <Button variant="outline" @click="copyNodeDiagnostics">复制节点诊断</Button>
+        <Button @click="nodeDrawerOpen = false">完成</Button>
       </div>
     </aside>
   </div>
@@ -386,6 +398,14 @@ import {
   TerminalSquare,
   X,
 } from 'lucide-vue-next'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ai-reflow/ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { subscribeRunEvents } from '@/api/client'
@@ -408,8 +428,8 @@ const loadError = ref('')
 const actionError = ref('')
 const actionPending = ref(false)
 const activeTab = ref<'nodes' | 'events' | 'raw'>('nodes')
-const nodeStatusFilter = ref('')
-const eventTypeFilter = ref('')
+const nodeStatusFilter = ref('all')
+const eventTypeFilter = ref('all')
 const nodeDrawerOpen = ref(false)
 const selectedNodeId = ref('')
 const selectedAttemptNumber = ref(1)
@@ -423,13 +443,13 @@ const mainTabs = computed(() => [
 
 const filteredNodeRuns = computed(() =>
   (run.value?.nodeRuns ?? []).filter(
-    (nodeRun) => !nodeStatusFilter.value || nodeRun.status === nodeStatusFilter.value,
+    (nodeRun) => nodeStatusFilter.value === 'all' || nodeRun.status === nodeStatusFilter.value,
   ),
 )
 
 const filteredEvents = computed(() =>
   events.value.filter((event) => {
-    if (!eventTypeFilter.value) return true
+    if (eventTypeFilter.value === 'all') return true
     if (eventTypeFilter.value === 'run') return event.type.startsWith('run.')
     if (eventTypeFilter.value === 'node') return event.type.startsWith('node.')
     return event.type === 'token.delta'

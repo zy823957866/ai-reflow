@@ -1,0 +1,27 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["src/*"],
+      "@workflow/*": ["src/workflow/*"],
+      "@ai-reflow/core": ["../../packages/core/src/index.ts"],
+      "@ai-reflow/core/*": ["../../packages/core/src/*"],
+      "@ai-reflow/platform": ["../../packages/platform/src/index.ts"],
+      "@ai-reflow/platform/*": ["../../packages/platform/src/*"],
+      "@ai-reflow/engine": ["../../packages/engine/src/index.ts"],
+      "@ai-reflow/engine/*": ["../../packages/engine/src/*"],
+      "@ai-reflow/capabilities": ["../../packages/capabilities/src/index.ts"],
+      "@ai-reflow/capabilities/*": ["../../packages/capabilities/src/*"],
+      "@ai-reflow/ui": ["../../packages/ui/src/index.ts"],
+      "@ai-reflow/ui/*": ["../../packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "vite.config.ts",
+    "uno.config.ts"
+  ]
+}

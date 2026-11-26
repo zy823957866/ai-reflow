@@ -5,12 +5,12 @@
         <span class="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
         {{ liveRunCount ? '实时更新' : '历史归档' }}
       </span>
-      <button class="btn" :disabled="refreshing" @click="refreshData()">
+      <Button variant="outline" :disabled="refreshing" @click="refreshData()">
         <RefreshCw :size="14" :class="refreshing ? 'animate-spin' : ''" /> 刷新
-      </button>
-      <button class="btn" @click="exportCsv">
+      </Button>
+      <Button variant="outline" @click="exportCsv">
         <Download :size="14" /> 导出 CSV
-      </button>
+      </Button>
     </div>
   </PageHeaderActions>
 
@@ -21,22 +21,37 @@
             <p class="mb-0 mt-[7px] text-[12px] leading-[1.55] text-subtle">近 24 小时 · 列表与详情使用同一份运行快照和节点 trace</p>
           </div>
           <div class="flex items-center gap-2">
-            <select v-model="workflowFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按工作流筛选">
-              <option value="">全部工作流</option>
-              <option v-for="workflow in workflowOptions" :key="workflow.id" :value="workflow.id">
-                {{ workflow.name }}
-              </option>
-            </select>
-            <select v-model="kindFilter" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按运行类型筛选">
-              <option value="">全部类型</option>
-              <option value="production">正式运行</option>
-              <option value="preview">草稿预览</option>
-            </select>
-            <select v-model="timeRange" class="h-[34px] w-auto min-w-[112px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按时间筛选">
-              <option value="24h">近 24 小时</option>
-              <option value="7d">近 7 天</option>
-              <option value="all">全部时间</option>
-            </select>
+            <Select v-model="workflowFilter">
+              <SelectTrigger class="h-[34px] w-auto min-w-[112px] px-[9px] text-[12px]" aria-label="按工作流筛选">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部工作流</SelectItem>
+                <SelectItem v-for="workflow in workflowOptions" :key="workflow.id" :value="workflow.id">
+                  {{ workflow.name }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Select v-model="kindFilter">
+              <SelectTrigger class="h-[34px] w-auto min-w-[112px] px-[9px] text-[12px]" aria-label="按运行类型筛选">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部类型</SelectItem>
+                <SelectItem value="production">正式运行</SelectItem>
+                <SelectItem value="preview">草稿预览</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select v-model="timeRange">
+              <SelectTrigger class="h-[34px] w-auto min-w-[112px] px-[9px] text-[12px]" aria-label="按时间筛选">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="24h">近 24 小时</SelectItem>
+                <SelectItem value="7d">近 7 天</SelectItem>
+                <SelectItem value="all">全部时间</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
@@ -45,26 +60,26 @@
             <strong class="text-[12px]">{{ loadError ? '运行列表加载失败' : '操作失败' }}</strong>
             <p class="mb-0 mt-1 text-[12px] leading-[1.55] text-[#9c4045]">{{ loadError || actionError }}</p>
           </div>
-          <button v-if="loadError" class="btn !h-[30px] shrink-0 text-[12px]" @click="refreshData()">重试</button>
-          <button v-else class="icon-btn !h-[30px] !w-[30px] shrink-0" title="关闭错误提示" @click="actionError = ''"><X :size="13" /></button>
+          <Button v-if="loadError" variant="outline" size="xs" class="h-[30px] shrink-0 text-[12px]" @click="refreshData()">重试</Button>
+          <Button v-else variant="ghost" size="icon-sm" class="!h-[30px] !w-[30px] shrink-0" title="关闭错误提示" @click="actionError = ''"><X :size="13" /></Button>
         </div>
 
         <section class="surface mb-3 grid grid-cols-1 gap-px overflow-hidden bg-line sm:grid-cols-2 xl:grid-cols-4">
-          <button class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = ''">
+          <Button variant="unstyled" type="button" class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = ''">
             <span class="text-[12px] text-subtle">运行总数</span>
             <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ filteredByScope.length }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-subtle">当前范围</em></div>
-          </button>
-          <button class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = 'succeeded'">
+          </Button>
+          <Button variant="unstyled" type="button" class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = 'succeeded'">
             <span class="text-[12px] text-subtle">成功率</span>
             <div class="flex min-w-0 items-baseline gap-[7px]">
               <strong class="truncate text-[19px] tabular-nums">{{ successRate }}</strong>
               <em class="whitespace-nowrap text-[12px] not-italic text-success">{{ failedCount }} 失败</em>
             </div>
-          </button>
-          <button class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = 'failed'">
+          </Button>
+          <Button variant="unstyled" type="button" class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] border-0 bg-surface px-4 py-[13px] text-left" @click="statusFilter = 'failed'">
             <span class="text-[12px] text-subtle">P95 耗时</span>
             <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">{{ p95Duration }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-warning">已保留节点输出</em></div>
-          </button>
+          </Button>
           <div class="flex min-w-0 min-h-[78px] flex-col justify-center gap-[7px] bg-surface px-4 py-[13px]">
             <span class="text-[12px] text-subtle">累计费用</span>
             <div class="flex min-w-0 items-baseline gap-[7px]"><strong class="truncate text-[19px] tabular-nums">¥{{ totalCost }}</strong><em class="whitespace-nowrap text-[12px] not-italic text-success">来源：服务端 usage</em></div>
@@ -75,32 +90,37 @@
           <section class="surface flex min-w-0 min-h-[610px] flex-col overflow-hidden">
             <div class="flex min-h-[55px] items-center justify-between gap-2.5 border-b border-line px-3 py-2 max-md:flex-col max-md:items-stretch">
               <div class="inline-flex flex-wrap gap-0.5 rounded-[7px] border border-line bg-[var(--surface-2)] p-[3px]">
-                <button class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="!statusFilter ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = ''">
+                <Button variant="unstyled" type="button" class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="!statusFilter ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = ''">
                   全部 <span>{{ scopeRuns.length }}</span>
-                </button>
-                <button class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'failed' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'failed'">
+                </Button>
+                <Button variant="unstyled" type="button" class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'failed' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'failed'">
                   失败 <span>{{ failedCount }}</span>
-                </button>
-                <button class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'active' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'active'">
+                </Button>
+                <Button variant="unstyled" type="button" class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'active' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'active'">
                   运行中 <span>{{ runningCount }}</span>
-                </button>
-                <button class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'cancelled' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'cancelled'">
+                </Button>
+                <Button variant="unstyled" type="button" class="inline-flex h-[27px] items-center gap-[5px] whitespace-nowrap border-0 rounded-[5px] px-[9px] text-[12px]" :class="statusFilter === 'cancelled' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="statusFilter = 'cancelled'">
                   已取消
-                </button>
+                </Button>
               </div>
               <div class="flex min-w-0 items-center gap-1.5 max-md:w-full max-md:flex-wrap">
-                <select v-model="triggerFilter" class="h-[34px] min-w-[96px] rounded-[7px] border-line bg-surface py-0 pl-[9px] pr-7 text-[12px]" aria-label="按触发方式筛选">
-                  <option value="">全部触发</option>
-                  <option value="manual_trial">试运行</option>
-                  <option value="manual_preview">草稿预览</option>
-                  <option value="api">API</option>
-                  <option value="mcp">MCP</option>
-                  <option value="webhook">Webhook</option>
-                </select>
-                <label class="control-shell flex h-[32px] w-[185px] items-center gap-[7px] rounded-[7px] bg-surface px-2.5 max-md:w-auto max-md:min-w-[180px] max-md:flex-1">
+                <Select v-model="triggerFilter">
+                  <SelectTrigger class="h-[34px] w-auto min-w-[96px] px-[9px] text-[12px]" aria-label="按触发方式筛选">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">全部触发</SelectItem>
+                    <SelectItem value="manual_trial">试运行</SelectItem>
+                    <SelectItem value="manual_preview">草稿预览</SelectItem>
+                    <SelectItem value="api">API</SelectItem>
+                    <SelectItem value="mcp">MCP</SelectItem>
+                    <SelectItem value="webhook">Webhook</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div class="control-shell flex h-[32px] w-[185px] items-center gap-[7px] rounded-[7px] bg-surface px-2.5 max-md:w-auto max-md:min-w-[180px] max-md:flex-1">
                   <Search :size="13" />
-                  <input v-model="query" class="min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none focus:shadow-none" placeholder="运行 ID、工作流、错误码" />
-                </label>
+                  <Input v-model="query" class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none focus:shadow-none" placeholder="运行 ID、工作流、错误码" />
+                </div>
               </div>
             </div>
 
@@ -138,9 +158,9 @@
                       </span>
                     </td>
                     <td>
-                      <button class="border-0 bg-transparent p-0 font-mono text-[12px] text-muted" @click.stop="router.push(`/runs/${run.id}`)">
+                      <Button variant="unstyled" type="button" class="border-0 bg-transparent p-0 font-mono text-[12px] text-muted" @click.stop="router.push(`/runs/${run.id}`)">
                         {{ shortId(run.id) }}
-                      </button>
+                      </Button>
                     </td>
                     <td><span class="block max-w-[130px] truncate">{{ run.workflowName }}</span></td>
                     <td>
@@ -157,7 +177,7 @@
                 <SearchX :size="20" />
                 <strong>没有匹配的运行</strong>
                 <span>调整筛选条件或刷新数据。</span>
-                <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="clearFilters">清除全部筛选</button>
+                <Button variant="unstyled" type="button" class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="clearFilters">清除全部筛选</Button>
               </div>
             </div>
 
@@ -167,13 +187,13 @@
                 / {{ filteredRuns.length }}
               </span>
               <div class="flex items-center gap-2">
-                <button class="icon-btn !h-[27px] !w-[27px]" :disabled="page === 1" @click="page--">
+                <Button variant="ghost" size="icon-sm" class="!h-[27px] !w-[27px]" :disabled="page === 1" @click="page--">
                   <ChevronLeft :size="14" />
-                </button>
+                </Button>
                 <span>{{ page }} / {{ totalPages }}</span>
-                <button class="icon-btn !h-[27px] !w-[27px]" :disabled="page >= totalPages" @click="page++">
+                <Button variant="ghost" size="icon-sm" class="!h-[27px] !w-[27px]" :disabled="page >= totalPages" @click="page++">
                   <ChevronRight :size="14" />
-                </button>
+                </Button>
               </div>
             </div>
           </section>
@@ -185,12 +205,12 @@
                 <StatusBadge :status="selectedRun.status" />
               </div>
               <div class="flex items-center gap-[7px]">
-                <button class="icon-btn !h-7 !w-7" title="原样重跑" :disabled="actionPending" @click="replaySelected">
+                <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" title="原样重跑" :disabled="actionPending" @click="replaySelected">
                   <RotateCcw :size="14" />
-                </button>
-                <button class="icon-btn !h-7 !w-7" title="关闭详情" @click="selectedRunId = ''">
+                </Button>
+                <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" title="关闭详情" @click="selectedRunId = ''">
                   <X :size="15" />
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -198,11 +218,11 @@
               <div class="flex min-h-[48px] items-center justify-between border-b border-dashed border-line px-[13px]">
                 <div class="flex items-center gap-[3px]">
                   <strong class="font-mono text-[12px]">{{ shortId(selectedRun.id, 11) }}</strong>
-                  <button class="icon-btn !h-6 !w-6" title="复制 runId" @click="copyText(selectedRun.id)">
+                  <Button variant="ghost" size="icon-sm" class="!h-6 !w-6" title="复制 runId" @click="copyText(selectedRun.id)">
                     <Copy :size="12" />
-                  </button>
+                  </Button>
                 </div>
-                <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="router.push(`/runs/${selectedRun.id}`)">打开完整详情</button>
+                <Button variant="link" size="xs" class="text-[12px]" @click="router.push(`/runs/${selectedRun.id}`)">打开完整详情</Button>
               </div>
 
               <section class="mx-3 my-2.5 grid grid-cols-2 gap-px overflow-hidden rounded-[7px] border border-line bg-line">
@@ -220,7 +240,7 @@
                   <small class="text-[12px] font-400 text-subtle">{{ completedNodes }}/{{ selectedRun.nodeRuns.length }} 已完成</small>
                 </div>
                 <div class="mt-1.5">
-                  <button
+                  <Button variant="unstyled" type="button"
                     v-for="nodeRun in selectedRun.nodeRuns"
                     :key="nodeRun.nodeId"
                     class="group grid min-h-[27px] w-full grid-cols-[7px_minmax(84px,0.9fr)_minmax(80px,1.3fr)_46px] items-center gap-[7px] border-0 bg-transparent p-0 text-left"
@@ -232,7 +252,7 @@
                       <i class="block h-full rounded-full" :class="nodeRun.status === 'succeeded' ? 'bg-success' : nodeRun.status === 'running' ? 'bg-primary' : nodeRun.status === 'failed' ? 'bg-danger' : 'bg-[#c7ccd6]'" :style="{ width: nodeBarWidth(nodeRun) }" />
                     </span>
                     <span class="text-right text-[12px] text-subtle">{{ formatDuration(nodeRun.durationMs) }}</span>
-                  </button>
+                  </Button>
                 </div>
               </section>
 
@@ -247,14 +267,14 @@
               <section class="mx-3 mb-[11px] overflow-hidden rounded-[6px] bg-[var(--code-bg)]">
                 <div class="flex h-7 items-center justify-between gap-2 px-2 text-[12px] text-[#939bad]">
                   <span>输入快照</span>
-                  <button class="border-0 bg-transparent p-0 text-[12px] text-[#9f97ff]" @click="copyText(JSON.stringify(selectedRun.input, null, 2))">复制 JSON</button>
+                  <Button variant="link" size="xs" class="text-[12px] text-[#9f97ff]" @click="copyText(JSON.stringify(selectedRun.input, null, 2))">复制 JSON</Button>
                 </div>
                 <pre class="m-0 max-h-[150px] overflow-auto px-2.5 py-2 font-mono text-[12px] leading-[1.55] text-[#d8dbe5]">{{ JSON.stringify(selectedRun.input, null, 2) }}</pre>
               </section>
 
               <div class="flex justify-end gap-[7px] px-3 pb-[13px]">
-                <button v-if="canCancel" class="btn btn-danger !h-[31px] text-[12px]" :disabled="actionPending" @click="cancelSelected">取消运行</button>
-                <button class="btn !h-[31px] text-[12px]" :disabled="actionPending" @click="replaySelected"><RotateCcw :size="13" /> 原样重跑</button>
+                <Button v-if="canCancel" variant="destructive" class="h-[31px] text-[12px]" :disabled="actionPending" @click="cancelSelected">取消运行</Button>
+                <Button variant="outline" class="h-[31px] text-[12px]" :disabled="actionPending" @click="replaySelected"><RotateCcw :size="13" /> 原样重跑</Button>
               </div>
             </div>
           </aside>
@@ -265,6 +285,15 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ai-reflow/ui'
 import {
   ChevronLeft,
   ChevronRight,
@@ -295,9 +324,9 @@ import type {
 const router = useRouter()
 const allRuns = ref<RunRecord[]>([])
 const workflowOptions = ref<WorkflowCard[]>([])
-const workflowFilter = ref('')
-const kindFilter = ref('')
-const triggerFilter = ref('')
+const workflowFilter = ref('all')
+const kindFilter = ref('all')
+const triggerFilter = ref('all')
 const statusFilter = ref<'' | 'active' | 'succeeded' | 'failed' | 'cancelled'>('')
 const timeRange = ref<'24h' | '7d' | 'all'>('24h')
 const query = ref('')
@@ -319,14 +348,14 @@ const scopeRuns = computed(() => {
         : 0
   return allRuns.value.filter((run) => {
     if (Date.parse(run.createdAt) < cutoff) return false
-    if (workflowFilter.value && run.workflowId !== workflowFilter.value) return false
-    if (kindFilter.value && run.runKind !== kindFilter.value) return false
+    if (workflowFilter.value !== 'all' && run.workflowId !== workflowFilter.value) return false
+    if (kindFilter.value !== 'all' && run.runKind !== kindFilter.value) return false
     return true
   })
 })
 
 const filteredByScope = computed(() =>
-  scopeRuns.value.filter((run) => !triggerFilter.value || run.trigger === triggerFilter.value),
+  scopeRuns.value.filter((run) => triggerFilter.value === 'all' || run.trigger === triggerFilter.value),
 )
 
 const filteredRuns = computed(() => {
@@ -473,9 +502,9 @@ function nodeBarWidth(nodeRun: NodeRun) {
 
 /** 清除运行列表的全部筛选条件。 */
 function clearFilters() {
-  workflowFilter.value = ''
-  kindFilter.value = ''
-  triggerFilter.value = ''
+  workflowFilter.value = 'all'
+  kindFilter.value = 'all'
+  triggerFilter.value = 'all'
   statusFilter.value = ''
   query.value = ''
   timeRange.value = '24h'

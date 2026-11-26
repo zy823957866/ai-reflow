@@ -8,7 +8,7 @@
         <span class="h-1.5 w-1.5 rounded-full" :class="mcpError ? 'bg-danger' : loading ? 'bg-subtle' : 'bg-muted'" />
         {{ mcpError ? '网关状态异常' : loading ? '网关同步中' : 'MCP 网关 · 本机' }}
       </span>
-      <button class="btn" @click="openHelp">协议文档</button>
+      <Button variant="outline" @click="openHelp">协议文档</Button>
     </div>
   </PageHeaderActions>
 
@@ -19,8 +19,8 @@
             <p class="mb-0 mt-[7px] text-[12px] leading-[1.55] text-subtle">双向 MCP：调用外部工具，也把固定发布版本的工作流暴露给 Claude / Cursor / Codex</p>
           </div>
           <div class="flex items-center gap-2">
-            <button class="btn" @click="settingsOpen = true"><Settings2 :size="14" /> 网关设置</button>
-            <button class="btn btn-primary" @click="addOpen = true"><Plus :size="14" /> 添加 Server</button>
+            <Button variant="outline" @click="settingsOpen = true"><Settings2 :size="14" /> 网关设置</Button>
+            <Button @click="addOpen = true"><Plus :size="14" /> 添加 Server</Button>
           </div>
         </section>
 
@@ -54,18 +54,21 @@
                   <h2 class="m-0 text-[14px]">外部 MCP Server <span class="ml-1 text-[12px] font-500 text-subtle">客户端</span></h2>
                   <p class="mb-0 mt-1 text-[12px] text-subtle">streamable-http &gt; sse &gt; stdio（仅本机自托管）</p>
                 </div>
-                <button class="inline-flex items-center gap-[5px] border-0 bg-transparent p-0 text-[12px]" :class="testingAll ? 'text-subtle' : 'text-primary'" @click="testAllServers">
+                <Button variant="link" size="xs" class="gap-[5px] text-[12px]" :class="testingAll ? 'text-subtle' : 'text-primary'" @click="testAllServers">
                   <RefreshCw :size="12" :class="testingAll ? 'animate-spin' : ''" /> 全部同步
-                </button>
+                </Button>
               </div>
 
               <div class="flex flex-col">
-                <button
+                <div
                   v-for="server in serverList"
                   :key="server.id"
-                  class="grid min-h-[54px] w-full grid-cols-[6px_minmax(0,1fr)_86px_58px_66px_128px] items-center gap-2 border-0 border-b border-line bg-transparent px-3 text-left transition-colors hover:bg-[#fbfbff] last:border-b-0"
+                  role="button"
+                  tabindex="0"
+                  class="grid min-h-[54px] w-full cursor-pointer grid-cols-[6px_minmax(0,1fr)_86px_58px_66px_128px] items-center gap-2 border-0 border-b border-line bg-transparent px-3 text-left transition-colors hover:bg-[#fbfbff] last:border-b-0"
                   :class="selectedServerId === server.id ? 'bg-[#fbfbff] shadow-[inset_2px_0_var(--primary)]' : ''"
                   @click="selectedServerId = server.id"
+                  @keydown.enter="selectedServerId = server.id"
                 >
                   <span class="h-1.5 w-1.5 rounded-full" :class="!server.enabled ? 'bg-subtle' : server.status === 'healthy' ? 'bg-success' : server.status === 'degraded' ? 'bg-warning' : server.status === 'offline' ? 'bg-muted' : 'bg-danger'" />
                   <span class="flex min-w-0 flex-col gap-0.5">
@@ -77,14 +80,14 @@
                   <span class="flex flex-col text-[12px]">{{ server.calls.toLocaleString('zh-CN') }}<small class="text-[12px] text-subtle">今日</small></span>
                   <span class="flex items-center justify-end gap-2">
                     <StatusBadge :status="server.enabled ? server.status : 'disabled'" />
-                    <button
-                      class="h-[18px] w-8 rounded-full p-0.5 transition-colors"
-                      :class="server.enabled ? 'bg-success' : 'bg-[#c7ccd6]'"
+                    <Switch
+                      :model-value="server.enabled"
                       :title="server.enabled ? '停用 Server' : '启用 Server'"
-                      @click.stop="toggleServer(server)"
-                    ><span class="block h-3.5 w-3.5 rounded-full bg-white transition-transform" :class="server.enabled ? 'translate-x-[14px]' : ''" /></button>
+                      @update:model-value="toggleServer(server)"
+                      @click.stop
+                    />
                   </span>
-                </button>
+                </div>
               </div>
               <div class="flex items-start gap-[7px] border-t border-line bg-[var(--surface-2)] px-3.5 py-2 text-[12px] leading-[1.5] text-subtle">
                 <ShieldCheck :size="14" />
@@ -98,9 +101,9 @@
                   <h2 class="m-0 text-[14px]">工具目录 <span class="ml-1 rounded-[4px] bg-primary-soft px-1.5 py-0.5 text-[12px] font-500 text-primary">{{ selectedServer?.name }}</span></h2>
                   <p class="mb-0 mt-1 font-mono text-[12px] text-subtle">schema hash {{ schemaHash }} · {{ schemaRefreshed }}</p>
                 </div>
-                <button class="inline-flex items-center gap-[5px] border-0 bg-transparent p-0 text-[12px] text-primary" @click="refreshSchema">
+                <Button variant="link" size="xs" class="gap-[5px] text-[12px]" @click="refreshSchema">
                   <RefreshCw :size="12" /> 刷新 schema
-                </button>
+                </Button>
               </div>
               <div class="overflow-auto">
                 <table class="w-full min-w-[620px] border-collapse [&_th]:h-[35px] [&_th]:whitespace-nowrap [&_th]:border-b [&_th]:border-line [&_th]:bg-[var(--surface-2)] [&_th]:px-3 [&_th]:py-2.5 [&_th]:text-left [&_th]:text-[12px] [&_th]:font-500 [&_th]:text-subtle [&_td]:border-b [&_td]:border-line [&_td]:px-3 [&_td]:py-2.5 [&_td]:text-[12px] [&_td]:text-muted [&_tbody_tr:last-child_td]:border-b-0">
@@ -129,7 +132,7 @@
                       <td>{{ tool.calls }}</td>
                       <td>{{ tool.latencyMs }}ms</td>
                       <td>
-                        <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="openToolConsole(tool)">测试调用</button>
+                        <Button variant="link" size="xs" class="text-[12px]" @click="openToolConsole(tool)">测试调用</Button>
                       </td>
                     </tr>
                   </tbody>
@@ -137,7 +140,7 @@
               </div>
               <div class="flex items-center justify-between gap-2.5 border-t border-line bg-[var(--surface-2)] px-3.5 py-2 text-[12px] text-subtle">
                 <span><ShieldCheck :size="13" /> 工具输出视为不可信内容；凭证只通过 secret_ref 注入，不进入事件。</span>
-                <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="openToolSchema">查看 schema</button>
+                <Button variant="link" size="xs" class="text-[12px]" @click="openToolSchema">查看 schema</Button>
               </div>
             </section>
           </div>
@@ -146,19 +149,19 @@
             <section class="overflow-hidden rounded-8px bg-[var(--code-bg)] text-[#d8dbe5] shadow-sm">
               <div class="flex h-10 items-center justify-between border-b border-white/10 px-3 text-[12px]">
                 <div class="flex items-center gap-2"><span class="flex items-center gap-1"><i class="h-[5px] w-[5px] rounded-full bg-[#ff6b6b]" /><i class="h-[5px] w-[5px] rounded-full bg-[#ffd166]" /><i class="h-[5px] w-[5px] rounded-full bg-[#53d18a]" /></span><strong class="font-mono text-[12px]">mcp.json</strong></div>
-                <button class="border-0 bg-transparent p-0 text-[12px] text-[#9f97ff]" @click="copyText(clientJson)">复制配置</button>
+                <Button variant="link" size="xs" class="text-[12px] text-[#9f97ff]" @click="copyText(clientJson)">复制配置</Button>
               </div>
               <pre class="m-0 max-h-[260px] overflow-auto px-3 py-3 font-mono text-[12px] leading-[1.65] text-[#d8dbe5]">{{ clientJson }}</pre>
               <div class="flex min-h-[38px] items-center justify-between gap-2.5 border-t border-white/10 px-3 text-[12px] text-[#939bad]">
                 <span>Streamable HTTP · 仅本机</span>
                 <div class="flex gap-0.5">
-                  <button
+                  <Button variant="unstyled" type="button"
                     v-for="client in clientOptions"
                     :key="client"
                     class="h-[19px] rounded-[4px] border-0 px-[5px] text-[12px]"
                     :class="clientTab === client ? 'bg-white/15 text-white' : 'bg-transparent text-[#939bad]'"
                     @click="clientTab = client"
-                  >{{ client }}</button>
+                  >{{ client }}</Button>
                 </div>
               </div>
             </section>
@@ -178,25 +181,27 @@
                     <span class="font-mono text-[12px] text-subtle">v{{ tool.version }} · {{ tool.authMode }} · {{ tool.tokenMask }}</span>
                   </div>
                   <div class="flex items-center gap-1">
-                    <button class="h-[18px] w-8 rounded-full p-0.5 transition-colors" :class="tool.enabled ? 'bg-success' : 'bg-[#c7ccd6]'" @click="toggleWorkflowTool(tool)">
-                      <span class="block h-3.5 w-3.5 rounded-full bg-white transition-transform" :class="tool.enabled ? 'translate-x-[14px]' : ''" />
-                    </button>
-                    <RouterLink
+                    <Switch :model-value="tool.enabled" @update:model-value="toggleWorkflowTool(tool)" />
+                    <Button
                       v-if="tool.versionId"
-                      :to="{ path: `/workflows/${tool.workflowId}/trial`, query: { versionId: tool.versionId } }"
-                      class="icon-btn !h-6 !w-6"
+                      as-child
+                      variant="ghost"
+                      size="icon-sm"
+                      class="!h-6 !w-6"
                       title="打开固定版本"
                     >
-                      <ExternalLink :size="13" />
-                    </RouterLink>
+                      <RouterLink :to="{ path: `/workflows/${tool.workflowId}/trial`, query: { versionId: tool.versionId } }">
+                        <ExternalLink :size="13" />
+                      </RouterLink>
+                    </Button>
                   </div>
                 </div>
               </div>
-              <button class="flex min-h-[37px] w-full items-center gap-[5px] border-0 border-t border-line bg-[var(--surface-2)] px-3 text-left text-[12px] text-muted" @click="copyText('http://127.0.0.1:8787/mcp')">
+              <Button variant="ghost" class="min-h-[37px] w-full justify-start gap-[5px] rounded-none border-t border-line bg-[var(--surface-2)] px-3 text-[12px] font-normal text-muted" @click="copyText('http://127.0.0.1:8787/mcp')">
                 <Server :size="12" />
                 <span class="flex-1 font-mono">POST /mcp · 127.0.0.1:8787</span>
                 <Copy :size="12" />
-              </button>
+              </Button>
             </section>
 
             <section class="surface overflow-hidden">
@@ -205,7 +210,7 @@
                 <span class="inline-flex items-center gap-[5px] rounded-[5px] bg-[var(--surface-3)] px-1.5 py-1 text-[12px] text-subtle"><span class="h-1.5 w-1.5 rounded-full bg-muted" /> trigger=mcp</span>
               </div>
               <div class="flex flex-col">
-                <button
+                <Button variant="unstyled" type="button"
                   v-for="call in recentCalls"
                   :key="call.id"
                   class="grid min-h-[48px] w-full grid-cols-[6px_minmax(0,1fr)_auto_44px] items-center gap-2 border-0 border-b border-dashed border-line bg-transparent px-3 text-left last:border-b-0 hover:bg-[var(--surface-2)]"
@@ -218,76 +223,94 @@
                   </span>
                   <StatusBadge :status="call.status" />
                   <span class="text-right text-[12px] text-subtle">{{ call.duration }}</span>
-                </button>
+                </Button>
               </div>
             </section>
           </aside>
         </div>
   </main>
 
-  <DialogRoot :open="addOpen" @update:open="addOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(620px,calc(100vw-28px))] -translate-1/2 rounded-8px border border-line bg-surface p-[22px] shadow-lg">
+  <Dialog v-model:open="addOpen">
+      <DialogContent class="w-[min(620px,calc(100vw-28px))]" :show-close="false">
         <DialogTitle class="m-0 text-[17px] font-700">添加外部 MCP Server</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           凭证只保存为 secret_ref；远端地址必须通过 allowlist，stdio 仅允许自托管 worker。
         </DialogDescription>
         <div class="flex flex-col gap-2.5">
           <div class="grid grid-cols-2 gap-[9px] max-[620px]:grid-cols-1">
-            <label class="flex flex-col gap-[7px]">
-              <span class="text-[12px] font-600 text-muted">名称</span>
-              <input v-model="newServer.name" placeholder="例如：Linear" />
-            </label>
-            <label class="flex flex-col gap-[7px]">
-              <span class="text-[12px] font-600 text-muted">slug</span>
-              <input v-model="newServer.slug" placeholder="linear" />
-            </label>
+            <div class="flex flex-col gap-[7px]">
+              <Label for="mcp-server-name">名称</Label>
+              <Input id="mcp-server-name" v-model="newServer.name" placeholder="例如：Linear" />
+            </div>
+            <div class="flex flex-col gap-[7px]">
+              <Label for="mcp-server-slug">slug</Label>
+              <Input id="mcp-server-slug" v-model="newServer.slug" placeholder="linear" />
+            </div>
           </div>
-          <label class="flex flex-col gap-[7px]">
-            <span class="text-[12px] font-600 text-muted">transport</span>
-            <select v-model="newServer.transport">
-              <option value="streamable-http">streamable-http</option>
-              <option value="sse">sse</option>
-              <option value="stdio">stdio（仅本机）</option>
-            </select>
-          </label>
-          <label class="flex flex-col gap-[7px]">
-            <span class="text-[12px] font-600 text-muted">{{ newServer.transport === 'stdio' ? 'command' : 'endpoint' }}</span>
-            <input
-              v-model="newServer.endpoint"
-              :placeholder="newServer.transport === 'stdio' ? 'npx -y @example/mcp' : 'https://mcp.example.com'"
+          <div class="flex flex-col gap-[7px]">
+            <Label>transport</Label>
+            <Select v-model="newServer.transport">
+              <SelectTrigger aria-label="transport">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="streamable-http">streamable-http</SelectItem>
+                <SelectItem value="sse">sse</SelectItem>
+                <SelectItem value="stdio">stdio（仅本机）</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div class="flex flex-col gap-[7px]">
+            <Label for="mcp-server-endpoint">{{ newServer.transport === 'stdio' ? 'command' : 'endpoint' }}</Label>
+            <Input
+              id="mcp-server-endpoint"
+              :model-value="serverEndpoint"
+              :placeholder="serverEndpointPlaceholder"
+              @update:model-value="setServerEndpoint"
             />
-          </label>
-          <label class="flex flex-col gap-[7px]">
-            <span class="text-[12px] font-600 text-muted">凭证引用</span>
-            <input v-model="newServer.secretRef" placeholder="secret://workspace/linear" />
+          </div>
+          <div class="flex flex-col gap-[7px]">
+            <Label for="mcp-server-secret">凭证引用</Label>
+            <Input
+              id="mcp-server-secret"
+              :model-value="serverSecretRef"
+              placeholder="secret://workspace/linear"
+              @update:model-value="setServerSecretRef"
+            />
             <span class="text-[12px] leading-[1.55] text-subtle">仅引用，不接受明文 API Key。</span>
-          </label>
-          <label class="flex flex-col gap-[7px]">
-            <span class="text-[12px] font-600 text-muted">允许的 host（逗号分隔）</span>
-            <input v-model="newServer.allowlist" placeholder="mcp.example.com" />
-          </label>
+          </div>
+          <div class="flex flex-col gap-[7px]">
+            <Label for="mcp-server-allowlist">允许的 host（逗号分隔）</Label>
+            <Input
+              id="mcp-server-allowlist"
+              :model-value="serverAllowlist"
+              placeholder="mcp.example.com"
+              @update:model-value="setServerAllowlist"
+            />
+          </div>
           <div v-if="newServerError" class="flex items-center gap-1.5 rounded-[6px] bg-danger-soft p-2 text-[12px] text-danger">
             <CircleAlert :size="14" /> {{ newServerError }}
           </div>
         </div>
-        <div class="mt-5 flex justify-end gap-2">
-          <DialogClose as-child><button class="btn">取消</button></DialogClose>
-          <button class="btn btn-primary" @click="addServer">添加并测试</button>
-        </div>
+        <DialogFooter class="mt-5">
+          <DialogClose as-child><Button variant="outline">取消</Button></DialogClose>
+          <Button @click="addServer">添加并测试</Button>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <div v-if="toolConsoleOpen && activeTool" class="fixed inset-0 z-70 bg-[rgba(18,20,26,0.26)]" @click.self="toolConsoleOpen = false">
-    <aside class="absolute inset-y-0 right-0 flex w-[min(620px,100vw)] flex-col bg-surface shadow-lg">
+  <Dialog :open="toolConsoleOpen && Boolean(activeTool)" @update:open="(open) => !open && (toolConsoleOpen = false)">
+    <DialogContent
+      v-if="activeTool"
+      class="left-auto top-0 flex h-full max-h-none w-[min(620px,100vw)] translate-0 flex-col gap-0 rounded-none border-y-0 border-r-0 p-0"
+      :show-close="false"
+    >
       <div class="flex min-h-[62px] items-center justify-between gap-3.5 border-b border-line px-4 py-3">
         <div>
-          <h2 class="m-0 text-[16px]">{{ activeTool.name }}</h2>
-          <p class="mb-0 mt-1 text-[12px] text-subtle">{{ selectedServer?.name }} · 测试调用，不写入工作流</p>
+          <DialogTitle class="text-[16px]">{{ activeTool.name }}</DialogTitle>
+          <DialogDescription class="mt-1">{{ selectedServer?.name }} · 测试调用，不写入工作流</DialogDescription>
         </div>
-        <button class="icon-btn" @click="toolConsoleOpen = false"><X :size="16" /></button>
+        <Button variant="ghost" size="icon" @click="toolConsoleOpen = false"><X :size="16" /></Button>
       </div>
       <div class="flex-1 overflow-y-auto p-4">
         <div class="flex items-start gap-2 rounded-[6px] bg-info-soft px-2.5 py-2 text-[12px] leading-[1.5] text-info">
@@ -296,24 +319,26 @@
         </div>
         <div v-if="activeTool.destructive" class="mt-2.5 flex items-start gap-2 rounded-[6px] border border-warning/30 bg-warning-soft p-2.5 text-[12px] leading-[1.5] text-warning">
           <CircleAlert :size="14" />
-          <label>
-            <input v-model="destructiveConfirmed" type="checkbox" />
+          <div class="flex items-start gap-2">
+            <Checkbox id="mcp-destructive-confirm" v-model="destructiveConfirmed" class="mt-0.5" />
+            <Label for="mcp-destructive-confirm" class="font-normal leading-[1.5] text-warning">
             我确认这是写操作；测试结果不会清理远端已产生的副作用。
-          </label>
+            </Label>
+          </div>
         </div>
         <section class="mt-3">
           <div class="mb-2 flex items-center justify-between gap-2">
             <strong class="font-mono text-[12px]">arguments</strong>
-            <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="formatToolArgs">格式化</button>
+            <Button variant="link" size="xs" class="text-[12px]" @click="formatToolArgs">格式化</Button>
           </div>
-          <textarea v-model="toolArgsText" class="min-h-[170px] resize-y rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]" rows="8" spellcheck="false" />
+          <Textarea v-model="toolArgsText" class="min-h-[170px] rounded-[6px] border-0 bg-[var(--code-bg)] p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]" rows="8" spellcheck="false" />
           <div v-if="toolArgError" class="mt-2 flex items-center gap-1.5 rounded-[6px] bg-danger-soft p-2 text-[12px] text-danger"><CircleAlert :size="13" /> {{ toolArgError }}</div>
         </section>
-        <button class="btn btn-primary mt-2.5 !h-[34px] w-full text-[12px]" :disabled="toolRunning || (activeTool.destructive && !destructiveConfirmed)" @click="executeTool">
+        <Button class="mt-2.5 !h-[34px] w-full text-[12px]" :disabled="toolRunning || (activeTool.destructive && !destructiveConfirmed)" @click="executeTool">
           <LoaderCircle v-if="toolRunning" :size="14" class="animate-spin" />
           <Play v-else :size="14" />
           {{ toolRunning ? '调用中' : '执行测试调用' }}
-        </button>
+        </Button>
 
         <section v-if="toolResult" class="mt-3">
           <div class="mb-2 flex items-center justify-between gap-2">
@@ -326,22 +351,20 @@
         <section class="mt-3">
           <div class="mb-2 flex items-center justify-between gap-2">
             <strong class="font-mono text-[12px]">inputSchema</strong>
-            <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyText(toolSchemaText)">复制</button>
+            <Button variant="link" size="xs" class="text-[12px]" @click="copyText(toolSchemaText)">复制</Button>
           </div>
           <pre class="m-0 max-h-[260px] overflow-auto rounded-[6px] bg-[var(--code-bg)] p-2.5 font-mono text-[12px] leading-[1.6] text-[#d8dbe5]">{{ toolSchemaText }}</pre>
         </section>
       </div>
       <div class="flex justify-end gap-2 border-t border-line bg-[var(--surface-2)] px-4 py-3">
-        <button class="btn" @click="toolConsoleOpen = false">关闭</button>
-        <button class="btn btn-primary" :disabled="toolRunning" @click="executeTool">执行</button>
+        <Button variant="outline" @click="toolConsoleOpen = false">关闭</Button>
+        <Button :disabled="toolRunning" @click="executeTool">执行</Button>
       </div>
-    </aside>
-  </div>
+    </DialogContent>
+  </Dialog>
 
-  <DialogRoot :open="settingsOpen" @update:open="settingsOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(470px,calc(100vw-28px))] -translate-1/2 rounded-8px border border-line bg-surface p-[22px] shadow-lg">
+  <Dialog v-model:open="settingsOpen">
+      <DialogContent class="w-[min(470px,calc(100vw-28px))]" :show-close="false">
         <DialogTitle class="m-0 text-[17px] font-700">MCP 网关设置</DialogTitle>
         <DialogDescription class="mb-[13px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           本地开发默认监听回环地址。向非回环地址暴露时必须启用访问凭证。
@@ -356,12 +379,11 @@
           <ShieldCheck :size="14" />
           <span>OAuth、Resources、Prompts 与自动健康巡检属于 P1，当前未接入。</span>
         </div>
-        <div class="mt-5 flex justify-end gap-2">
-          <DialogClose as-child><button class="btn">关闭</button></DialogClose>
-        </div>
+        <DialogFooter class="mt-5">
+          <DialogClose as-child><Button variant="outline">关闭</Button></DialogClose>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -383,14 +405,24 @@ import {
   X,
 } from 'lucide-vue-next'
 import {
+  Button,
+  Checkbox,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
+  DialogFooter,
   DialogTitle,
-} from 'reka-ui'
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Textarea,
+} from '@ai-reflow/ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import {
@@ -474,6 +506,12 @@ const newServer = reactive({
   secretRef: '',
   allowlist: '',
 })
+const serverEndpoint = computed(() => newServer.endpoint)
+const serverEndpointPlaceholder = computed(() =>
+  newServer.transport === 'stdio' ? 'npx -y @example/mcp' : 'https://mcp.example.com',
+)
+const serverSecretRef = computed(() => newServer.secretRef)
+const serverAllowlist = computed(() => newServer.allowlist)
 const newServerError = ref('')
 const toolConsoleOpen = ref(false)
 const activeToolName = ref('')
@@ -791,6 +829,21 @@ async function refreshSchema() {
   } finally {
     testingAll.value = false
   }
+}
+
+/** 更新 MCP Server endpoint 或 command。 */
+function setServerEndpoint(value: string | number) {
+  newServer.endpoint = String(value)
+}
+
+/** 更新 MCP Server 凭证引用。 */
+function setServerSecretRef(value: string | number) {
+  newServer.secretRef = String(value)
+}
+
+/** 更新 MCP Server host 白名单。 */
+function setServerAllowlist(value: string | number) {
+  newServer.allowlist = String(value)
 }
 
 /** 校验表单并添加外部 MCP Server。 */

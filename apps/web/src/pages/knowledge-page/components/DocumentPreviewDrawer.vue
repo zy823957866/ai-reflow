@@ -8,20 +8,20 @@
             {{ document.extension.toUpperCase() }} · {{ document.size }} · {{ document.chunks }} chunks
           </p>
         </div>
-        <button class="icon-btn" aria-label="关闭预览" @click="$emit('close')"><X :size="16" /></button>
+        <Button variant="ghost" size="icon-sm" aria-label="关闭预览" @click="$emit('close')"><X :size="16" /></Button>
       </header>
 
       <div class="min-h-0 flex-1 overflow-y-auto p-4">
         <div class="flex min-h-10 flex-wrap items-center gap-2 text-[12px] text-subtle">
           <StatusBadge :status="documentBadgeStatus(document)" />
           <span v-if="preview?.previewStatus">预览：{{ preview.previewStatus }}</span>
-          <button v-if="document.error" class="border-0 bg-transparent p-0 text-danger" @click="$emit('showError', document)">
+          <Button v-if="document.error" variant="link" size="xs" class="text-danger" @click="$emit('showError', document)">
             查看错误
-          </button>
-          <button v-if="document.status === 'failed'" class="border-0 bg-transparent p-0 text-primary" @click="$emit('retry', document)">
+          </Button>
+          <Button v-if="document.status === 'failed'" variant="link" size="xs" @click="$emit('retry', document)">
             重试失败阶段
-          </button>
-          <button class="ml-auto border-0 bg-transparent p-0 text-primary" @click="$emit('rebuild', document)">重建索引</button>
+          </Button>
+          <Button variant="link" size="xs" class="ml-auto" @click="$emit('rebuild', document)">重建索引</Button>
         </div>
 
         <div class="mt-3 grid min-h-[390px] grid-cols-[minmax(0,1.1fr)_minmax(250px,0.9fr)] gap-2.5 max-[980px]:grid-cols-1">
@@ -57,7 +57,7 @@
               <small class="text-[12px] text-subtle">{{ chunks.length }} 条</small>
             </div>
             <div class="min-h-0 flex-1 overflow-y-auto">
-              <button
+              <Button variant="unstyled" type="button"
                 v-for="chunk in chunks"
                 :key="chunk.id"
                 class="mx-1.5 mt-1.5 flex w-[calc(100%-12px)] flex-col items-start gap-1 rounded-[6px] border p-2 text-left"
@@ -68,7 +68,7 @@
                 <strong class="text-[12px]">{{ chunk.title }}</strong>
                 <p class="m-0 line-clamp-3 text-[12px] leading-[1.45] text-muted">{{ chunk.content }}</p>
                 <span class="text-[12px] text-subtle">{{ chunk.location }} · {{ chunk.tokens }} tokens</span>
-              </button>
+              </Button>
               <div v-if="!chunks.length && !chunksLoading" class="flex min-h-60 items-center justify-center text-[12px] text-subtle">
                 没有可展示的切片。
               </div>
@@ -100,8 +100,8 @@
       </div>
 
       <footer class="flex shrink-0 justify-end gap-2 border-t border-line bg-[var(--surface-2)] px-4 py-3">
-        <button class="btn" @click="copyChunks">复制切片</button>
-        <button class="btn btn-primary" @click="$emit('close')">关闭预览</button>
+        <Button variant="outline" @click="copyChunks">复制切片</Button>
+        <Button @click="$emit('close')">关闭预览</Button>
       </footer>
     </aside>
   </div>
@@ -110,6 +110,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { FileSearch, LoaderCircle, X } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { DocumentChunkDto, KnowledgePreviewDto } from '@/services/reflowApi'
 import type { KnowledgeDocument } from '../types'

@@ -1,11 +1,13 @@
 <template>
-  <button
-    class="icon-btn fixed left-[13px] top-[13px] z-35 hidden border-line bg-white/90 shadow-sm max-md:inline-flex"
+  <Button
+    variant="outline"
+    size="icon-sm"
+    class="fixed left-[13px] top-[13px] z-35 hidden border-line bg-white/90 shadow-sm max-md:inline-flex"
     aria-label="打开导航"
     @click="menuOpen = true"
   >
     <MenuIcon :size="19" />
-  </button>
+  </Button>
   <Transition
     enter-active-class="transition-opacity duration-180"
     leave-active-class="transition-opacity duration-180"
@@ -69,6 +71,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
+import { Button } from '@ai-reflow/ui'
 import {
   Activity,
   BookOpen,

@@ -15,9 +15,9 @@
         <CircleAlert v-else :size="13" />
         {{ readinessReady ? '就绪' : `${blockers.length} 项阻断` }}
       </span>
-      <button class="btn btn-ghost h-[29px] px-[9px] text-[12px] max-[900px]:hidden" @click="callInfoOpen = true">
+      <Button variant="ghost" class="h-[29px] px-[9px] text-[12px] max-[900px]:hidden" @click="callInfoOpen = true">
         <Code2 :size="14" /> 调用信息
-      </button>
+      </Button>
     </div>
   </PageHeaderActions>
 
@@ -33,8 +33,8 @@
           <h1 class="mb-0 mt-[5px] text-[22px] text-ink">缺少固定版本</h1>
           <p class="m-0 max-w-[500px] text-[12px] leading-[1.7]">试运行必须从发布成功页、版本列表或工作流快捷入口携带 <code>versionId</code> 打开，页面不会隐式使用最新版本。</p>
           <div class="mt-[9px] flex gap-2">
-            <RouterLink :to="`/workflows/${workflowId}/versions`" class="btn">选择发布版本</RouterLink>
-            <RouterLink :to="`/workflows/${workflowId}`" class="btn btn-primary">返回编辑器</RouterLink>
+            <Button as-child variant="outline"><RouterLink :to="`/workflows/${workflowId}/versions`">选择发布版本</RouterLink></Button>
+            <Button as-child><RouterLink :to="`/workflows/${workflowId}`">返回编辑器</RouterLink></Button>
           </div>
         </div>
 
@@ -42,7 +42,7 @@
           <FileQuestion :size="30" class="text-warning" />
           <h1 class="mb-0 mt-[5px] text-[22px] text-ink">{{ loadError ? '固定版本加载失败' : '版本不存在' }}</h1>
           <p class="m-0 max-w-[520px] text-[12px] leading-[1.7]">{{ loadError || `固定版本 ${versionId} 不存在或当前工作区无权访问。` }}</p>
-          <RouterLink :to="`/workflows/${workflowId}/versions`" class="btn btn-primary mt-[9px]">返回版本列表</RouterLink>
+          <Button as-child class="mt-[9px]"><RouterLink :to="`/workflows/${workflowId}/versions`">返回版本列表</RouterLink></Button>
         </div>
 
         <template v-else>
@@ -69,14 +69,14 @@
               <span class="shrink-0 text-subtle">{{ item.label }}</span>
               <strong class="truncate text-[12px]" :class="readinessToneClass(item.tone)">{{ item.summary }}</strong>
             </div>
-            <button
+            <Button variant="unstyled" type="button"
               class="inline-flex min-h-[45px] items-center gap-[5px] border-0 bg-surface-2 px-[15px] py-[13px] text-[12px] text-subtle max-[620px]:w-full max-[620px]:justify-center"
               @click="readinessOpen = !readinessOpen"
             >
               {{ blockers.length ? `${blockers.length} 项阻断` : '就绪' }}
               <span v-if="warnings.length">· {{ warnings.length }} 项警告</span>
               <ChevronDown :size="13" class="transition-transform" :class="readinessOpen ? 'rotate-[-90deg]' : ''" />
-            </button>
+            </Button>
           </section>
 
           <section v-if="readinessOpen" class="surface mt-2 px-[13px] py-2.5">
@@ -97,10 +97,10 @@
             <TriangleAlert :size="15" />
             <span class="min-w-0 flex-1">真实执行：使用生产配置与凭证，可能产生模型费用、HTTP 请求或 MCP 工具副作用。</span>
             <div v-if="hasSideEffect" class="max-sm:w-full max-sm:pl-[22px]">
-              <label class="flex items-center gap-[5px] whitespace-nowrap text-muted max-sm:whitespace-normal">
-                <input v-model="sideEffectConfirmed" type="checkbox" />
+              <Label class="flex items-center gap-[5px] whitespace-nowrap font-normal text-muted max-sm:whitespace-normal">
+                <Checkbox v-model="sideEffectConfirmed" />
                 我确认执行带副作用的工具
-              </label>
+              </Label>
             </div>
           </section>
 
@@ -112,8 +112,8 @@
                   <p class="mb-0 mt-1 text-[12px] text-subtle">固定版本的 <span class="mono">start.inputSchema</span></p>
                 </div>
                 <div class="inline-flex gap-0.5 rounded-[7px] border border-line bg-surface-2 p-0.75">
-                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'form' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('form')">表单</button>
-                  <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'json' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('json')">JSON</button>
+                  <Button variant="unstyled" type="button" class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'form' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('form')">表单</Button>
+                  <Button variant="unstyled" type="button" class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="inputMode === 'json' ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="switchInputMode('json')">JSON</Button>
                 </div>
               </div>
 
@@ -131,37 +131,33 @@
                   </span>
                   <p v-if="field.description" class="-mt-0.5 mb-0.25 text-[12px] text-subtle">{{ field.description }}</p>
 
-                  <input
+                  <Input
                     v-if="field.type === 'string'"
-                    v-model="inputData[field.name] as string"
+                    :model-value="String(inputData[field.name] ?? '')"
                     class="min-h-9 rounded-[6px] px-2.5 py-2 text-[12px]"
                     :placeholder="field.description"
+                    @update:model-value="inputData[field.name] = String($event)"
                   />
-                  <input
+                  <Input
                     v-else-if="field.type === 'number'"
-                    v-model.number="inputData[field.name]"
+                    :model-value="numberFieldValue(field.name)"
                     class="min-h-9 rounded-[6px] px-2.5 py-2 text-[12px]"
                     type="number"
+                    @update:model-value="setNumberField(field.name, $event)"
                   />
-                  <button
+                  <Switch
                     v-else-if="field.type === 'boolean'"
-                    type="button"
-                    class="relative h-[21px] w-[38px] rounded-full border p-0 transition-colors"
-                    :class="Boolean(inputData[field.name]) ? 'border-primary bg-primary' : 'border-border-strong bg-surface-3'"
-                    @click="inputData[field.name] = !inputData[field.name]"
-                  >
-                    <span
-                      class="absolute left-[3px] top-[3px] h-[13px] w-[13px] rounded-full bg-white transition-transform"
-                      :class="Boolean(inputData[field.name]) ? 'translate-x-[17px]' : ''"
-                    />
-                  </button>
-                  <textarea
+                    class="h-[21px] w-[38px]"
+                    :model-value="Boolean(inputData[field.name])"
+                    @update:model-value="(value) => inputData[field.name] = value"
+                  />
+                  <Textarea
                     v-else
-                    :value="complexFieldText(field.name)"
+                    :model-value="complexFieldText(field.name)"
                     class="min-h-[78px] resize-y rounded-[6px] px-2.5 py-2 font-mono text-[12px]"
                     rows="4"
                     spellcheck="false"
-                    @input="updateComplexField(field.name, ($event.target as HTMLTextAreaElement).value)"
+                    @update:model-value="updateComplexField(field.name, String($event))"
                   />
                   <span v-if="fieldErrors[field.name]" class="text-[12px] leading-[1.45] text-danger">{{ fieldErrors[field.name] }}</span>
                 </label>
@@ -174,9 +170,9 @@
               <div v-else class="px-3.5 pt-[13px]">
                 <div class="flex h-[27px] items-center justify-between rounded-t-[7px] border border-[#292d39] border-b-0 bg-[#1d202a] px-2 font-mono text-[12px] text-[#939bad]">
                   <span>input.json</span>
-                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="formatJson">格式化</button>
+                  <Button variant="link" size="xs" class="text-[12px]" @click="formatJson">格式化</Button>
                 </div>
-                <textarea
+                <Textarea
                   v-model="jsonDraft"
                   class="min-h-[275px] rounded-b-[7px] border-[#292d39] bg-[var(--code-bg)] p-[11px] font-mono text-[12px] leading-[1.65] text-[#d8dbe5]"
                   spellcheck="false"
@@ -189,21 +185,21 @@
                 <span>{{ inputError }}</span>
               </div>
 
-              <button
-                class="mx-3.5 mb-2 mt-auto flex h-10 items-center justify-center gap-[7px] rounded-[7px] border border-primary bg-primary text-[12px] font-600 text-white disabled:cursor-not-allowed disabled:border-line disabled:bg-surface-3 disabled:text-subtle"
+              <Button
+                class="mx-3.5 mb-2 mt-auto h-10 text-[12px] font-600"
                 :disabled="!canRun"
                 @click="startTrial"
               >
                 <LoaderCircle v-if="isRunning" :size="16" class="animate-spin" />
                 <Play v-else :size="16" />
                 {{ isRunning ? '真实执行中' : '运行（真实执行）' }}
-              </button>
+              </Button>
 
               <div class="flex min-h-8 items-center justify-between px-3.5 pb-3 text-[12px] text-subtle">
                 <span>超时 120s · {{ hasSideEffect ? '写工具需二次确认' : '只读工具' }}</span>
-                <button v-if="isRunning" class="inline-flex items-center gap-1 border-0 bg-transparent text-[12px] text-danger" @click="cancelTrial">
+                <Button v-if="isRunning" variant="link" size="xs" class="text-danger" @click="cancelTrial">
                   <Square :size="12" /> 取消运行
-                </button>
+                </Button>
               </div>
             </article>
 
@@ -270,8 +266,8 @@
                 <p class="mb-0 mt-1 text-[12px] text-subtle">固定版本 v{{ version.version }} · 默认仅显示 <span class="mono">manual_trial</span></p>
               </div>
               <div class="inline-flex gap-0.5 rounded-[7px] border border-line bg-surface-2 p-0.75">
-                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="!allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = false">本版本试运行</button>
-                <button class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = true">全部 trigger</button>
+                <Button variant="unstyled" type="button" class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="!allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = false">本版本试运行</Button>
+                <Button variant="unstyled" type="button" class="h-[25px] rounded-[5px] border-0 px-[9px] text-[12px]" :class="allTriggers ? 'bg-ink text-white' : 'bg-transparent text-subtle'" @click="allTriggers = true">全部 trigger</Button>
               </div>
             </div>
 
@@ -281,7 +277,7 @@
               </div>
               <div v-for="run in versionRuns" :key="run.id" class="grid min-h-[43px] min-w-[760px] grid-cols-[80px_116px_76px_64px_minmax(130px,1fr)_82px_118px] items-center gap-[9px] border-b border-line px-3.5 text-[12px] text-muted last:border-b-0">
                 <StatusBadge :status="run.status" />
-                <button class="mono w-fit border-0 bg-transparent p-0 text-[12px] text-muted" @click="router.push(`/runs/${run.id}`)">{{ shortRunId(run.id) }}</button>
+                <Button variant="link" size="xs" class="mono w-fit text-[12px] text-muted" @click="router.push(`/runs/${run.id}`)">{{ shortRunId(run.id) }}</Button>
                 <span>{{ triggerLabel(run.trigger) }}</span>
                 <span>{{ formatRunDuration(run) }}</span>
                 <span class="min-w-0 truncate">
@@ -291,8 +287,8 @@
                 </span>
                 <span>{{ formatTime(run.createdAt) }}</span>
                 <div class="flex justify-end gap-2">
-                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="router.push(`/runs/${run.id}`)">打开运行</button>
-                  <button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="replayHistoryRun(run)">重跑</button>
+                  <Button variant="link" size="xs" @click="router.push(`/runs/${run.id}`)">打开运行</Button>
+                  <Button variant="link" size="xs" @click="replayHistoryRun(run)">重跑</Button>
                 </div>
               </div>
             </div>
@@ -304,16 +300,14 @@
         </template>
   </main>
 
-  <DialogRoot :open="callInfoOpen" @update:open="callInfoOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)]" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-81 w-[min(540px,calc(100vw-32px))] -translate-1/2 rounded-8px border border-line bg-surface p-[22px] shadow-lg">
+  <Dialog v-model:open="callInfoOpen">
+      <DialogContent class="w-[min(540px,calc(100vw-32px))]" :show-close="false">
         <DialogTitle class="m-0 text-[17px] font-700">固定版本调用信息</DialogTitle>
         <DialogDescription class="mb-[15px] mt-1.5 text-[12px] leading-[1.6] text-subtle">
           外部调用只运行当前发布版本，不会读取草稿。凭证以掩码或 secret_ref 展示。
         </DialogDescription>
         <div class="mt-[9px] flex flex-col gap-1.5 rounded-[7px] border border-line bg-surface-2 p-2.5">
-          <div class="flex items-center justify-between text-[12px] text-subtle"><span>HTTP</span><button class="border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyText('http-endpoint')">复制</button></div>
+          <div class="flex items-center justify-between text-[12px] text-subtle"><span>HTTP</span><Button variant="link" size="xs" class="text-[12px]" @click="copyText('http-endpoint')">复制</Button></div>
           <code id="http-endpoint" class="break-words font-mono text-[12px]">POST http://127.0.0.1:8787/api/workflows/{{ workflowId }}/runs</code>
           <small class="text-[12px] text-subtle">body.workflowVersionId = {{ versionId }}</small>
         </div>
@@ -322,12 +316,11 @@
           <code class="break-words font-mono text-[12px]">入站暴露与 POST /mcp 完成联调后显示真实 endpoint</code>
           <small class="text-[12px] text-[#939bad]">当前页面不会伪造 MCP 工具名或访问凭证。</small>
         </div>
-        <div class="mt-[18px] flex justify-end">
-          <DialogClose as-child><button class="btn">关闭</button></DialogClose>
-        </div>
+        <DialogFooter class="mt-[18px]">
+          <DialogClose as-child><Button variant="outline">关闭</Button></DialogClose>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -354,14 +347,19 @@ import {
   TriangleAlert,
 } from 'lucide-vue-next'
 import {
+  Button,
+  Checkbox,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
+  DialogFooter,
   DialogTitle,
-} from 'reka-ui'
+  Input,
+  Label,
+  Switch,
+  Textarea,
+} from '@ai-reflow/ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import ExecutionTabs from '@/workflow/shared/ExecutionTabs.vue'
@@ -720,6 +718,25 @@ function formatJson() {
  */
 function complexFieldText(key: string) {
   return JSON.stringify(inputData[key] ?? [], null, 2)
+}
+
+/**
+ * 写入数值输入字段。
+ * @param key 输入字段键。
+ * @param value 输入控件返回的文本或数字。
+ */
+function setNumberField(key: string, value: string | number) {
+  inputData[key] = typeof value === 'number' ? value : Number(value)
+}
+
+/**
+ * 读取数值输入字段。
+ * @param key 输入字段键。
+ * @returns 数值或空字符串。
+ */
+function numberFieldValue(key: string): string | number {
+  const current = inputData[key]
+  return typeof current === 'number' ? current : ''
 }
 
 /**

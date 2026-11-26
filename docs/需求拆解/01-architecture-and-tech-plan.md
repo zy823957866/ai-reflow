@@ -1,7 +1,7 @@
 # 01 架构与技术方案
 
 > 状态：整理稿，可作为架构评审基线。
-> 技术约束：Vue 3.5.27+、Vite、UnoCSS、Reka UI、@xyflow/vue（Vue Flow 2）；NestJS + PostgreSQL/pgvector + Redis/BullMQ；P0 不做登录鉴权。
+> 技术约束：Vue 3.5.27+、Vite、UnoCSS、shadcn-vue 组件约定（底层使用 Reka UI）、@xyflow/vue（Vue Flow 2）；NestJS + PostgreSQL/pgvector + Redis/BullMQ；P0 不做登录鉴权。
 > 技术栈与目录结构见 2.2/2.3；包合并与依赖方向见第 3 节。
 > 关联模块：02 工作流与画布、03 属性面板、04 运行时与日志、05 节点目录、06 知识库、07 MCP、08 模型与 Skills、09/10 市场、12 流程设计器子应用。
 
@@ -94,7 +94,7 @@ flowchart LR
 | 前端框架 | Vue | 3.5.27+ | 工作流工作室 | 满足 `@xyflow/vue` peer；不使用 React/Next.js |
 | 构建 | Vite | 7.x | web 开发与构建 | 不使用 Webpack |
 | 原子化 CSS | UnoCSS | 0.6x | 设计令牌与 shortcuts | 不与 Tailwind 混用 |
-| Headless UI | Reka UI | 2.x | 无样式、可访问组件 | 业务代码不直接依赖第三方原语 |
+| UI 组件层 | shadcn-vue + Reka UI | - | `@ai-reflow/ui` 统一维护 Button、Input、Select、Dialog 等组件 | 页面只从 `@ai-reflow/ui` 导入；业务代码不直接依赖 Reka UI；Toast 使用 Vue Sonner |
 | 画布 | `@xyflow/vue`（Vue Flow 2）+ dagre/elkjs | 2.x | 节点、边、Handle、缩略图、布局 | 同一包内置 Background/Controls/MiniMap；超过 300 节点启用性能模式 |
 | 客户端状态 | Pinia | 3.x | 编辑器命令栈与 UI 状态 | 服务端数据不进 Pinia |
 | 服务端数据 | TanStack Query Vue | 5.x | 缓存、失效、轮询、错误态 | 组件不直接 `fetch` |
@@ -254,7 +254,7 @@ packages/tooling/src/{config,testkit,fixtures}/
 | `@ai-reflow/capabilities` | `reflow-nodes`、`reflow-providers`、`reflow-knowledge`、`reflow-mcp` | `/nodes`、`/providers`、`/knowledge`、`/mcp` | 内置节点实现、模型/embedding/rerank 适配、解析与向量、MCP 客户端 |
 | `@ai-reflow/marketplace` | `reflow-registry`、`reflow-plugin-sdk` | `/registry`、`/plugin-sdk` | manifest、semver、依赖解析、checksum/签名、catalog、插件类型与测试 harness |
 | `@ai-reflow/platform` | `db`、`reflow-observability` 的落库部分 | `/db`、`/queue`、`/storage`、`/observability` | Drizzle schema/迁移、Repository、队列/SSE/对象存储适配、Pino/redaction |
-| `@ai-reflow/ui` | `ui` | - | 设计令牌、Reka UI 封装、共享业务组件 |
+| `@ai-reflow/ui` | `ui` | - | 设计令牌、shadcn-vue 组件源码与导出、共享 UI 组件 |
 | `@ai-reflow/tooling` | `config`、`testkit` | `/config`、`/testkit` | tsconfig/eslint/unocss/vitest 基座、fixture、Testcontainers helper |
 
 ### 3.3 Apps 收敛
@@ -666,7 +666,7 @@ type RunEvent = {
 | `APP-F02` | 路由与深链 | `/`、`/workflows/:id`、`/workflows/:id/trial`、`/runs/:id`、`/nodes`、`/mcp`、`/models`、`/skills`、市场路由 |
 | `APP-F03` | 统一 API client | 由 OpenAPI 生成；组件禁止裸 `fetch` |
 | `APP-F04` | 查询缓存 | TanStack Query 管服务端数据；Pinia 管画布/UI 临时态 |
-| `APP-F05` | 设计系统 | 令牌、Reka UI 封装、Lucide 图标、暗色模式 |
+| `APP-F05` | 设计系统 | 令牌、`@ai-reflow/ui` shadcn-vue 组件、Lucide 图标、暗色模式 |
 | `APP-F06` | 通用状态 | loading / empty / error / no-permission / unsaved |
 | `APP-F07` | 键盘与可访问性 | 焦点管理、快捷键、对话/抽屉焦点回收 |
 | `APP-F08` | 国际化 | `vue-i18n`；P0 至少抽出文案 key |

@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, rm } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import { chromium } from '@playwright/test'
 
@@ -37,9 +38,11 @@ async function startPreview() {
   if (!existsSync(path.resolve('apps/web/dist/index.html'))) {
     throw new Error('未找到 apps/web/dist/index.html，请先运行 pnpm build。')
   }
-  const viteCli = path.resolve('node_modules/vite/bin/vite.js')
+  const webRequire = createRequire(path.resolve('apps/web/package.json'))
+  const vitePackage = webRequire.resolve('vite/package.json')
+  const viteCli = path.join(path.dirname(vitePackage), 'bin/vite.js')
   previewProcess = spawn(process.execPath, [viteCli, 'preview', '--host', '127.0.0.1', '--port', '4173'], {
-    cwd: process.cwd(),
+    cwd: path.resolve('apps/web'),
     stdio: 'ignore',
     windowsHide: true,
   })
@@ -529,6 +532,16 @@ async function auditKnowledgeErrorToast(browser, failures, outputDir) {
   const toastText = await toast.innerText()
   if (!toastText.includes('知识库列表加载失败') || !toastText.includes('SMOKE_KNOWLEDGE_FAILURE')) {
     failures.push('知识库接口失败未显示包含错误码的 Toast')
+  }
+  const toastBox = await toast.boundingBox()
+  if (
+    !toastBox ||
+    toastBox.width < 300 ||
+    toastBox.width > 420 ||
+    toastBox.y > 120 ||
+    Math.abs(toastBox.x + toastBox.width - 1424) > 2
+  ) {
+    failures.push(`Toast 未固定在右上角 390px 卡片区域：${JSON.stringify(toastBox)}`)
   }
   const inlineError = await page.locator('main').getByText('知识库列表加载失败', { exact: true }).count()
   if (inlineError) failures.push('知识库接口失败仍保留内联错误占位')

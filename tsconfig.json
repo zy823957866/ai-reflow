@@ -26,16 +26,10 @@
       "@ai-reflow/engine": ["packages/engine/src/index.ts"],
       "@ai-reflow/engine/*": ["packages/engine/src/*"],
       "@ai-reflow/capabilities": ["packages/capabilities/src/index.ts"],
-      "@ai-reflow/capabilities/*": ["packages/capabilities/src/*"]
+      "@ai-reflow/capabilities/*": ["packages/capabilities/src/*"],
+      "@ai-reflow/ui": ["packages/ui/src/index.ts"],
+      "@ai-reflow/ui/*": ["packages/ui/src/*"]
     }
   },
-  "include": [
-    "apps/web/src/**/*.ts",
-    "apps/web/src/**/*.vue",
-    "vite.config.ts",
-    "packages/core/src/**/*.ts",
-    "packages/platform/src/**/*.ts",
-    "packages/engine/src/**/*.ts",
-    "packages/capabilities/src/**/*.ts"
-  ]
+  "files": []
 }

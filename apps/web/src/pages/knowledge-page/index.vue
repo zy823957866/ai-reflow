@@ -88,7 +88,7 @@
 
     <div data-testid="knowledge-mobile" class="flex h-full min-h-0 flex-col md:hidden">
       <div class="mb-2.5 grid shrink-0 grid-cols-3 rounded-[7px] border border-line bg-[var(--surface-2)] p-[3px]">
-        <button
+        <Button variant="unstyled" type="button"
           v-for="pane in mobilePanes"
           :key="pane.value"
           :data-testid="`knowledge-mobile-tab-${pane.value}`"
@@ -97,7 +97,7 @@
           @click="mobilePane = pane.value"
         >
           {{ pane.label }}
-        </button>
+        </Button>
       </div>
       <div class="min-h-0 flex-1">
         <KnowledgeGroupPanel
@@ -166,6 +166,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { Button } from '@ai-reflow/ui'
 import { ApiError } from '@/api/client'
 import {
   createKnowledgeBase,

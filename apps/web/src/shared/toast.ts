@@ -1,6 +1,4 @@
-import { createToastManager } from 'reka-ui'
-
-export const toastManager = createToastManager()
+import { toast } from 'vue-sonner'
 
 export interface ErrorToastOptions {
   title: string
@@ -14,21 +12,14 @@ export interface ErrorToastOptions {
  * @param options 错误标题、详情和可选重试动作。
  */
 export function notifyError(options: ErrorToastOptions) {
-  let toastId = ''
-  toastId = toastManager.add({
-    title: options.title,
+  toast.error(options.title, {
     description: options.description,
-    status: 'error',
-    type: 'foreground',
     duration: options.retry ? 9000 : 6000,
-    actionProps: options.retry
+    testId: 'app-toast',
+    action: options.retry
       ? {
           label: '重试',
-          altText: `重试：${options.title}`,
-          onClick: () => {
-            toastManager.close(toastId)
-            options.retry?.()
-          },
+          onClick: options.retry,
         }
       : undefined,
   })

@@ -13,16 +13,16 @@
       <CircleAlert :size="25" class="text-danger" />
       <strong class="mt-1 text-13px">{{ loadError.code }}</strong>
       <p class="m-0 text-[12px] leading-1.55 text-subtle">{{ loadError.message }}</p>
-      <button class="btn btn-primary" @click="initialize">重新加载</button>
+      <Button @click="initialize">重新加载</Button>
     </div>
   </div>
 
   <div v-else class="workflow-designer flex h-100vh w-full flex-col overflow-hidden bg-canvas">
     <header class="designer-header z-8 flex h-62px items-center justify-between gap-16px border-b border-line bg-surface px-15px">
       <div class="header-left flex min-w-0 items-center gap-8px">
-        <button class="back-button icon-btn h-30px w-30px" title="返回工作流列表" @click="$emit('leave')">
+        <Button variant="ghost" size="icon-sm" class="back-button !h-30px !w-30px" title="返回工作流列表" @click="$emit('leave')">
           <ArrowLeft :size="18" />
-        </button>
+        </Button>
         <div class="breadcrumb flex min-w-0 items-center gap-7px">
           <span class="text-[12px] text-muted">工作流</span>
           <ChevronRight :size="12" class="text-subtle" />
@@ -57,30 +57,31 @@
           <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[12px] font-600 text-white" style="background: #2d6cdf">周</span>
           <span class="inline-flex h-22px w-22px items-center justify-center -ml-5px border-2 border-surface rounded-full text-[12px] font-600 text-white" style="background: #0e9f6e">陈</span>
         </div>
-        <button class="icon-btn" title="撤销 Ctrl+Z" :disabled="!canUndo" @click="undo">
+        <Button variant="ghost" size="icon-sm" title="撤销 Ctrl+Z" :disabled="!canUndo" @click="undo">
           <Undo2 :size="16" />
-        </button>
-        <button class="icon-btn" title="重做 Ctrl+Shift+Z" :disabled="!canRedo" @click="redo">
+        </Button>
+        <Button variant="ghost" size="icon-sm" title="重做 Ctrl+Shift+Z" :disabled="!canRedo" @click="redo">
           <Redo2 :size="16" />
-        </button>
+        </Button>
         <span class="header-divider mx-4px h-22px w-1px bg-line" />
-        <button
-          class="validation-chip inline-flex h-32px items-center gap-5px border-0 rounded-6px px-9px text-[12px]"
+        <Button
+          variant="ghost"
+          class="validation-chip h-32px rounded-6px px-9px text-[12px]"
           :class="validation.valid ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'"
           @click="validateNow"
         >
           <CheckCircle2 v-if="validation.valid" :size="14" />
           <TriangleAlert v-else :size="14" />
           {{ validation.valid ? `校验通过 · ${definition.nodes.length} 节点` : `${validation.errors.length} 项校验错误` }}
-        </button>
-        <button class="btn h-32px px-11px text-[12px]" :disabled="readonlyMode || activeRun?.status === 'running'" @click="openPreviewDialog">
+        </Button>
+        <Button variant="outline" class="draft-preview-button h-32px px-11px text-[12px]" :disabled="readonlyMode || activeRun?.status === 'running'" @click="openPreviewDialog">
           <Play :size="14" />
           草稿预览
-        </button>
-        <button class="btn btn-primary h-32px px-11px text-[12px]" :disabled="readonlyMode" @click="requestPublish">
+        </Button>
+        <Button class="h-32px px-11px text-[12px]" :disabled="readonlyMode" @click="requestPublish">
           <Send :size="14" />
           发布
-        </button>
+        </Button>
       </div>
     </header>
 
@@ -90,7 +91,7 @@
           <BrandMark />
         </div>
         <div class="rail-items flex w-full flex-col items-center gap-4px px-7px pt-5px">
-          <button
+          <Button variant="unstyled" type="button"
             class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)"
             :class="paletteOpen || rightPanelOpen && rightMode === 'inspector' ? 'bg-primary-soft text-primary' : ''"
             title="节点与 Inspector"
@@ -98,27 +99,27 @@
           >
             <LayoutGrid :size="18" />
             <span class="text-[12px]">节点</span>
-          </button>
-          <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="变量" @click="openPalette">
+          </Button>
+          <Button variant="unstyled" type="button" class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="变量" @click="openPalette">
             <Variable :size="18" />
             <span class="text-[12px]">变量</span>
-          </button>
-          <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="知识库" @click="openPalette">
+          </Button>
+          <Button variant="unstyled" type="button" class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="知识库" @click="openPalette">
             <BookOpen :size="18" />
             <span class="text-[12px]">知识</span>
-          </button>
-          <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="工具" @click="openPalette">
+          </Button>
+          <Button variant="unstyled" type="button" class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="工具" @click="openPalette">
             <Wrench :size="18" />
             <span class="text-[12px]">工具</span>
-          </button>
-          <button class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="运行历史" @click="rightMode = 'run'; rightPanelOpen = true">
+          </Button>
+          <Button variant="unstyled" type="button" class="rail-item flex h-46px w-46px flex-col items-center justify-center gap-3px border-0 rounded-7px bg-transparent text-subtle transition-colors hover:(bg-surface-3 text-muted)" title="运行历史" @click="rightMode = 'run'; rightPanelOpen = true">
             <History :size="18" />
             <span class="text-[12px]">历史</span>
-          </button>
+          </Button>
         </div>
         <div class="rail-bottom mt-auto flex flex-col items-center gap-7px py-14px">
-          <button class="rail-icon flex h-32px w-32px items-center justify-center border-0 rounded-6px bg-transparent text-subtle hover:bg-surface-3" title="帮助"><CircleHelp :size="18" /></button>
-          <button class="rail-icon flex h-32px w-32px items-center justify-center border-0 rounded-6px bg-transparent text-subtle hover:bg-surface-3" title="设计器设置"><Settings :size="18" /></button>
+          <Button variant="unstyled" type="button" class="rail-icon flex h-32px w-32px items-center justify-center border-0 rounded-6px bg-transparent text-subtle hover:bg-surface-3" title="帮助"><CircleHelp :size="18" /></Button>
+          <Button variant="unstyled" type="button" class="rail-icon flex h-32px w-32px items-center justify-center border-0 rounded-6px bg-transparent text-subtle hover:bg-surface-3" title="设计器设置"><Settings :size="18" /></Button>
         </div>
       </nav>
 
@@ -155,8 +156,8 @@
             <strong class="text-[12px]">草稿已在其他会话更新</strong>
             <span class="text-[12px] text-muted">本地修改仍保留。可导出本地草稿，或重新加载服务端摘要。</span>
           </div>
-          <button class="btn h-28px px-8px text-[12px]" @click="exportLocalDraft">导出本地草稿</button>
-          <button class="btn h-28px px-8px text-[12px]" @click="reloadFromServer">重新加载</button>
+          <Button variant="outline" class="h-28px px-8px text-[12px]" @click="exportLocalDraft">导出本地草稿</Button>
+          <Button variant="outline" class="h-28px px-8px text-[12px]" @click="reloadFromServer">重新加载</Button>
         </div>
         <div
           v-if="notification"
@@ -165,7 +166,7 @@
         >
           <Info :size="14" />
           <span>{{ notification.message }}</span>
-          <button class="ml-5px flex border-0 bg-transparent p-2px text-subtle" @click="notification = null"><X :size="13" /></button>
+          <Button variant="ghost" size="icon-sm" class="ml-5px !h-5 !w-5" @click="notification = null"><X :size="13" /></Button>
         </div>
       </section>
 
@@ -200,13 +201,13 @@
                   <h2 class="mb-0 ml-0 mr-0 mt-4px text-14px">{{ activeRun ? `运行 ${activeRun.id.slice(-8)}` : '运行控制台' }}</h2>
                   <p class="mb-0 ml-0 mr-0 mt-3px text-[12px] text-subtle">草稿预览不绑定发布版本</p>
                 </div>
-                <button class="icon-btn" @click="rightMode = 'inspector'; rightPanelOpen = false"><X :size="16" /></button>
+                <Button variant="ghost" size="icon-sm" @click="rightMode = 'inspector'; rightPanelOpen = false"><X :size="16" /></Button>
               </div>
               <div v-if="activeRun" class="run-strip mx-13px mt-12px overflow-hidden border border-line rounded-7px">
                 <div class="run-strip-head flex h-38px items-center gap-8px border-b border-line bg-primary-soft px-10px text-[12px] text-muted">
                   <StatusBadge :status="activeRun.status" />
                   <span class="ml-auto">{{ nodeRunStatusesCount.succeeded }}/{{ definition.nodes.length }} 节点 · {{ elapsedLabel }}</span>
-                  <button v-if="activeRun.status === 'running'" class="border-0 bg-transparent text-[12px] text-danger" @click="cancelPreview">取消</button>
+                  <Button v-if="activeRun.status === 'running'" variant="link" size="xs" class="text-danger" @click="cancelPreview">取消</Button>
                 </div>
                 <div class="node-run-list max-h-160px overflow-y-auto px-10px py-6px">
                   <div
@@ -244,7 +245,7 @@
                 <PlayCircle :size="28" />
                 <strong class="text-12px text-muted">尚未运行草稿</strong>
                 <span class="text-[12px] leading-1.55">输入运行参数后，节点状态会实时叠加到画布，不覆盖配置。</span>
-                <button class="btn btn-primary mt-5px h-32px text-[12px]" @click="openPreviewDialog"><Play :size="14" /> 开始预览</button>
+                <Button class="mt-5px h-32px text-[12px]" @click="openPreviewDialog"><Play :size="14" /> 开始预览</Button>
               </div>
               <ExecutionTabs
                 v-if="activeRun"
@@ -255,12 +256,12 @@
                 readonly
               />
               <div v-if="activeRun" class="run-actions flex justify-between gap-8px border-t border-line px-13px py-9px">
-                <button class="btn h-31px text-[12px]" :disabled="activeRun.status === 'running'" @click="runAgain">
+                <Button variant="outline" class="h-31px text-[12px]" :disabled="activeRun.status === 'running'" @click="runAgain">
                   <RefreshCw :size="14" /> 原样重跑
-                </button>
-                <button class="btn btn-ghost h-31px text-[12px]" @click="rightMode = 'inspector'; rightPanelOpen = true">
+                </Button>
+                <Button variant="ghost" class="h-31px text-[12px]" @click="rightMode = 'inspector'; rightPanelOpen = true">
                   查看节点配置
-                </button>
+                </Button>
               </div>
             </div>
           </template>
@@ -268,31 +269,26 @@
       </Transition>
     </div>
 
-    <DialogRoot :open="previewDialogOpen" @update:open="previewDialogOpen = $event">
-      <DialogPortal>
-        <DialogOverlay class="dialog-overlay fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
-        <DialogContent class="dialog-content small-dialog fixed left-1/2 top-1/2 z-81 w-[min(460px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px shadow-[var(--shadow-lg)]">
+    <Dialog v-model:open="previewDialogOpen">
+        <DialogContent class="w-[min(460px,calc(100vw-32px))]" :show-close="false">
           <DialogTitle class="dialog-title m-0 text-17px font-700">草稿预览输入</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             预览使用当前草稿定义，不生成发布版本。表单与 JSON 使用同一份输入。
           </DialogDescription>
           <div class="dialog-field mt-13px flex flex-col gap-6px">
-            <label class="text-[12px] font-600 text-muted">输入 JSON</label>
-            <textarea v-model="previewInputJson" class="preview-input-json min-h-170px font-mono text-[12px]" spellcheck="false" />
+            <Label>输入 JSON</Label>
+            <Textarea v-model="previewInputJson" class="preview-input-json min-h-170px font-mono text-[12px]" spellcheck="false" />
             <div v-if="previewInputError" class="field-error">{{ previewInputError }}</div>
           </div>
-          <div class="dialog-actions mt-20px flex justify-end gap-8px">
-            <DialogClose as-child><button class="btn">取消</button></DialogClose>
-            <button class="btn btn-primary" @click="startPreview"><Play :size="14" /> 运行草稿</button>
-          </div>
+          <DialogFooter class="mt-20px">
+            <DialogClose as-child><Button variant="outline">取消</Button></DialogClose>
+            <Button @click="startPreview"><Play :size="14" /> 运行草稿</Button>
+          </DialogFooter>
         </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
+    </Dialog>
 
-    <DialogRoot :open="publishDialogOpen" @update:open="publishDialogOpen = $event">
-      <DialogPortal>
-        <DialogOverlay class="dialog-overlay fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
-        <DialogContent class="dialog-content fixed left-1/2 top-1/2 z-81 w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px shadow-[var(--shadow-lg)]">
+    <Dialog v-model:open="publishDialogOpen">
+        <DialogContent class="w-[min(520px,calc(100vw-32px))]" :show-close="false">
           <DialogTitle class="dialog-title m-0 text-17px font-700">发布不可变版本</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
             发布前会完成服务端编译校验，并把当前 Manifest 版本与定义固化为快照。
@@ -303,25 +299,22 @@
             <div class="flex min-h-66px flex-col gap-4px bg-surface-2 p-10px"><CheckCircle2 :size="15" class="text-success" /><span class="text-[12px] text-subtle">校验结果</span><strong class="text-[12px]">{{ validation.valid ? '通过' : `${validation.errors.length} 项错误` }}</strong></div>
           </div>
           <div class="dialog-field mt-13px flex flex-col gap-6px">
-            <label class="text-[12px] font-600 text-muted">版本说明</label>
-            <textarea v-model="changelog" rows="4" placeholder="说明本次发布的变化，例如：优化低置信度转人工分支。" class="px-10px py-9px leading-1.55" />
+            <Label>版本说明</Label>
+            <Textarea v-model="changelog" rows="4" placeholder="说明本次发布的变化，例如：优化低置信度转人工分支。" class="px-10px py-9px leading-1.55" />
           </div>
-          <div class="dialog-actions mt-20px flex justify-end gap-8px">
-            <DialogClose as-child><button class="btn">取消</button></DialogClose>
-            <button class="btn btn-primary" :disabled="publishing || !validation.valid" @click="confirmPublish">
+          <DialogFooter class="mt-20px">
+            <DialogClose as-child><Button variant="outline">取消</Button></DialogClose>
+            <Button :disabled="publishing || !validation.valid" @click="confirmPublish">
               <LoaderCircle v-if="publishing" :size="14" class="animate-spin" />
               <Send v-else :size="14" />
               {{ publishing ? '发布中...' : '确认发布' }}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
+    </Dialog>
 
-    <DialogRoot :open="publishSuccessOpen" @update:open="publishSuccessOpen = $event">
-      <DialogPortal>
-        <DialogOverlay class="dialog-overlay fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)] backdrop-blur-[2px]" />
-        <DialogContent class="dialog-content success-dialog fixed left-1/2 top-1/2 z-81 w-[min(520px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 border border-line rounded-8px bg-surface p-22px text-center shadow-[var(--shadow-lg)]">
+    <Dialog v-model:open="publishSuccessOpen">
+        <DialogContent class="w-[min(520px,calc(100vw-32px))] text-center" :show-close="false">
           <div class="success-icon mx-auto mb-12px flex h-54px w-54px items-center justify-center rounded-full bg-success-soft text-success"><CheckCircle2 :size="26" /></div>
           <DialogTitle class="dialog-title m-0 text-17px font-700">版本 v{{ publishedVersion }} 已发布</DialogTitle>
           <DialogDescription class="dialog-description mb-15px ml-0 mr-0 mt-6px text-[12px] leading-1.6 text-subtle">
@@ -331,13 +324,12 @@
             <span class="mono text-[12px] text-muted">{{ publishedVersionId }}</span>
             <span>schemaHash {{ publishedSchemaHash }}</span>
           </div>
-          <div class="dialog-actions mt-20px flex justify-center gap-8px">
-            <DialogClose as-child><button class="btn">留在编辑器</button></DialogClose>
-            <button class="btn btn-primary" @click="goToTrial">打开固定版本试运行</button>
-          </div>
+          <DialogFooter class="mt-20px justify-center">
+            <DialogClose as-child><Button variant="outline">留在编辑器</Button></DialogClose>
+            <Button @click="goToTrial">打开固定版本试运行</Button>
+          </DialogFooter>
         </DialogContent>
-      </DialogPortal>
-    </DialogRoot>
+    </Dialog>
   </div>
 </template>
 
@@ -351,14 +343,16 @@ import {
   watch,
 } from 'vue'
 import {
+  Button,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
+  DialogFooter,
   DialogTitle,
-} from 'reka-ui'
+  Label,
+  Textarea,
+} from '@ai-reflow/ui'
 import {
   ArrowLeft,
   BookOpen,
@@ -1308,8 +1302,8 @@ defineExpose({
     margin-left: auto;
   }
 
-  .header-right > .icon-btn,
-  .header-right > .btn:first-of-type {
+  .header-right > .ui-button--icon-sm,
+  .header-right > .draft-preview-button {
     display: none;
   }
 

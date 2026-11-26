@@ -1,16 +1,16 @@
 <template>
   <PageHeaderActions>
     <div class="flex min-w-0 items-center justify-end gap-2">
-      <label class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
+      <div class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
             <Search :size="14" class="shrink-0 text-subtle" />
-            <input
+            <Input
               v-model="searchInput"
               class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none outline-none"
               placeholder="搜索插件、能力、发布者..."
             />
             <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[12px] text-subtle">⌘K</kbd>
-          </label>
-          <button class="icon-btn" title="市场设置" @click="settingsOpen = true"><Settings :size="15" /></button>
+          </div>
+          <Button variant="ghost" size="icon" title="市场设置" @click="settingsOpen = true"><Settings :size="15" /></Button>
     </div>
   </PageHeaderActions>
 
@@ -24,73 +24,73 @@
           </div>
           <div class="flex flex-wrap items-center gap-2">
             <div class="management-segment">
-              <button :class="{ selected: viewMode === 'discover' }" @click="viewMode = 'discover'">
+              <Button variant="unstyled" type="button" :class="{ selected: viewMode === 'discover' }" @click="viewMode = 'discover'">
                 <Compass :size="12" /> 发现
-              </button>
-              <button :class="{ selected: viewMode === 'installed' }" @click="viewMode = 'installed'">
+              </Button>
+              <Button variant="unstyled" type="button" :class="{ selected: viewMode === 'installed' }" @click="viewMode = 'installed'">
                 <PackageCheck :size="12" /> 已安装 <span>{{ installs.length }}</span>
-              </button>
+              </Button>
             </div>
-            <button class="btn" @click="syncCatalog">
+            <Button variant="outline" @click="syncCatalog">
               <RefreshCw :size="13" :class="{ 'animate-spin': syncing }" />
               {{ syncing ? '同步中...' : '同步目录' }}
-            </button>
+            </Button>
           </div>
         </section>
 
         <section class="grid grid-cols-2 gap-2.5 md:grid-cols-3 xl:grid-cols-5">
-          <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('')">
+          <Button variant="unstyled" type="button" class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-primary-soft text-primary"><Store :size="18" /></span>
             <span>
               <span class="block text-[12px] text-subtle">官方目录</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ pluginEntries.length }}</strong>
             </span>
-          </button>
-          <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('all')">
+          </Button>
+          <Button variant="unstyled" type="button" class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('all')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-success-soft text-success"><PackageCheck :size="18" /></span>
             <span>
               <span class="block text-[12px] text-subtle">已安装</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ installs.length }}</strong>
             </span>
-          </button>
-          <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('update_available')">
+          </Button>
+          <Button variant="unstyled" type="button" class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('update_available')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-primary-soft text-primary"><RefreshCw :size="18" /></span>
             <span>
               <span class="block text-[12px] text-subtle">可更新</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ updateCount }}</strong>
             </span>
-          </button>
-          <button class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('config_required')">
+          </Button>
+          <Button variant="unstyled" type="button" class="surface flex min-h-76px items-center gap-3 p-4 text-left" @click="openInstalledFilter('config_required')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-warning-soft text-warning"><KeyRound :size="18" /></span>
             <span>
               <span class="block text-[12px] text-subtle">待配置</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ configRequiredCount }}</strong>
             </span>
-          </button>
-          <button class="surface col-span-2 flex min-h-76px items-center gap-3 p-4 text-left md:col-span-1" @click="openInstalledFilter('failed')">
+          </Button>
+          <Button variant="unstyled" type="button" class="surface col-span-2 flex min-h-76px items-center gap-3 p-4 text-left md:col-span-1" @click="openInstalledFilter('failed')">
             <span class="flex h-9 w-9 items-center justify-center rounded-7px bg-danger-soft text-danger"><TriangleAlert :size="18" /></span>
             <span>
               <span class="block text-[12px] text-subtle">异常</span>
               <strong class="mt-1 block text-18px leading-none text-ink">{{ failedCount }}</strong>
             </span>
-          </button>
+          </Button>
         </section>
 
         <div v-if="pluginError" class="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-7px border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
           <span>{{ pluginError }}</span>
-          <button class="border-0 bg-transparent p-0 text-[12px] text-danger underline" @click="loadPage">重试</button>
+          <Button variant="link" size="xs" class="text-[12px] text-danger underline" @click="loadPage">重试</Button>
         </div>
 
         <section class="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-1.5">
-            <button
+            <Button variant="unstyled" type="button"
               class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
               :class="{ '!border-ink !bg-ink !text-white': kindFilter === 'all' }"
               @click="kindFilter = 'all'"
             >
               全部 <span class="opacity-70">{{ pluginEntries.length }}</span>
-            </button>
-            <button
+            </Button>
+            <Button variant="unstyled" type="button"
               v-for="kind in pluginKinds"
               :key="kind.value"
               class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
@@ -98,29 +98,44 @@
               @click="kindFilter = kind.value"
             >
               {{ kind.label }} <span class="opacity-70">{{ kindCount(kind.value) }}</span>
-            </button>
+            </Button>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <select v-if="viewMode === 'discover'" v-model="secondaryFilter" class="management-select" aria-label="次级筛选">
-              <option value="">全部来源</option>
-              <option value="official">官方 / 已验证</option>
-              <option value="installed">已安装</option>
-              <option value="update">可更新</option>
-            </select>
-            <select v-else v-model="secondaryFilter" class="management-select" aria-label="安装状态筛选">
-              <option value="">全部状态</option>
-              <option value="enabled">已启用</option>
-              <option value="disabled">已禁用</option>
-              <option value="config_required">需配置</option>
-              <option value="update_available">可更新</option>
-              <option value="failed">异常</option>
-            </select>
-            <select v-model="sortMode" class="management-select" aria-label="排序">
-              <option value="recommended">推荐</option>
-              <option value="updated">最近更新</option>
-              <option value="name">名称</option>
-              <option value="installs">安装量</option>
-            </select>
+            <Select v-if="viewMode === 'discover'" v-model="secondaryFilter">
+              <SelectTrigger class="w-auto min-w-[112px]" aria-label="次级筛选">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部来源</SelectItem>
+                <SelectItem value="official">官方 / 已验证</SelectItem>
+                <SelectItem value="installed">已安装</SelectItem>
+                <SelectItem value="update">可更新</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select v-else v-model="secondaryFilter">
+              <SelectTrigger class="w-auto min-w-[112px]" aria-label="安装状态筛选">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部状态</SelectItem>
+                <SelectItem value="enabled">已启用</SelectItem>
+                <SelectItem value="disabled">已禁用</SelectItem>
+                <SelectItem value="config_required">需配置</SelectItem>
+                <SelectItem value="update_available">可更新</SelectItem>
+                <SelectItem value="failed">异常</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select v-model="sortMode">
+              <SelectTrigger class="w-auto min-w-[112px]" aria-label="排序">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recommended">推荐</SelectItem>
+                <SelectItem value="updated">最近更新</SelectItem>
+                <SelectItem value="name">名称</SelectItem>
+                <SelectItem value="installs">安装量</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </section>
 
@@ -131,7 +146,7 @@
           <SearchX :size="23" />
           <strong class="text-12px text-ink">{{ loading ? '正在加载插件目录' : '没有匹配插件' }}</strong>
           <span class="text-[12px]">{{ loading ? '正在读取 registry 与安装记录…' : viewMode === 'installed' ? '当前筛选下没有已安装插件。' : '调整关键词或切换类别。' }}</span>
-          <button class="btn" @click="clearFilters">清除筛选</button>
+          <Button variant="outline" @click="clearFilters">清除筛选</Button>
         </div>
 
         <section v-else class="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -181,13 +196,15 @@
               <span class="text-[12px] text-subtle">
                 {{ latestVersion(entry)?.verification.license }} · {{ compactNumber(entry.installs) }} 次安装
               </span>
-              <button
-                class="inline-flex h-7 items-center gap-1 rounded-5px px-2 text-[12px] font-600"
+              <Button
+                variant="ghost"
+                size="xs"
+                class="h-7 gap-1 px-2 font-600"
                 :class="entryAction(entry).buttonClass"
                 @click.stop="runEntryAction(entry)"
               >
                 {{ entryAction(entry).label }} <ArrowRight :size="11" />
-              </button>
+              </Button>
             </div>
           </article>
         </section>
@@ -220,53 +237,59 @@
                 </span>
               </div>
               <div class="flex flex-wrap items-center gap-1.5">
-                <button class="btn h-7 px-2 text-[12px]" @click="openDetail(getEntry(install.entryId)!)">详情</button>
-                <button
+                <Button variant="outline" size="xs" class="h-7 px-2 text-[12px]" @click="openDetail(getEntry(install.entryId)!)">详情</Button>
+                <Button
                   v-if="hasUpdate(install)"
-                  class="btn btn-primary h-7 px-2 text-[12px]"
+                  size="xs"
+                  class="h-7 px-2 text-[12px]"
                   @click="openPlan(getEntry(install.entryId)!, 'upgrade')"
                 >
                   查看升级计划
-                </button>
-                <button
+                </Button>
+                <Button
                   v-if="install.status === 'config_required'"
-                  class="btn btn-primary h-7 px-2 text-[12px]"
+                  size="xs"
+                  class="h-7 px-2 text-[12px]"
                   @click="openCredential(getEntry(install.entryId)!)"
                 >
                   配置凭据
-                </button>
-                <button
+                </Button>
+                <Button
                   v-if="install.enabled"
-                  class="btn h-7 px-2 text-[12px]"
+                  variant="outline"
+                  size="xs"
+                  class="h-7 px-2 text-[12px]"
                   @click="togglePlugin(install.installId, false)"
                 >
                   禁用
-                </button>
-                <button
+                </Button>
+                <Button
                   v-else-if="install.status !== 'failed'"
-                  class="btn h-7 px-2 text-[12px]"
+                  variant="outline"
+                  size="xs"
+                  class="h-7 px-2 text-[12px]"
                   @click="togglePlugin(install.installId, true)"
                 >
                   启用
-                </button>
-                <button
+                </Button>
+                <Button
                   v-if="install.previousVersion"
-                  class="btn h-7 px-2 text-[12px]"
+                  variant="outline"
+                  size="xs"
+                  class="h-7 px-2 text-[12px]"
                   @click="openPlan(getEntry(install.entryId)!, 'rollback')"
                 >
                   回滚
-                </button>
-                <button class="btn btn-danger h-7 px-2 text-[12px]" @click="uninstall(install.installId)">卸载</button>
+                </Button>
+                <Button variant="destructive" size="xs" class="h-7 px-2 text-[12px]" @click="uninstall(install.installId)">卸载</Button>
               </div>
             </div>
           </div>
         </section>
   </main>
 
-  <DialogRoot :open="Boolean(detailEntry)" @update:open="(open) => !open && (detailEntry = null)">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-70 bg-[rgba(18,20,26,0.26)]" />
-      <DialogContent class="fixed inset-y-0 right-0 z-71 flex w-[min(720px,100vw)] flex-col bg-surface shadow-lg outline-none">
+  <Dialog :open="Boolean(detailEntry)" @update:open="(open) => !open && (detailEntry = null)">
+      <DialogContent class="left-auto top-0 flex h-full max-h-none w-[min(720px,100vw)] translate-0 flex-col gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0" :show-close="false">
         <header class="flex min-h-70px items-center justify-between gap-4 border-b border-line px-5">
           <div class="flex min-w-0 items-center gap-3">
             <span
@@ -282,7 +305,7 @@
               </DialogDescription>
             </div>
           </div>
-          <DialogClose as-child><button class="icon-btn" title="关闭插件详情"><X :size="16" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" title="关闭插件详情" aria-label="关闭插件详情"><X :size="16" /></Button></DialogClose>
         </header>
         <div v-if="detailEntry" class="flex-1 overflow-y-auto px-5 py-4">
           <div class="flex flex-wrap items-center gap-2">
@@ -306,14 +329,14 @@
           <p class="mb-0 mt-4 text-[12px] leading-1.7 text-muted">{{ detailEntry.description }}</p>
 
           <div class="management-segment mt-4">
-            <button
+            <Button variant="unstyled" type="button"
               v-for="tab in detailTabs"
               :key="tab.value"
               :class="{ selected: detailTab === tab.value }"
               @click="detailTab = tab.value"
             >
               {{ tab.label }}
-            </button>
+            </Button>
           </div>
 
           <div v-if="detailTab === 'overview'" class="mt-4">
@@ -457,33 +480,28 @@
             {{ installFor(detailEntry?.id ?? '') ? `已安装 v${installFor(detailEntry?.id ?? '')?.version}` : '尚未安装' }}
           </span>
           <div class="flex flex-wrap gap-2">
-            <button class="btn" @click="openCredential(detailEntry!)" :disabled="!installFor(detailEntry?.id ?? '')">
+            <Button variant="outline" @click="openCredential(detailEntry!)" :disabled="!installFor(detailEntry?.id ?? '')">
               <KeyRound :size="13" /> 凭据
-            </button>
-            <button
+            </Button>
+            <Button
               v-if="installFor(detailEntry?.id ?? '')?.status === 'config_required'"
-              class="btn btn-primary"
               @click="openCredential(detailEntry!)"
             >
               配置凭据
-            </button>
-            <button
+            </Button>
+            <Button
               v-else-if="planActionFor(detailEntry!)"
-              class="btn btn-primary"
               @click="openPlan(detailEntry!, planActionFor(detailEntry!)!)"
             >
               {{ planButtonLabel(detailEntry!) }}
-            </button>
+            </Button>
           </div>
         </footer>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="Boolean(planEntry)" @update:open="(open) => !open && closePlan()">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.3)]" />
-      <DialogContent class="fixed inset-y-0 right-0 z-81 flex w-[min(680px,100vw)] flex-col bg-surface shadow-lg outline-none">
+  <Dialog :open="Boolean(planEntry)" @update:open="(open) => !open && closePlan()">
+      <DialogContent class="left-auto top-0 flex h-full max-h-none w-[min(680px,100vw)] translate-0 flex-col gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0" :show-close="false">
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">安装计划 · {{ planEntry?.name }}</DialogTitle>
@@ -491,12 +509,12 @@
               {{ activePlan?.action }} · {{ activePlan?.fromVersion ?? '未安装' }} → v{{ activePlan?.toVersion }}
             </DialogDescription>
           </div>
-          <DialogClose as-child><button class="icon-btn" title="关闭安装计划"><X :size="16" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" title="关闭安装计划" aria-label="关闭安装计划"><X :size="16" /></Button></DialogClose>
         </header>
 
         <div v-if="activePlan" class="border-b border-line bg-[var(--surface-2)] px-5 py-3">
           <div class="grid grid-cols-5 gap-1">
-            <button
+            <Button variant="unstyled" type="button"
               v-for="(step, index) in planSteps"
               :key="step"
               class="flex min-w-0 items-center gap-1.5 rounded-5px px-1 py-1.5 text-left text-[12px]"
@@ -510,7 +528,7 @@
                 {{ index + 1 }}
               </span>
               <span class="truncate">{{ step }}</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -689,13 +707,13 @@
               </ul>
             </div>
 
-            <label
+            <Label
               v-if="activePlan.highRisk"
-              class="mt-3 flex items-start gap-2 rounded-7px border border-warning/30 bg-warning-soft p-3 text-[12px] text-muted"
+              class="mt-3 flex items-start gap-2 rounded-7px border border-warning/30 bg-warning-soft p-3 font-normal text-muted"
             >
-              <input v-model="highRiskConfirmed" type="checkbox" />
+              <Checkbox v-model="highRiskConfirmed" class="mt-0.5" />
               <span>我已审查网络、文件、代码、MCP 与资源权限，并确认继续安装。</span>
-            </label>
+            </Label>
 
             <div class="mt-3 rounded-7px border border-line bg-[var(--surface-2)] p-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
@@ -720,41 +738,37 @@
 
         <footer v-if="activePlan" class="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-[var(--surface-2)] px-5 py-3">
           <div class="flex items-center gap-2">
-            <button class="btn" :disabled="planLoading || planStep === 0" @click="planStep -= 1">上一步</button>
-            <button v-if="planStep < 4" class="btn" :disabled="planLoading" @click="planStep += 1">下一步</button>
-            <button v-if="planExpired" class="btn" :disabled="planLoading" @click="refreshPlan">重新计算</button>
+            <Button variant="outline" :disabled="planLoading || planStep === 0" @click="planStep -= 1">上一步</Button>
+            <Button v-if="planStep < 4" variant="outline" :disabled="planLoading" @click="planStep += 1">下一步</Button>
+            <Button v-if="planExpired" variant="outline" :disabled="planLoading" @click="refreshPlan">重新计算</Button>
           </div>
           <div class="flex items-center gap-2">
             <span v-if="!activePlan?.canInstall" class="text-[12px] text-danger">缺少有效 checksum、签名、许可证或依赖</span>
-            <button
-              class="btn btn-primary"
+            <Button
               :disabled="planLoading || !activePlan?.planId || !activePlan.canInstall || planExpired || installing || (activePlan.highRisk && !highRiskConfirmed)"
               @click="confirmInstall"
             >
               <LoaderCircle v-if="installing" :size="14" class="animate-spin" />
               <Download v-else :size="14" />
               {{ installing ? '安装中...' : '确认安装' }}
-            </button>
+            </Button>
           </div>
         </footer>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="Boolean(credentialEntry)" @update:open="(open) => !open && (credentialEntry = null)">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-90 bg-[rgba(18,20,26,0.3)]" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-91 w-[min(460px,calc(100vw-32px))] -translate-x-1/2 -translate-y-1/2 rounded-8px border border-line bg-surface p-5 shadow-lg outline-none">
+  <Dialog :open="Boolean(credentialEntry)" @update:open="(open) => !open && (credentialEntry = null)">
+      <DialogContent class="w-[min(460px,calc(100vw-32px))]" :show-close="false">
         <div class="flex items-start justify-between gap-3">
           <div>
             <DialogTitle class="text-15px font-700 text-ink">配置插件凭据</DialogTitle>
             <DialogDescription class="mt-1 block text-[12px] text-subtle">只接受 secret_ref；明文不会发送到前端或日志。</DialogDescription>
           </div>
-          <DialogClose as-child><button class="icon-btn" title="关闭凭据配置"><X :size="15" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" title="关闭凭据配置" aria-label="关闭凭据配置"><X :size="15" /></Button></DialogClose>
         </div>
         <div v-if="credentialEntry" class="mt-4">
-          <label class="field-label" for="plugin-secret-ref">{{ selectedCredential?.key ?? 'secret_ref' }}</label>
-          <input
+          <Label for="plugin-secret-ref">{{ selectedCredential?.key ?? 'secret_ref' }}</Label>
+          <Input
             id="plugin-secret-ref"
             v-model="secretRef"
             class="mt-2 font-mono"
@@ -764,29 +778,26 @@
             配置后凭据仍只显示掩码；禁用或卸载不会删除 secret_ref 和历史权限。
           </p>
         </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <button class="btn" @click="credentialEntry = null">取消</button>
-          <button class="btn btn-primary" @click="saveCredential">保存 secret_ref</button>
-        </div>
+        <DialogFooter class="mt-4">
+          <Button variant="outline" @click="credentialEntry = null">取消</Button>
+          <Button @click="saveCredential">保存 secret_ref</Button>
+        </DialogFooter>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="settingsOpen" @update:open="settingsOpen = $event">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-90 bg-[rgba(18,20,26,0.26)]" />
-      <DialogContent class="fixed inset-y-0 right-0 z-91 flex w-[min(520px,100vw)] flex-col bg-surface shadow-lg outline-none">
+  <Dialog v-model:open="settingsOpen">
+      <DialogContent class="left-auto top-0 flex h-full max-h-none w-[min(520px,100vw)] translate-0 flex-col gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0" :show-close="false">
         <header class="flex min-h-64px items-center justify-between border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">市场设置</DialogTitle>
             <DialogDescription class="mt-1 block text-[12px] text-subtle">目录、签名策略和网络 allowlist</DialogDescription>
           </div>
-          <DialogClose as-child><button class="icon-btn"><X :size="15" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" aria-label="关闭市场设置"><X :size="15" /></Button></DialogClose>
         </header>
         <div class="flex-1 overflow-y-auto px-5 py-4">
           <div class="field">
-            <label class="field-label">Catalog 源</label>
-          <input :value="syncStatus?.source ?? '未加载'" readonly />
+            <Label>Catalog 源</Label>
+          <Input :model-value="syncStatus?.source ?? '未加载'" readonly />
           </div>
           <div class="mt-4 grid grid-cols-2 gap-2">
             <div class="rounded-7px border border-line p-3">
@@ -799,17 +810,23 @@
             </div>
           </div>
           <div class="mt-4 field">
-            <label class="field-label">签名策略</label>
-            <select disabled><option>服务端策略（只读）</option></select>
+            <Label>签名策略</Label>
+            <Select model-value="server" disabled>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="server">服务端策略（只读）</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div class="mt-4 field">
-            <label class="field-label">网络策略</label>
-            <textarea rows="4" readonly>{{ syncStatus?.syncedAt ? `最近同步：${syncStatus.syncedAt}\n远程同步尚未接入` : '当前仅启用本地 seed catalog' }}</textarea>
+            <Label>网络策略</Label>
+            <Textarea rows="4" readonly :model-value="syncStatus?.syncedAt ? `最近同步：${syncStatus.syncedAt}\n远程同步尚未接入` : '当前仅启用本地 seed catalog'" />
           </div>
         </div>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -846,14 +863,23 @@ import {
   X,
 } from 'lucide-vue-next'
 import {
+  Button,
+  Checkbox,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
+  DialogFooter,
   DialogTitle,
-} from 'reka-ui'
+  Input,
+  Label,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Textarea,
+} from '@ai-reflow/ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import StatusBadge from '@/components/StatusBadge.vue'
 import {
@@ -894,7 +920,7 @@ const searchInput = ref('')
 const debouncedSearch = ref('')
 const viewMode = ref<'discover' | 'installed'>('discover')
 const kindFilter = ref<'all' | PluginKind>('all')
-const secondaryFilter = ref('')
+const secondaryFilter = ref('all')
 const sortMode = ref<'recommended' | 'updated' | 'name' | 'installs'>('recommended')
 const pluginEntries = ref<PluginEntry[]>([])
 const installs = ref<PluginInstall[]>([])
@@ -992,7 +1018,7 @@ const filteredPlugins = computed(() => {
       if (secondaryFilter.value === 'installed' && !install) return false
       if (secondaryFilter.value === 'update' && (!install || entry.latestVersion === install.version)) return false
     }
-    if (viewMode.value === 'installed' && secondaryFilter.value) {
+    if (viewMode.value === 'installed' && secondaryFilter.value !== 'all') {
       if (secondaryFilter.value === 'update_available') return install ? hasUpdate(install) : false
       if (secondaryFilter.value === 'failed') return ['failed', 'degraded'].includes(install?.status ?? '')
       if (secondaryFilter.value === 'config_required') {
@@ -1020,7 +1046,7 @@ watch(searchInput, (value) => {
 })
 
 watch(viewMode, () => {
-  secondaryFilter.value = viewMode.value === 'installed' ? 'all' : ''
+  secondaryFilter.value = 'all'
 })
 
 onUnmounted(() => {
@@ -1418,7 +1444,7 @@ async function uninstall(installId: string) {
 function openInstalledFilter(filter: string) {
   if (!filter) {
     viewMode.value = 'discover'
-    secondaryFilter.value = ''
+    secondaryFilter.value = 'all'
     return
   }
   viewMode.value = 'installed'
@@ -1430,7 +1456,7 @@ function clearFilters() {
   searchInput.value = ''
   debouncedSearch.value = ''
   kindFilter.value = 'all'
-  secondaryFilter.value = viewMode.value === 'installed' ? 'all' : ''
+  secondaryFilter.value = 'all'
 }
 
 /** 统计指定插件类型的目录条目数量。 */

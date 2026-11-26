@@ -1,8 +1,8 @@
 <template>
   <PageHeaderActions>
-    <button class="btn" @click="router.push(`/workflows/${workflowId}`)">
+    <Button variant="outline" @click="router.push(`/workflows/${workflowId}`)">
       <ArrowLeft :size="14" /> 返回编辑器
-    </button>
+    </Button>
   </PageHeaderActions>
   <div class="mx-auto max-w-[1120px] px-8 pb-[70px] pt-9 max-[900px]:px-4">
         <div class="mb-6 flex items-end justify-between gap-5">
@@ -10,9 +10,9 @@
             <h1 class="m-0 text-[27px] tracking-0">版本列表</h1>
             <p class="mb-0 mt-[7px] text-[12px] text-subtle">发布版本不可变。试运行始终使用 URL 中的固定版本。</p>
           </div>
-          <button class="btn btn-primary" @click="router.push(`/workflows/${workflowId}`)">
+          <Button @click="router.push(`/workflows/${workflowId}`)">
             <GitCommitHorizontal :size="14" /> 发布新版本
-          </button>
+          </Button>
         </div>
 
         <div v-if="loadError" class="mb-3 flex items-start justify-between gap-3 rounded-[7px] border border-[#efbfc1] bg-danger-soft px-3 py-2.5 text-danger">
@@ -20,7 +20,7 @@
             <strong class="text-[12px]">版本加载失败</strong>
             <p class="mb-0 mt-1 text-[12px] leading-[1.55] text-[#9c4045]">{{ loadError }}</p>
           </div>
-          <button class="btn !h-[30px] shrink-0 text-[12px]" @click="loadData">重试</button>
+          <Button variant="outline" class="!h-[30px] shrink-0 text-[12px]" @click="loadData">重试</Button>
         </div>
 
         <div v-if="loading" class="surface flex min-h-[220px] items-center justify-center text-[12px] text-subtle">
@@ -29,7 +29,7 @@
 
         <div v-else-if="!versions.length && !loadError" class="surface">
           <EmptyState title="还没有发布版本" description="在编辑器中完成校验并发布后，版本快照会出现在这里。">
-            <button class="btn btn-primary" @click="router.push(`/workflows/${workflowId}`)">打开编辑器</button>
+            <Button @click="router.push(`/workflows/${workflowId}`)">打开编辑器</Button>
           </EmptyState>
         </div>
 
@@ -53,15 +53,15 @@
               </div>
             </div>
             <div class="flex shrink-0 gap-[7px] max-[900px]:justify-end">
-              <button class="btn !h-[34px] text-[12px]" @click="showDefinition(version)">
+              <Button variant="outline" class="!h-[34px] text-[12px]" @click="showDefinition(version)">
                 <FileJson :size="14" /> 查看定义
-              </button>
-              <button
-                class="btn btn-primary !h-[34px] text-[12px]"
+              </Button>
+              <Button
+                class="!h-[34px] text-[12px]"
                 @click="router.push({ path: `/workflows/${workflowId}/trial`, query: { versionId: version.id } })"
               >
                 <Play :size="14" /> 固定版本试运行
-              </button>
+              </Button>
             </div>
           </article>
         </div>
@@ -76,7 +76,7 @@
               <strong class="font-mono text-[12px] text-muted">{{ previewVersionId }}</strong>
             </div>
           </div>
-          <button class="icon-btn" @click="previewDefinition = null"><X :size="16" /></button>
+          <Button variant="ghost" size="icon-sm" @click="previewDefinition = null"><X :size="16" /></Button>
         </div>
         <pre class="m-0 flex-1 overflow-auto bg-[var(--code-bg)] p-4 font-mono text-[12px] leading-[1.65] text-[#d8dbe5]">{{ JSON.stringify(previewDefinition, null, 2) }}</pre>
       </aside>
@@ -96,6 +96,7 @@ import {
   RefreshCw,
   X,
 } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 import EmptyState from '@/components/EmptyState.vue'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import { formatDateTime } from '@/shared/format'

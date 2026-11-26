@@ -13,9 +13,9 @@
     >
       <UploadCloud :size="18" />
       <span>拖入 PDF、Word、Excel、CSV、Markdown 或 TXT</span>
-      <button class="border-0 bg-transparent p-0 text-primary disabled:text-subtle" :disabled="disabled" @click="triggerFilePicker">
+      <Button variant="link" size="xs" :disabled="disabled" @click="triggerFilePicker">
         选择文件
-      </button>
+      </Button>
       <input
         ref="fileInput"
         class="hidden"
@@ -44,9 +44,9 @@
         </span>
         <span class="flex items-center gap-1">
           <StatusBadge :status="item.status" />
-          <button v-if="item.status === 'failed'" class="border-0 bg-transparent p-0 text-primary" @click="$emit('retry', item)">
+          <Button v-if="item.status === 'failed'" variant="link" size="xs" @click="$emit('retry', item)">
             重试
-          </button>
+          </Button>
         </span>
       </div>
     </div>
@@ -56,6 +56,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { FileText, UploadCloud } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { UploadItem } from '../types'
 

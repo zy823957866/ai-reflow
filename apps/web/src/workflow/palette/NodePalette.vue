@@ -5,17 +5,17 @@
         <h2 class="m-0 text-[15px] font-700">添加节点</h2>
         <p class="mb-0 mt-1 text-[12px] text-subtle">{{ registrations.length }} 个节点 · 拖到画布或点击添加</p>
       </div>
-      <button class="icon-btn" title="关闭节点面板" @click="$emit('close')">
+      <Button variant="ghost" size="icon-sm" title="关闭节点面板" @click="$emit('close')">
         <X :size="16" />
-      </button>
+      </Button>
     </div>
     <div class="control-shell mx-3.5 mb-2.5 flex h-[34px] items-center gap-1.5 rounded-[7px] bg-surface-2 px-[9px] text-subtle">
       <Search :size="14" />
-      <input v-model="search" class="h-auto min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none" placeholder="搜索名称、type 或中文别名" />
-      <button v-if="search" type="button" class="border-0 bg-transparent p-0 text-[12px] text-subtle" @click="search = ''">清除</button>
+      <Input v-model="search" class="h-auto min-w-0 flex-1 !border-0 !bg-transparent !p-0 text-[12px] !shadow-none" placeholder="搜索名称、type 或中文别名" />
+      <Button v-if="search" type="button" variant="link" size="xs" class="text-subtle" @click="search = ''">清除</Button>
     </div>
     <div class="flex gap-1 px-3.5 pb-[9px]">
-      <button
+      <Button variant="unstyled" type="button"
         v-for="option in phaseOptions"
         :key="option.value"
         class="inline-flex h-[26px] items-center gap-1 rounded-[5px] border-0 px-[7px] text-[12px]"
@@ -24,10 +24,10 @@
       >
         {{ option.label }}
         <span class="opacity-68">{{ countByPhase(option.value) }}</span>
-      </button>
+      </Button>
     </div>
     <div class="flex gap-1 overflow-x-auto px-3.5 pb-[9px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <button
+      <Button variant="unstyled" type="button"
         v-for="category in categories"
         :key="category"
         class="h-6 whitespace-nowrap rounded-[5px] border border-line px-[7px] text-[12px]"
@@ -35,7 +35,7 @@
         @click="activeCategory = category"
       >
         {{ category }}
-      </button>
+      </Button>
     </div>
 
     <div class="flex-1 overflow-y-auto px-[11px] pb-1">
@@ -44,7 +44,7 @@
           <span>{{ group.category }}</span>
           <small class="text-[12px] text-subtle">{{ group.items.length }}</small>
         </div>
-        <button
+        <Button variant="unstyled" type="button"
           v-for="item in group.items"
           :key="item.manifest.type"
           class="flex min-h-[42px] w-full items-center gap-2 rounded-[6px] border border-transparent bg-transparent px-[7px] py-[5px] text-left transition-colors hover:border-line hover:bg-surface-2"
@@ -69,12 +69,12 @@
             {{ item.manifest.phase }}
           </span>
           <GripVertical :size="13" class="text-subtle opacity-60" />
-        </button>
+        </Button>
       </section>
       <div v-if="!groups.length" class="flex flex-col items-center gap-[7px] px-4 py-[50px] text-[12px] text-subtle">
         <SearchX :size="20" />
         <span>没有匹配节点</span>
-        <button type="button" class="border-0 bg-transparent text-[12px] text-primary" @click="clearFilters">清除筛选</button>
+        <Button type="button" variant="link" size="xs" @click="clearFilters">清除筛选</Button>
       </div>
     </div>
     <div class="flex items-center justify-between border-t border-line px-[13px] py-2.5 text-[12px] text-subtle">
@@ -87,6 +87,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref } from 'vue'
 import { GripVertical, MousePointer2, Search, SearchX, X } from 'lucide-vue-next'
+import { Button, Input } from '@ai-reflow/ui'
 import NodeGlyph from '@/components/NodeGlyph.vue'
 import { getNodeRegistrations, onNodeRegistryChange } from '@/shared/registry'
 import type { NodeRegistration } from '@/shared/types'

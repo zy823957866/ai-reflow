@@ -1,12 +1,12 @@
 <template>
   <div class="overflow-hidden rounded-8px border bg-surface transition-[border-color,box-shadow]" :class="focused ? 'border-[#9e95fb] shadow-[0_0_0_3px_rgba(91,77,240,0.1)]' : 'border-line'">
     <div v-if="toolbar" class="flex h-8 items-center gap-0.5 border-b border-line bg-surface-2 px-1.5">
-      <button type="button" class="inline-flex h-[23px] items-center gap-1 rounded-[5px] border-0 bg-transparent px-[7px] text-[12px] text-muted hover:bg-surface-3" title="插入变量" @click="insertVariable">
+      <Button type="button" variant="ghost" size="xs" class="h-[23px] px-[7px] text-muted" title="插入变量" @click="insertVariable">
         <Braces :size="13" />
         <span>变量</span>
-      </button>
-      <button type="button" class="inline-flex h-[23px] items-center gap-1 rounded-[5px] border-0 bg-transparent px-[7px] text-[12px] text-muted hover:bg-surface-3" title="清除格式" @click="clear">清除格式</button>
-      <button v-if="disabled" type="button" class="ml-auto inline-flex h-[23px] items-center rounded-[5px] border-0 bg-transparent px-[7px] text-[12px] text-subtle">只读</button>
+      </Button>
+      <Button type="button" variant="ghost" size="xs" class="h-[23px] px-[7px] text-muted" title="清除格式" @click="clear">清除格式</Button>
+      <span v-if="disabled" class="ml-auto inline-flex h-[23px] items-center px-[7px] text-[12px] text-subtle">只读</span>
     </div>
     <div
       ref="editor"
@@ -25,6 +25,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
 import { Braces } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 
 const props = withDefaults(
   defineProps<{

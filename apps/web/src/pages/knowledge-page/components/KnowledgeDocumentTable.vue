@@ -2,16 +2,17 @@
   <section class="flex min-h-0 flex-1 flex-col overflow-hidden">
     <div class="flex min-h-[42px] shrink-0 items-center justify-between gap-2 border-b border-line px-3">
       <span class="text-[12px] text-subtle">文档列表</span>
-      <select
-        v-model="documentStatus"
-        class="h-8 w-auto min-w-[112px] rounded-[7px] py-0 pl-2 pr-7 text-[12px]"
-        aria-label="按文档状态筛选"
-      >
-        <option value="">全部状态</option>
-        <option value="ready">已索引</option>
-        <option value="processing">处理中</option>
-        <option value="failed">索引失败</option>
-      </select>
+      <Select v-model="documentStatus">
+        <SelectTrigger class="h-8 w-auto min-w-[112px] px-2 text-[12px]" aria-label="按文档状态筛选">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">全部状态</SelectItem>
+          <SelectItem value="ready">已索引</SelectItem>
+          <SelectItem value="processing">处理中</SelectItem>
+          <SelectItem value="failed">索引失败</SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <div class="min-h-0 flex-1 overflow-auto">
@@ -30,7 +31,7 @@
         <tbody>
           <tr v-for="document in pagedDocuments" :key="document.id">
             <td>
-              <button class="flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left" @click="$emit('open', document)">
+              <Button variant="unstyled" type="button" class="flex min-w-0 items-center gap-2 border-0 bg-transparent p-0 text-left" @click="$emit('open', document)">
                 <span
                   class="flex h-7 w-7 shrink-0 items-center justify-center rounded-[5px] font-mono font-700 uppercase"
                   :class="fileMarkClass(document.extension)"
@@ -41,13 +42,13 @@
                   <strong class="max-w-[240px] truncate font-500">{{ document.name }}</strong>
                   <small class="max-w-[240px] truncate text-[12px] text-subtle">{{ document.chunkStrategy }}</small>
                 </span>
-              </button>
+              </Button>
             </td>
             <td>{{ document.extension.toUpperCase() }}</td>
             <td>{{ document.size }}</td>
             <td>{{ document.chunks }}</td>
             <td>
-              <button
+              <Button variant="unstyled" type="button"
                 class="flex flex-col items-start gap-1 border-0 bg-transparent p-0"
                 :title="document.error || '查看文档'"
                 @click="document.error ? $emit('showError', document) : $emit('open', document)"
@@ -57,25 +58,27 @@
                 <span v-if="document.error" class="inline-flex items-center gap-1 text-danger">
                   <CircleAlert :size="12" /> 查看错误
                 </span>
-              </button>
+              </Button>
             </td>
             <td>{{ relativeTime(document.updatedAt) }}</td>
             <td>
               <div class="flex items-center gap-1">
-                <button class="icon-btn !h-7 !w-7" title="查看切片与原文" @click="$emit('open', document)">
+                <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" title="查看切片与原文" @click="$emit('open', document)">
                   <Eye :size="13" />
-                </button>
-                <button
+                </Button>
+                <Button
                   v-if="document.status === 'failed'"
-                  class="icon-btn !h-7 !w-7"
+                  variant="ghost"
+                  size="icon-sm"
+                  class="!h-7 !w-7"
                   title="重试索引"
                   @click="$emit('retry', document)"
                 >
                   <RefreshCw :size="13" />
-                </button>
-                <button class="icon-btn !h-7 !w-7" title="删除文档" @click="$emit('remove', document)">
+                </Button>
+                <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" title="删除文档" @click="$emit('remove', document)">
                   <Trash2 :size="13" />
-                </button>
+                </Button>
               </div>
             </td>
           </tr>
@@ -94,9 +97,9 @@
     <footer class="flex min-h-10 shrink-0 items-center justify-between border-t border-line px-3 text-[12px] text-subtle">
       <span>显示 {{ filteredDocuments.length ? pageStart + 1 : 0 }}–{{ Math.min(pageStart + pageSize, filteredDocuments.length) }} / {{ filteredDocuments.length }}</span>
       <div class="flex items-center gap-2">
-        <button class="icon-btn !h-7 !w-7" :disabled="page === 1" @click="page--"><ChevronLeft :size="13" /></button>
+        <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" :disabled="page === 1" @click="page--"><ChevronLeft :size="13" /></Button>
         <span>{{ page }} / {{ totalPages }}</span>
-        <button class="icon-btn !h-7 !w-7" :disabled="page >= totalPages" @click="page++"><ChevronRight :size="13" /></button>
+        <Button variant="ghost" size="icon-sm" class="!h-7 !w-7" :disabled="page >= totalPages" @click="page++"><ChevronRight :size="13" /></Button>
       </div>
     </footer>
   </section>
@@ -114,6 +117,14 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-vue-next'
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { relativeTime } from '@/shared/format'
 import type { KnowledgeDocument } from '../types'
@@ -131,13 +142,13 @@ defineEmits<{
   showError: [document: KnowledgeDocument]
 }>()
 
-const documentStatus = ref('')
+const documentStatus = ref('all')
 const page = ref(1)
 const pageSize = 8
 
 const filteredDocuments = computed(() => props.documents.filter((document) => {
   if (
-    documentStatus.value &&
+    documentStatus.value !== 'all' &&
     (documentStatus.value === 'processing'
       ? !isProcessing(document)
       : document.status !== documentStatus.value)

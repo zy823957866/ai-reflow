@@ -25,19 +25,19 @@
         mask-color="rgba(245, 246, 248, 0.72)"
       />
       <Panel position="top-left" class="canvas-toolbar">
-        <button class="icon-btn" title="撤销" :disabled="!canUndo" @click="$emit('undo')">
+        <Button variant="ghost" size="icon-sm" title="撤销" :disabled="!canUndo" @click="$emit('undo')">
           <Undo2 :size="16" />
-        </button>
-        <button class="icon-btn" title="重做" :disabled="!canRedo" @click="$emit('redo')">
+        </Button>
+        <Button variant="ghost" size="icon-sm" title="重做" :disabled="!canRedo" @click="$emit('redo')">
           <Redo2 :size="16" />
-        </button>
+        </Button>
         <span class="toolbar-separator" />
-        <button class="icon-btn" title="缩小" @click="zoomOut"><Minus :size="15" /></button>
+        <Button variant="ghost" size="icon-sm" title="缩小" @click="zoomOut"><Minus :size="15" /></Button>
         <span class="zoom-value">{{ Math.round(viewportZoom * 100) }}%</span>
-        <button class="icon-btn" title="放大" @click="zoomIn"><Plus :size="15" /></button>
-        <button class="icon-btn" title="适应视图" @click="fitView"><Maximize2 :size="15" /></button>
+        <Button variant="ghost" size="icon-sm" title="放大" @click="zoomIn"><Plus :size="15" /></Button>
+        <Button variant="ghost" size="icon-sm" title="适应视图" @click="fitView"><Maximize2 :size="15" /></Button>
         <span class="toolbar-separator" />
-        <button class="tool-btn" @click="$emit('open-palette')"><Plus :size="14" /> 添加节点</button>
+        <Button variant="outline" class="tool-btn !border-ink !bg-ink !text-white" @click="$emit('open-palette')"><Plus :size="14" /> 添加节点</Button>
       </Panel>
       <Panel position="bottom-center" class="canvas-help">
         拖动画布平移 · 滚轮缩放 · 从节点端口拖出连线
@@ -65,6 +65,7 @@ import {
   Redo2,
   Undo2,
 } from 'lucide-vue-next'
+import { Button } from '@ai-reflow/ui'
 import { getEdgeRegistration, getNodeRegistration, getNodeRegistrations } from '@/shared/registry'
 import type {
   NodeRunStatus,

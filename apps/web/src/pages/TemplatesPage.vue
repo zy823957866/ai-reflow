@@ -1,16 +1,16 @@
 <template>
   <PageHeaderActions>
     <div class="flex min-w-0 items-center justify-end gap-2 sm:max-w-130">
-          <label class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
+          <div class="control-shell flex h-9 w-[min(420px,100%)] items-center gap-2 rounded-7px px-3">
             <Search :size="14" class="shrink-0 text-subtle" />
-            <input
+            <Input
               v-model="searchInput"
               class="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[12px] shadow-none outline-none"
               placeholder="搜索模板、节点组合、作者..."
             />
             <kbd class="rounded-4px border border-line bg-[var(--surface-3)] px-1.5 py-0.5 font-mono text-[12px] text-subtle">⌘K</kbd>
-          </label>
-          <button class="icon-btn" title="刷新目录" @click="reloadCatalog"><RefreshCw :size="15" /></button>
+          </div>
+          <Button variant="ghost" size="icon" title="刷新目录" @click="reloadCatalog"><RefreshCw :size="15" /></Button>
     </div>
   </PageHeaderActions>
 
@@ -23,15 +23,20 @@
             </p>
           </div>
           <div class="flex items-center gap-2">
-            <label class="management-select control-shell flex items-center">
+            <div class="management-select control-shell flex items-center">
               <ArrowUpDown :size="12" />
-              <select v-model="sortMode" class="h-8 border-0 bg-transparent py-0 pl-1.5 text-[12px] shadow-none">
-                <option value="recommended">最多克隆</option>
-                <option value="updated">最近更新</option>
-                <option value="name">名称</option>
-                <option value="nodes">节点数</option>
-              </select>
-            </label>
+              <Select v-model="sortMode">
+                <SelectTrigger class="h-8 border-0 bg-transparent py-0 pl-1.5 text-[12px] shadow-none" aria-label="模板排序">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recommended">最多克隆</SelectItem>
+                  <SelectItem value="updated">最近更新</SelectItem>
+                  <SelectItem value="name">名称</SelectItem>
+                  <SelectItem value="nodes">节点数</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <span class="rounded-6px border border-line bg-surface px-2.5 py-1.5 font-mono text-[12px] text-subtle">
               catalog: {{ loadingCatalog ? 'loading' : `${templateEntries.length} templates` }}
             </span>
@@ -39,7 +44,7 @@
         </section>
 
         <section class="mb-4 flex flex-wrap items-center gap-1.5">
-          <button
+          <Button variant="unstyled" type="button"
             v-for="category in templateCategories"
             :key="category"
             class="inline-flex h-7 items-center gap-1.5 rounded-6px border border-line bg-surface px-2.5 text-[12px] text-muted transition hover:(bg-[var(--surface-2)] text-ink)"
@@ -47,7 +52,7 @@
             @click="activeCategory = category"
           >
             {{ category }}
-          </button>
+          </Button>
         </section>
 
         <section
@@ -68,12 +73,12 @@
               <span><PackageCheck :size="12" class="inline" /> v{{ featuredTemplate.latestVersion }}</span>
             </div>
             <div class="mt-4 flex gap-2">
-              <button class="btn !border-white !bg-white !text-[#211846]" @click="openClonePlan(featuredTemplate)">
+              <Button variant="outline" class="!border-white !bg-white !text-[#211846]" @click="openClonePlan(featuredTemplate)">
                 <Copy :size="14" /> 克隆模板
-              </button>
-              <button class="btn !border-white/20 !bg-white/10 !text-white" @click="openDetail(featuredTemplate)">
+              </Button>
+              <Button variant="outline" class="!border-white/20 !bg-white/10 !text-white" @click="openDetail(featuredTemplate)">
                 查看详情
-              </button>
+              </Button>
             </div>
           </div>
           <div class="relative hidden min-h-196px overflow-hidden bg-[#17102f] lg:block">
@@ -97,7 +102,7 @@
           <SearchX :size="23" />
           <strong class="text-12px text-ink">没有匹配模板</strong>
             <span class="text-[12px]">{{ loadingCatalog ? '正在加载模板目录…' : templateError || '试试清除关键词或切换其他类别。' }}</span>
-          <button class="btn" @click="clearFilters">清除筛选</button>
+          <Button variant="outline" @click="clearFilters">清除筛选</Button>
         </div>
 
         <section v-else class="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -150,10 +155,8 @@
         </section>
   </main>
 
-  <DialogRoot :open="Boolean(detailTemplate)" @update:open="(open) => !open && (detailTemplate = null)">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-70 bg-[rgba(18,20,26,0.26)]" />
-      <DialogContent class="fixed inset-y-0 right-0 z-71 flex w-[min(720px,100vw)] flex-col bg-surface shadow-lg outline-none">
+  <Dialog :open="Boolean(detailTemplate)" @update:open="(open) => !open && (detailTemplate = null)">
+      <DialogContent class="left-auto top-0 flex h-full max-h-none w-[min(720px,100vw)] translate-0 flex-col gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0" :show-close="false">
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div class="min-w-0">
             <DialogTitle class="truncate text-17px font-700 text-ink">{{ detailTemplate?.name }}</DialogTitle>
@@ -161,17 +164,17 @@
               v{{ detailTemplate?.latestVersion }} · {{ detailTemplate?.author }} · {{ detailTemplate?.license }}
             </DialogDescription>
           </div>
-          <DialogClose as-child><button class="icon-btn" title="关闭模板详情"><X :size="16" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" title="关闭模板详情" aria-label="关闭模板详情"><X :size="16" /></Button></DialogClose>
         </header>
         <div v-if="detailTemplate" class="flex-1 overflow-y-auto px-5 py-4">
           <p class="m-0 text-[12px] leading-1.7 text-muted">{{ detailTemplate.description }}</p>
           <div class="mt-4 flex flex-wrap gap-2">
-            <button class="btn btn-primary" @click="openPreview(detailTemplate)">
+            <Button @click="openPreview(detailTemplate)">
               <Eye :size="14" /> 只读预览节点图
-            </button>
-            <button class="btn" @click="openClonePlan(detailTemplate)">
+            </Button>
+            <Button variant="outline" @click="openClonePlan(detailTemplate)">
               <Copy :size="14" /> 使用模板
-            </button>
+            </Button>
           </div>
 
           <section class="mt-5 rounded-7px border border-line bg-[var(--surface-2)] p-4">
@@ -236,13 +239,10 @@
           </section>
         </div>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="Boolean(cloneTemplateEntry)" @update:open="(open) => !open && (cloneTemplateEntry = null)">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-80 bg-[rgba(18,20,26,0.28)]" />
-      <DialogContent class="fixed inset-y-0 right-0 z-81 flex w-[min(580px,100vw)] flex-col bg-surface shadow-lg outline-none">
+  <Dialog :open="Boolean(cloneTemplateEntry)" @update:open="(open) => !open && (cloneTemplateEntry = null)">
+      <DialogContent class="left-auto top-0 flex h-full max-h-none w-[min(580px,100vw)] translate-0 flex-col gap-0 overflow-hidden rounded-none border-y-0 border-r-0 p-0" :show-close="false">
         <header class="flex min-h-64px items-center justify-between gap-4 border-b border-line px-5">
           <div>
             <DialogTitle class="text-16px font-700 text-ink">Clone plan</DialogTitle>
@@ -250,7 +250,7 @@
               {{ cloneTemplateEntry?.name }} · v{{ clonePlan?.version ?? cloneTemplateEntry?.latestVersion }}
             </DialogDescription>
           </div>
-          <DialogClose as-child><button class="icon-btn" title="关闭克隆计划"><X :size="16" /></button></DialogClose>
+          <DialogClose as-child><Button variant="ghost" size="icon" title="关闭克隆计划" aria-label="关闭克隆计划"><X :size="16" /></Button></DialogClose>
         </header>
         <div v-if="cloneTemplateEntry" class="flex-1 overflow-y-auto px-5 py-4">
           <div v-if="!clonePlan && !cloneError" class="flex items-center justify-center gap-2 py-12 text-[12px] text-subtle">
@@ -259,7 +259,7 @@
           <template v-if="clonePlan">
           <div class="field">
             <label class="field-label" for="template-target-name">新草稿名称</label>
-            <input
+            <Input
               id="template-target-name"
               v-model="targetName"
               placeholder="输入新工作流名称"
@@ -333,32 +333,29 @@
           </div>
         </div>
         <footer class="flex flex-wrap justify-end gap-2 border-t border-line bg-[var(--surface-2)] px-5 py-3">
-          <button class="btn" @click="cloneTemplateEntry = null; clonePlan = null">取消</button>
-          <button
+          <Button variant="outline" @click="cloneTemplateEntry = null; clonePlan = null">取消</Button>
+          <Button
             v-if="cloneResult"
-            class="btn btn-primary"
             @click="openClonedWorkflow(cloneResult.workflow.workflowId)"
           >
             打开新草稿
-          </button>
-          <button
+          </Button>
+          <Button
             v-else
-            class="btn btn-primary"
             :disabled="!clonePlan?.canClone || cloning"
             @click="confirmClone"
           >
             <LoaderCircle v-if="cloning" :size="14" class="animate-spin" />
             <Copy v-else :size="14" />
             {{ cloning ? '克隆中...' : '生成新草稿' }}
-          </button>
+          </Button>
         </footer>
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 
-  <DialogRoot :open="Boolean(previewTemplate)" @update:open="(open) => !open && (previewTemplate = null)">
-    <DialogPortal>
-      <DialogContent class="fixed inset-0 z-90 overflow-hidden bg-surface outline-none" aria-label="模板只读预览">
+  <Dialog :open="Boolean(previewTemplate)" @update:open="(open) => !open && (previewTemplate = null)">
+      <DialogContent class="left-0 top-0 block h-screen w-screen max-h-none max-w-none translate-0 overflow-hidden rounded-none border-0 p-0" :show-close="false" aria-label="模板只读预览">
+        <DialogTitle class="sr-only">模板只读预览</DialogTitle>
         <WorkflowDesigner
           v-if="previewTemplate"
           :workflow-id="`template_${previewTemplate.id}`"
@@ -368,8 +365,7 @@
           @leave="previewTemplate = null"
         />
       </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+  </Dialog>
 </template>
 
 <script setup lang="ts">
@@ -394,14 +390,19 @@ import {
   X,
 } from 'lucide-vue-next'
 import {
+  Button,
+  Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
   DialogTitle,
-} from 'reka-ui'
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ai-reflow/ui'
 import PageHeaderActions from '@/components/PageHeaderActions.vue'
 import WorkflowThumbnail from '@/components/WorkflowThumbnail.vue'
 import WorkflowDesigner from '@/workflow/WorkflowDesigner.vue'

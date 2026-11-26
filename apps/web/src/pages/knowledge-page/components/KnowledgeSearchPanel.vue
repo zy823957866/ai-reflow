@@ -11,7 +11,7 @@
     <div class="min-h-0 flex-1 overflow-y-auto p-3">
       <label class="block">
         <span class="mb-1.5 block text-[12px] text-subtle">检索问题</span>
-        <textarea
+        <Textarea
           v-model="query"
           class="min-h-[88px] resize-y px-2.5 py-2 text-[12px] leading-[1.6]"
           rows="3"
@@ -23,37 +23,33 @@
       <div class="mt-2.5 grid grid-cols-4 gap-2 max-[1100px]:grid-cols-2">
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">模式</span>
-          <select v-model="mode" class="h-8 min-w-0 rounded-[7px] py-0 pl-2 pr-6 text-[12px]">
-            <option value="hybrid" disabled>混合（未配置）</option>
-            <option value="vector" disabled>向量（未配置）</option>
-            <option value="keyword">全文</option>
-          </select>
+          <Select v-model="mode">
+            <SelectTrigger class="h-8 min-w-0 rounded-[7px] px-2 text-[12px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="hybrid" disabled>混合（未配置）</SelectItem>
+              <SelectItem value="vector" disabled>向量（未配置）</SelectItem>
+              <SelectItem value="keyword">全文</SelectItem>
+            </SelectContent>
+          </Select>
         </label>
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">Top K</span>
-          <input v-model.number="topK" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="1" max="20" />
+          <Input v-model.number="topK" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="1" max="20" />
         </label>
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">阈值</span>
-          <input v-model.number="threshold" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="0" max="1" step="0.01" />
+          <Input v-model.number="threshold" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="0" max="1" step="0.01" />
         </label>
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">Rerank</span>
-          <button
-            type="button"
-            class="h-8 w-full rounded-[7px] border border-line p-1.5 transition-colors"
-            :class="rerankEnabled ? 'bg-primary-soft' : 'bg-[var(--surface-2)]'"
-            @click="rerankEnabled = !rerankEnabled"
-          >
-            <span class="block h-[18px] w-8 rounded-full p-0.5 transition-colors" :class="rerankEnabled ? 'bg-primary' : 'bg-[#c7ccd6]'">
-              <i class="block h-3.5 w-3.5 rounded-full bg-white transition-transform" :class="rerankEnabled ? 'translate-x-[14px]' : ''" />
-            </span>
-          </button>
+          <Switch v-model="rerankEnabled" class="mt-1" />
         </label>
       </div>
 
-      <button
-        class="btn btn-primary mt-3 !h-9 w-full text-[12px]"
+      <Button
+        class="mt-3 !h-9 w-full text-[12px]"
         type="button"
         :disabled="!query.trim() || loading || !activeKb"
         @click="runSearch"
@@ -61,7 +57,7 @@
         <LoaderCircle v-if="loading" :size="14" class="animate-spin" />
         <Search v-else :size="14" />
         {{ loading ? '检索中' : '运行检索' }}
-      </button>
+      </Button>
 
       <div class="mt-3 flex min-h-7 items-center justify-between border-b border-line pb-1.5 text-[12px] text-muted">
         <span>{{ results.length ? `命中 ${results.length} 条` : '检索结果' }}</span>
@@ -85,9 +81,9 @@
           <span v-if="result.vectorScore !== undefined">vector {{ result.vectorScore.toFixed(2) }}</span>
           <span v-if="result.fulltextScore !== undefined">fulltext {{ result.fulltextScore.toFixed(2) }}</span>
         </div>
-        <button class="mt-1.5 border-0 bg-transparent p-0 text-[12px] text-primary" @click="copyCitation(result)">
+        <Button variant="link" size="xs" class="mt-1.5" @click="copyCitation(result)">
           复制引用
-        </button>
+        </Button>
       </article>
 
       <div v-if="!results.length" class="flex min-h-44 flex-col items-center justify-center gap-2 text-center text-[12px] text-subtle">
@@ -99,9 +95,9 @@
 
     <footer class="flex min-h-10 shrink-0 items-center justify-between gap-2 border-t border-line px-3 text-[12px] text-subtle">
       <span class="truncate">{{ activeKb?.embeddingModel }} · {{ activeKb?.dimensions }}d</span>
-      <button class="border-0 bg-transparent p-0 text-primary disabled:text-subtle" :disabled="!results.length" @click="saveFixture">
+      <Button variant="link" size="xs" :disabled="!results.length" @click="saveFixture">
         保存样例
-      </button>
+      </Button>
     </footer>
   </section>
 </template>
@@ -109,6 +105,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { LoaderCircle, Search, Sparkles } from 'lucide-vue-next'
+import {
+  Button,
+  Input,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+  Textarea,
+} from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { KnowledgeBaseItem, SearchRequest, SearchResult } from '../types'
 
