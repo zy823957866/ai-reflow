@@ -9,7 +9,7 @@ test('agent definition applies the approved defaults', async () => {
     | undefined
 
   assert.equal(typeof schema?.parse, 'function')
-  const definition = schema.parse({
+  const definition = schema!.parse({
     instructions: '回答用户问题。',
     modelConnectionId: 'mc_local',
   })
@@ -27,7 +27,7 @@ test('agent definition rejects maxSteps outside the P0 range', async () => {
 
   assert.equal(typeof schema?.safeParse, 'function')
   assert.equal(
-    schema.safeParse({
+    schema!.safeParse({
       instructions: '回答用户问题。',
       modelConnectionId: 'mc_local',
       maxSteps: 33,
@@ -79,7 +79,7 @@ test('workflow agent executor forwards the resolved runtime context', async () =
     },
   }
 
-  const executor = new module.AgentExecutor()
+  const executor = new module.AgentExecutor!()
   const result = await executor.execute(
     context,
     'n_agent',

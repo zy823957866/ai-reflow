@@ -118,6 +118,17 @@ export function createAgentChatProvider(
             input.connectionId,
           )
           provider = connection.provider.toLowerCase()
+          if (
+            provider !== 'ollama' &&
+            provider !== 'openai' &&
+            provider !== 'deepseek' &&
+            provider !== 'custom'
+          ) {
+            throw new AgentModelError(
+              'MODEL_PROVIDER_UNSUPPORTED',
+              `暂不支持模型 Provider ${connection.provider}。`,
+            )
+          }
           const model = input.model ?? connection.model
           if (!model) {
             throw new AgentModelError(

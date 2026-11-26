@@ -91,6 +91,39 @@ test('DeepSeek connections use the OpenAI-compatible default endpoint', async ()
   assert.equal(received?.apiKey, 'secret-from-env')
 })
 
+test('chat provider rejects unsupported providers', async () => {
+  const provider = createAgentChatProvider({
+    resolveConnection: async () => ({
+      provider: 'anthropic',
+      model: 'claude',
+    }),
+    env: { AI_REFLOW_MODEL_API_KEY: 'secret' },
+    factories: {
+      createOllama() {
+        throw new Error('Ollama factory should not be used.')
+      },
+      createOpenAI() {
+        throw new Error('OpenAI factory should not be used.')
+      },
+    },
+  })
+
+  await assert.rejects(
+    collect(
+      await provider.stream({
+        connectionId: 'mc_unknown',
+        messages: [new HumanMessage('你好')],
+        tools: [],
+        signal: new AbortController().signal,
+      }),
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code ===
+        'MODEL_PROVIDER_UNSUPPORTED',
+  )
+})
+
 class StubChatModel implements AgentChatModelLike {
   boundTools: unknown[] = []
 

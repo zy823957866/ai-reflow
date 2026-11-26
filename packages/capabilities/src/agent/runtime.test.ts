@@ -330,6 +330,50 @@ test('agent runtime reuses an idempotent tool result after recovery', async () =
   assert.deepEqual(result.toolCalls[0].result, { status: 'cached' })
 })
 
+test('agent runtime fails closed when a tool history result cannot be saved', async () => {
+  const chat = new ScriptedChatProvider([
+    toolCallChunk('call_unsaved', 'lookup_order', {
+      orderId: 'WRITE-FAIL',
+    }),
+  ])
+  const runtime = createAgentRuntime({
+    chat,
+    toolHistory: {
+      async get() {
+        return undefined
+      },
+      async save() {
+        throw new Error('database unavailable')
+      },
+    },
+    mcp: {
+      async call() {
+        return { status: 'side-effect-applied' }
+      },
+    },
+  })
+
+  await assert.rejects(
+    runtime.invoke(
+      makeInvocation({
+        definition: agentDefinition({
+          mcpTools: [
+            {
+              serverId: 'orders',
+              toolName: 'lookup_order',
+              parameters: { type: 'object', properties: {} },
+            },
+          ],
+        }),
+      }),
+    ),
+    (error: unknown) =>
+      error instanceof Error &&
+      (error as Error & { code?: string }).code ===
+        'TOOL_HISTORY_WRITE_FAILED',
+  )
+})
+
 class ScriptedChatProvider implements AgentChatProvider {
   readonly calls: AgentChatProviderInput[] = []
 

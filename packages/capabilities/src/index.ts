@@ -8,6 +8,8 @@ import {
 } from '@ai-reflow/core'
 import { AgentExecutor } from './agent'
 
+export * from './agent'
+
 type NodeConfig = Record<string, unknown>
 
 /**
