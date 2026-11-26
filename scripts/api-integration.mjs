@@ -472,6 +472,7 @@ async function testFiles(sql) {
 
   const published = await api(`/api/workflows/${workflowId}/publish`, {
     method: 'POST',
+    expectedStatus: [201],
     body: { revision: saved.data.revision, changelog: '运行附件校验' },
   })
   const production = await api(`/api/workflows/${workflowId}/runs`, {

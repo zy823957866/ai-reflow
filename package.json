@@ -15,6 +15,7 @@
     "typecheck:worker": "tsc -p apps/worker/tsconfig.json --noEmit",
     "preview": "vite preview",
     "smoke": "node scripts/smoke.mjs",
+    "test:config": "node scripts/config-check.mjs",
     "db:migrate": "tsx --env-file=.env packages/platform/src/db/migrate.ts",
     "db:seed": "tsx --env-file=.env packages/platform/src/db/seed.ts",
     "test:api": "tsx --env-file=.env scripts/api-integration.mjs"
