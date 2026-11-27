@@ -2,9 +2,10 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import UnoCSS from 'unocss/vite'
+import { autoImportVueAndUi } from './vite/auto-import'
 
 export default defineConfig({
-  plugins: [vue(), UnoCSS()],
+  plugins: [autoImportVueAndUi(), vue(), UnoCSS()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

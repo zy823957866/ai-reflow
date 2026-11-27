@@ -37,7 +37,7 @@
         />
       </label>
 
-      <div class="mt-2.5 grid grid-cols-4 gap-2 max-[1100px]:grid-cols-2">
+      <div class="mt-2.5 grid grid-cols-2 gap-2">
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">模式</span>
           <Select v-model="mode">
@@ -53,13 +53,26 @@
         </label>
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">Top K</span>
-          <Input v-model.number="topK" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="1" max="20" />
+          <Input
+            v-model.number="topK"
+            class="h-8 rounded-[7px] px-2 py-0 text-[12px]"
+            type="number"
+            min="1"
+            max="20"
+          />
         </label>
         <label>
           <span class="mb-1.5 block text-[12px] text-subtle">阈值</span>
-          <Input v-model.number="threshold" class="h-8 rounded-[7px] px-2 py-0 text-[12px]" type="number" min="0" max="1" step="0.01" />
+          <Input
+            v-model.number="threshold"
+            class="h-8 rounded-[7px] px-2 py-0 text-[12px]"
+            type="number"
+            min="0"
+            max="1"
+            step="0.01"
+          />
         </label>
-        <label>
+        <label title="使用 Rerank 模型对召回结果重新排序">
           <span class="mb-1.5 block text-[12px] text-subtle">Rerank</span>
           <Switch v-model="rerankEnabled" class="mt-1" />
         </label>
@@ -78,7 +91,16 @@
 
       <div class="mt-3 flex min-h-7 items-center justify-between border-b border-line pb-1.5 text-[12px] text-muted">
         <span>{{ results.length ? `命中 ${results.length} 条` : '检索结果' }}</span>
-        <small v-if="lastDuration" class="text-[12px] text-subtle">{{ lastDuration }} ms</small>
+        <div class="flex items-center gap-2">
+          <span
+            v-if="rerankApplied"
+            class="rounded-[4px] bg-primary-soft px-1.5 py-0.5 text-[11px] text-primary"
+            :title="rerankModel ? `Rerank: ${rerankModel}` : 'Rerank 已应用'"
+          >
+            Rerank 已应用
+          </span>
+          <small v-if="lastDuration" class="text-[12px] text-subtle">{{ lastDuration }} ms</small>
+        </div>
       </div>
 
       <article
@@ -89,7 +111,7 @@
         <div class="flex items-center justify-between gap-2">
           <strong class="truncate text-[12px]">{{ result.documentName }}</strong>
           <span class="shrink-0 rounded-[4px] bg-primary-soft px-1.5 py-0.5 font-mono text-[12px] text-primary">
-            {{ result.score.toFixed(2) }}
+            {{ formatScore(result.rerankScore ?? result.score) }}
           </span>
         </div>
         <p class="mb-1.5 mt-1.5 line-clamp-3 text-[12px] leading-[1.55] text-muted">{{ result.snippet }}</p>
@@ -97,6 +119,7 @@
           <span>{{ result.location }}</span>
           <span v-if="result.vectorScore !== undefined">vector {{ result.vectorScore.toFixed(2) }}</span>
           <span v-if="result.fulltextScore !== undefined">fulltext {{ result.fulltextScore.toFixed(2) }}</span>
+          <span v-if="result.rerankScore !== undefined">rerank {{ formatScore(result.rerankScore) }}</span>
         </div>
         <Button variant="link" size="xs" class="mt-1.5" @click="copyCitation(result)">
           复制引用
@@ -111,7 +134,11 @@
     </div>
 
     <footer class="flex min-h-11 shrink-0 items-center justify-between gap-2 border-t border-line px-3 text-[12px] text-subtle">
-      <span class="truncate">{{ activeKb?.embeddingModel }} · {{ activeKb?.dimensions }}d</span>
+      <span class="truncate">
+        {{ activeKb
+          ? `${activeKb.embeddingModel || '未配置模型'} · ${activeKb.dimensions || 0}d`
+          : '请选择知识库' }}
+      </span>
       <Button variant="link" size="xs" :disabled="!results.length" @click="saveFixture">
         保存样例
       </Button>
@@ -120,64 +147,124 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { CircleAlert, LoaderCircle, Search, Sparkles } from 'lucide-vue-next'
-import {
-  Button,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Switch,
-  Textarea,
-} from '@ai-reflow/ui'
+import { searchKnowledge } from '@/services/reflowApi'
+import { notifyError } from '@/shared/toast'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { retrievalWarningLabel } from '../status'
-import type { KnowledgeBaseItem, SearchRequest, SearchResult } from '../types'
+import { useKnowledgeBases } from '../composables/useKnowledgeBases'
+import type { SearchResult } from '../types'
+import { apiErrorText } from '../utils/errors'
+import { retrievalWarningLabel } from '../utils/status'
 
-const props = defineProps<{
-  activeKb?: KnowledgeBaseItem
-  results: SearchResult[]
-  loading: boolean
-  searchRan: boolean
-  lastDuration: number
-  warnings: string[]
-}>()
+const { activeKb, activeKbId } = useKnowledgeBases()
 
-const emit = defineEmits<{
-  search: [request: SearchRequest]
-}>()
-
+/** 检索问题文本 */
 const query = ref('')
+/** 检索模式：混合 / 向量 / 全文 */
 const mode = ref<'hybrid' | 'vector' | 'keyword'>('hybrid')
+/** 召回条数上限 */
 const topK = ref(5)
+/** 命中分数阈值 */
 const threshold = ref(0)
+/** 是否启用 Rerank 重排序 */
 const rerankEnabled = ref(false)
+/** 检索请求进行中 */
+const loading = ref(false)
+/** 是否已执行过检索（用于区分空态提示文案） */
+const searchRan = ref(false)
+/** 命中的检索结果列表 */
+const results = ref<SearchResult[]>([])
+/** 服务端返回的检索降级警告 */
+const warnings = ref<string[]>([])
+/** 最近一次检索耗时（毫秒） */
+const lastDuration = ref(0)
+/** 服务端是否实际应用了 rerank */
+const rerankApplied = ref(false)
+/** rerank 使用的模型名 */
+const rerankModel = ref('')
+/** 请求版本号，用于丢弃过期响应 */
+let requestVersion = 0
 
-function runSearch() {
-  if (!query.value.trim() || props.loading) return
-  emit('search', {
-    query: query.value.trim(),
-    retrievalMode: mode.value,
-    topK: topK.value,
-    scoreThreshold: threshold.value,
-    rerankEnabled: rerankEnabled.value,
-  })
+/** 清空检索结果及全部相关状态 */
+function resetResults() {
+  requestVersion += 1
+  loading.value = false
+  searchRan.value = false
+  results.value = []
+  warnings.value = []
+  lastDuration.value = 0
+  rerankApplied.value = false
+  rerankModel.value = ''
 }
 
+/** 执行知识库检索请求，成功后渲染结果与降级警告 */
+async function runSearch() {
+  const kbId = activeKbId.value
+  if (loading.value || !query.value.trim() || !kbId) return
+  const version = ++requestVersion
+  loading.value = true
+  searchRan.value = false
+  results.value = []
+  warnings.value = []
+  lastDuration.value = 0
+  rerankApplied.value = false
+  rerankModel.value = ''
+  const startedAt = performance.now()
+  try {
+    const response = await searchKnowledge(kbId, {
+      query: query.value.trim(),
+      topK: topK.value,
+      scoreThreshold: threshold.value,
+      retrievalMode: mode.value,
+      rerank: { enabled: rerankEnabled.value },
+    })
+    if (version !== requestVersion || kbId !== activeKbId.value) return
+    results.value = response.chunks.map((chunk, index) => ({
+      ...chunk,
+      citationId:
+        typeof response.citations[index]?.id === 'string'
+          ? response.citations[index].id
+          : `c${index + 1}`,
+    }))
+    lastDuration.value = Math.round(performance.now() - startedAt)
+    searchRan.value = true
+    warnings.value = response.warnings ?? []
+    rerankApplied.value = response.rerankApplied
+    rerankModel.value = response.rerankModel ?? ''
+  } catch (error) {
+    if (version !== requestVersion) return
+    warnings.value = []
+    notifyError({
+      title: '知识库检索失败',
+      description: apiErrorText(error),
+      retry: () => void runSearch(),
+    })
+  } finally {
+    if (version === requestVersion) loading.value = false
+  }
+}
+
+/** 命中分数格式化（保留两位小数） */
+function formatScore(value: number) {
+  return value.toFixed(2)
+}
+
+/** 复制某条结果的引用文本到剪贴板 */
 async function copyCitation(result: SearchResult) {
   const citation = `[${result.citationId ?? result.id}] ${result.documentName} · ${result.location} · score=${result.score.toFixed(4)}`
   await navigator.clipboard?.writeText(citation)
 }
 
+/** 把当前检索输入与结果存入 localStorage 作为回放样例 */
 function saveFixture() {
   localStorage.setItem('reflow_knowledge_search_fixture', JSON.stringify({
     query: query.value,
     mode: mode.value,
-    results: props.results,
+    results: results.value,
     savedAt: new Date().toISOString(),
   }))
 }
+
+// 切换知识库时清空上一库的检索结果
+watch(activeKbId, resetResults)
 </script>

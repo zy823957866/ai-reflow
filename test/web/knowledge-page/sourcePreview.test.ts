@@ -3,7 +3,7 @@ import test from 'node:test'
 import {
   knowledgeSourcePreviewKind,
   parseCsvPreview,
-} from '../../../apps/web/src/pages/knowledge-page/sourcePreview'
+} from '../../../apps/web/src/pages/knowledge-page/utils/sourcePreview'
 
 test('knowledge source preview maps every supported attachment type', () => {
   assert.equal(knowledgeSourcePreviewKind('pdf'), 'pdf')

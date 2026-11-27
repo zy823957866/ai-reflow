@@ -209,7 +209,7 @@ test('agent node inspector exposes the serializable runtime fields', async () =>
 
 test('knowledge UI follows real ingest jobs and renders degraded retrieval', async () => {
   const status = await readFile(
-    path.join(root, 'apps/web/src/pages/knowledge-page/status.ts'),
+    path.join(root, 'apps/web/src/pages/knowledge-page/utils/status.ts'),
     'utf8',
   )
   for (const [stage, label] of [
@@ -225,6 +225,13 @@ test('knowledge UI follows real ingest jobs and renders degraded retrieval', asy
 
   const page = await readFile(
     path.join(root, 'apps/web/src/pages/knowledge-page/index.vue'),
+    'utf8',
+  )
+  const documents = await readFile(
+    path.join(
+      root,
+      'apps/web/src/pages/knowledge-page/composables/useKnowledgeDocuments.ts',
+    ),
     'utf8',
   )
   const api = await readFile(
@@ -248,16 +255,17 @@ test('knowledge UI follows real ingest jobs and renders degraded retrieval', asy
   const upload = await readFile(
     path.join(
       root,
-      'apps/web/src/pages/knowledge-page/components/KnowledgeUploadZone.vue',
+      'apps/web/src/pages/knowledge-page/components/KnowledgeUploadDialog.vue',
     ),
     'utf8',
   )
 
   assert.match(api, /KnowledgeIngestJobDto/)
   assert.match(api, /KnowledgeUploadResponse/)
-  assert.match(page, /isActiveIngestStatus/)
-  assert.match(page, /accepted\.document/)
-  assert.match(page, /setTimeout/)
+  assert.match(page, /provideKnowledgeBases/)
+  assert.match(documents, /isActiveIngestStatus/)
+  assert.match(documents, /accepted\.document/)
+  assert.match(documents, /setTimeout/)
   assert.match(search, /warnings/)
   assert.match(search, /降级/)
   assert.doesNotMatch(search, /value="hybrid"\s+disabled/)
@@ -282,4 +290,21 @@ test('knowledge creation uses the local 768d embedding policy', async () => {
   assert.doesNotMatch(dialog, />1536</)
   assert.match(dialog, /nomic-embed-text/)
   assert.match(dialog, />768</)
+})
+
+test('knowledge page stays desktop-only and uses Vue/UI auto imports', async () => {
+  const page = await readFile(
+    path.join(root, 'apps/web/src/pages/knowledge-page/index.vue'),
+    'utf8',
+  )
+  const autoImport = await readFile(
+    path.join(root, 'apps/web/vite/auto-import.ts'),
+    'utf8',
+  )
+
+  assert.match(page, /min-w-\[1200px\]/)
+  assert.match(page, /grid-cols-\[240px_minmax\(0,1fr\)_360px\]/)
+  assert.doesNotMatch(page, /mobilePanes|knowledge-mobile/)
+  assert.match(autoImport, /imports:\s*\[['"]vue['"]\]/)
+  assert.match(autoImport, /from:\s*['"]@ai-reflow\/ui['"]/)
 })

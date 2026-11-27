@@ -121,7 +121,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import {
   ChevronLeft,
   ChevronRight,
@@ -133,17 +132,9 @@ import {
   RefreshCw,
   Trash2,
 } from 'lucide-vue-next'
-import {
-  Button,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import { relativeTime } from '@/shared/format'
-import { ingestProgress, ingestStageLabel } from '../status'
+import { ingestProgress, ingestStageLabel } from '../utils/status'
 import type { KnowledgeDocument } from '../types'
 
 const props = defineProps<{
@@ -160,10 +151,13 @@ defineEmits<{
   showError: [document: KnowledgeDocument]
 }>()
 
+/** 文档状态筛选值（all/ready/processing/failed） */
 const documentStatus = ref('all')
+/** 当前页码（从 1 开始） */
 const page = ref(1)
 const pageSize = 8
 
+/** 按状态筛选后的文档列表（processing 涵盖流水线各中间态） */
 const filteredDocuments = computed(() => props.documents.filter((document) => {
   if (
     documentStatus.value !== 'all' &&
@@ -175,25 +169,33 @@ const filteredDocuments = computed(() => props.documents.filter((document) => {
   }
   return true
 }))
+/** 总页数（至少为 1） */
 const totalPages = computed(() => Math.max(1, Math.ceil(filteredDocuments.value.length / pageSize)))
+/** 当前页在筛选结果中的起始下标 */
 const pageStart = computed(() => (page.value - 1) * pageSize)
+/** 当前页实际展示的文档切片 */
 const pagedDocuments = computed(() => filteredDocuments.value.slice(pageStart.value, pageStart.value + pageSize))
 
+// 筛选条件或文档数量变化时重置到第一页
 watch([documentStatus, () => props.documents.length], () => {
   page.value = 1
 })
+// 总页数减少时把越界的页码拉回最后一页
 watch(totalPages, (value) => {
   if (page.value > value) page.value = value
 })
 
+/** 判断文档是否处于索引流水线的处理中状态 */
 function isProcessing(document: KnowledgeDocument) {
   return ['queued', 'parsing', 'chunking', 'embedding'].includes(document.status)
 }
 
+/** 文档当前处理进度百分比 */
 function documentProgress(document: KnowledgeDocument) {
   return ingestProgress(document.status, document.progress)
 }
 
+/** 按扩展名返回文件角标的配色 */
 function fileMarkClass(extension: string) {
   if (extension === 'xlsx' || extension === 'csv') return 'bg-success-soft text-success'
   if (extension === 'docx' || extension === 'doc') return 'bg-primary-soft text-primary'

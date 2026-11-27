@@ -9,6 +9,7 @@ export interface RetrievedKnowledgeChunk {
   knowledgeBaseId?: string
   fulltextScore?: number
   vectorScore?: number
+  rerankScore?: number
 }
 
 export interface KnowledgeRetrievalInput {
@@ -17,7 +18,24 @@ export interface KnowledgeRetrievalInput {
   topK: number
   scoreThreshold: number
   retrievalMode: 'vector' | 'keyword' | 'hybrid'
+  rerank?: { enabled: boolean }
   signal?: AbortSignal
+}
+
+export interface KnowledgeRerankCandidate {
+  id: string
+  text: string
+  documentName: string
+  metadata: Record<string, unknown>
+}
+
+export interface KnowledgeReranker {
+  readonly model?: string
+  rerank(input: {
+    query: string
+    candidates: KnowledgeRerankCandidate[]
+    signal?: AbortSignal
+  }): Promise<Array<{ id: string; score: number }>>
 }
 
 export interface KnowledgeRetrievalStore {
@@ -45,6 +63,7 @@ export interface KnowledgeEmbedder {
 export interface KnowledgeRetrieverDependencies {
   store: KnowledgeRetrievalStore
   embedder?: KnowledgeEmbedder
+  reranker?: KnowledgeReranker
   allowKeywordFallback?: boolean
   maxContextChars?: number
 }
@@ -57,6 +76,7 @@ export interface KnowledgeRetrievalCitation {
   chunkIndex: number
   location: string
   score: number
+  rerankScore?: number
 }
 
 export interface KnowledgeRetrievalResult {
@@ -65,6 +85,8 @@ export interface KnowledgeRetrievalResult {
   context: string
   total: number
   warnings: string[]
+  rerankApplied: boolean
+  rerankModel?: string
 }
 
 /**
@@ -143,17 +165,63 @@ export async function retrieveKnowledge(
   keywordRows = scoped(keywordRows)
   vectorRows = scoped(vectorRows)
 
-  const merged = mergeRetrievalRows(keywordRows, vectorRows, mode)
+  const ranked = mergeRetrievalRows(keywordRows, vectorRows, mode)
     .filter((row) => row.score >= threshold)
     .sort(
       (left, right) =>
         right.score - left.score ||
         left.chunkIndex - right.chunkIndex,
     )
-    .slice(0, topK)
+
+  let rerankApplied = false
+  let rerankModel: string | undefined
+  let candidates = ranked
+  if (input.rerank?.enabled && ranked.length) {
+    if (!dependencies.reranker) {
+      warnings.push(
+        'RERANK_NOT_CONFIGURED: 未配置 Rerank 模型，已降级为原始排序。',
+      )
+    } else {
+      const candidateLimit = Math.min(20, Math.max(topK, topK * 3))
+      const rerankCandidates = ranked.slice(0, candidateLimit)
+      try {
+        const scores = await dependencies.reranker.rerank({
+          query,
+          candidates: rerankCandidates.map((chunk) => ({
+            id: chunk.id,
+            text: chunk.text,
+            documentName: chunk.documentName,
+            metadata: chunk.metadata,
+          })),
+          signal: input.signal,
+        })
+        const scoreById = rerankScoreMap(scores, rerankCandidates)
+        candidates = rerankCandidates
+          .map((chunk) => ({
+            ...chunk,
+            rerankScore: scoreById.get(chunk.id),
+          }))
+          .sort(
+            (left, right) =>
+              (right.rerankScore ?? 0) - (left.rerankScore ?? 0) ||
+              right.score - left.score ||
+              left.chunkIndex - right.chunkIndex,
+          )
+        rerankApplied = true
+        rerankModel = dependencies.reranker.model
+      } catch (error) {
+        warnings.push(
+          `RERANK_FAILED: ${
+            error instanceof Error ? error.message : 'Rerank 调用失败。'
+          }`,
+        )
+      }
+    }
+  }
+  const merged = candidates.slice(0, topK)
 
   const maxContextChars = dependencies.maxContextChars ?? 12_000
-  const selected: typeof merged = []
+  const selected: RetrievedKnowledgeChunk[] = []
   let contextLength = 0
   for (const chunk of merged) {
     const addition = chunk.text.length + (selected.length ? 2 : 0)
@@ -183,6 +251,7 @@ export async function retrieveKnowledge(
     chunkIndex: chunk.chunkIndex,
     location: chunk.location,
     score: chunk.score,
+    rerankScore: chunk.rerankScore,
   }))
 
   return {
@@ -191,7 +260,27 @@ export async function retrieveKnowledge(
     context: chunks.map((chunk) => chunk.text).join('\n\n'),
     total: chunks.length,
     warnings,
+    rerankApplied,
+    rerankModel,
   }
+}
+
+function rerankScoreMap(
+  scores: Array<{ id: string; score: number }>,
+  candidates: RetrievedKnowledgeChunk[],
+) {
+  const candidateIds = new Set(candidates.map((candidate) => candidate.id))
+  const scoreById = new Map<string, number>()
+  for (const item of scores) {
+    if (!candidateIds.has(item.id) || !Number.isFinite(item.score)) continue
+    scoreById.set(item.id, Math.min(1, Math.max(0, item.score)))
+  }
+  if (scoreById.size !== candidates.length) {
+    throw new Error(
+      `Rerank 返回 ${scoreById.size} 条有效评分，预期 ${candidates.length} 条。`,
+    )
+  }
+  return scoreById
 }
 
 function mergeRetrievalRows(

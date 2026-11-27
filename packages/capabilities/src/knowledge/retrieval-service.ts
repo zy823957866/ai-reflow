@@ -7,8 +7,10 @@ import {
   retrieveKnowledge,
   type KnowledgeRetrievalInput,
   type KnowledgeRetrievalResult,
+  type KnowledgeReranker,
   type RetrievedKnowledgeChunk,
 } from './retrieval'
+import { createRerankProviderFromEnv } from './rerank'
 
 export interface KnowledgeEmbeddingConfig {
   provider: string
@@ -35,6 +37,7 @@ export interface KnowledgeRetrievalRepository {
 export interface KnowledgeRetrieverOptions {
   env?: NodeJS.ProcessEnv
   createEmbeddingProvider?: typeof createEmbeddingProvider
+  reranker?: KnowledgeReranker
 }
 
 /**
@@ -50,6 +53,8 @@ export function createKnowledgeRetriever(
   const env = options.env ?? process.env
   const providerFactory =
     options.createEmbeddingProvider ?? createEmbeddingProvider
+  const reranker =
+    options.reranker ?? createRerankProviderFromEnv(env)
 
   return {
     async retrieve(
@@ -93,6 +98,7 @@ export function createKnowledgeRetriever(
             return vectors[0]
           },
         },
+        reranker,
         allowKeywordFallback: true,
       })
     },

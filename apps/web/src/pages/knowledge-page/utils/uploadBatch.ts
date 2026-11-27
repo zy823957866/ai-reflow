@@ -3,8 +3,9 @@ import {
   ingestProgress,
   ingestStageLabel,
 } from './status'
-import type { KnowledgeDocument, UploadItem } from './types'
+import type { KnowledgeDocument, UploadItem } from '../types'
 
+/** 允许上传的附件扩展名白名单 */
 const supportedExtensions = new Set([
   'pdf',
   'doc',
@@ -17,6 +18,7 @@ const supportedExtensions = new Set([
   'txt',
   'html',
 ])
+/** 单文件大小上限（50 MB） */
 const maxUploadBytes = 50 * 1024 * 1024
 
 /**
@@ -55,6 +57,7 @@ export function syncUploadBatchFromDocuments(
   items: UploadItem[],
   documents: KnowledgeDocument[],
 ) {
+  // 文档按 ID 索引，便于快速匹配
   const byId = new Map(documents.map((document) => [document.id, document]))
   return items.map((item) => {
     const document = byId.get(item.documentId ?? '')

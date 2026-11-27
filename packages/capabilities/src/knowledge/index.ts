@@ -1,5 +1,6 @@
 export * from './parser'
 export * from './chunker'
 export * from './embeddings'
+export * from './rerank'
 export * from './retrieval'
 export * from './retrieval-service'

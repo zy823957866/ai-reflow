@@ -36,19 +36,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import {
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  Input,
-  Label,
-  Textarea,
-} from '@ai-reflow/ui'
 import type { KnowledgeBaseItem } from '../types'
 
 const props = defineProps<{
@@ -62,9 +49,12 @@ const emit = defineEmits<{
   submit: [value: { name: string; description: string }]
 }>()
 
+/** 表单字段：知识库名称 */
 const name = ref('')
+/** 表单字段：知识库描述 */
 const description = ref('')
 
+// 弹窗打开时回填当前知识库信息（新建则为空）
 watch(
   () => [props.open, props.knowledgeBase] as const,
   ([open, knowledgeBase]) => {
@@ -75,6 +65,7 @@ watch(
   { immediate: true },
 )
 
+/** 提交表单：去空白后把名称与描述抛给父组件 */
 function submit() {
   if (!name.value.trim() || props.saving) return
   emit('submit', {

@@ -5,7 +5,7 @@
       :show-close="!running"
     >
       <div>
-        <DialogTitle class="m-0">新增知识库</DialogTitle>
+        <DialogTitle class="m-0">上传文档</DialogTitle>
         <DialogDescription class="mt-1.5">
           上传附件到“{{ knowledgeBase?.name ?? '当前知识库' }}”，确认后开始解析并建立索引。
         </DialogDescription>
@@ -46,7 +46,7 @@
 
       <div v-if="visibleFiles.length" class="min-w-0">
         <div class="mb-2 flex items-center justify-between gap-2 text-[12px]">
-          <strong class="text-ink">{{ running ? '正在录入' : '待上传附件' }}</strong>
+          <strong class="text-ink">{{ running ? '正在处理' : '待上传附件' }}</strong>
           <span class="text-subtle">{{ visibleFiles.length }} 个附件</span>
         </div>
         <div class="max-h-[300px] overflow-y-auto rounded-[7px] border border-line">
@@ -105,7 +105,7 @@
           @click="submit"
         >
           <LoaderCircle v-if="running" :size="14" class="animate-spin" />
-          {{ running ? '录入中...' : '确定' }}
+          {{ running ? '处理中...' : '上传并解析' }}
         </Button>
       </DialogFooter>
     </DialogContent>
@@ -113,18 +113,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import { FileText, LoaderCircle, Trash2, UploadCloud } from 'lucide-vue-next'
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
-import { getUploadValidationError } from '../uploadBatch'
+import { getUploadValidationError } from '../utils/uploadBatch'
 import type { KnowledgeBaseItem, UploadItem } from '../types'
 
 interface PendingUploadFile {
@@ -157,11 +148,15 @@ const emit = defineEmits<{
   submit: [files: File[]]
 }>()
 
+/** 隐藏的文件选择输入框引用 */
 const fileInput = ref<HTMLInputElement>()
+/** 拖拽悬停时的高亮状态 */
 const dragActive = ref(false)
+/** 待上传文件列表（本地暂存，提交后才交给父组件） */
 const pendingFiles = ref<PendingUploadFile[]>([])
 let nextFileId = 0
 
+/** 上传中展示父级传入的进度项，否则展示本地待传列表 */
 const visibleFiles = computed<UploadDialogRow[]>(() =>
   props.running
     ? props.items.map((item) => ({
@@ -183,10 +178,12 @@ const visibleFiles = computed<UploadDialogRow[]>(() =>
         error: item.error,
       })),
 )
+/** 待传列表中是否存在未通过本地校验的文件 */
 const hasInvalidFiles = computed(() =>
   pendingFiles.value.some((item) => Boolean(item.error)),
 )
 
+// 打开弹窗时清空上一次的待传列表
 watch(
   () => props.open,
   (open) => {
@@ -203,23 +200,27 @@ watch(
   },
 )
 
+/** 触发系统文件选择框 */
 function triggerFilePicker() {
   if (props.running) return
   fileInput.value?.click()
 }
 
+/** 处理文件选择框的 change 事件并追加文件 */
 function handleFileInput(event: Event) {
   const input = event.target as HTMLInputElement
   if (input.files) addFiles([...input.files])
   input.value = ''
 }
 
+/** 处理拖拽放入的文件 */
 function handleDrop(event: DragEvent) {
   dragActive.value = false
   if (props.running || !event.dataTransfer?.files.length) return
   addFiles([...event.dataTransfer.files])
 }
 
+/** 追加待上传文件并执行本地校验（类型/大小） */
 function addFiles(files: File[]) {
   pendingFiles.value.push(
     ...files.map((file) => ({
@@ -232,29 +233,35 @@ function addFiles(files: File[]) {
   )
 }
 
+/** 从待传列表移除指定文件 */
 function removeFile(id: string) {
   if (props.running) return
   pendingFiles.value = pendingFiles.value.filter((item) => item.id !== id)
 }
 
+/** 提交上传：把通过校验的待传文件抛给父组件 */
 function submit() {
   if (props.running || !pendingFiles.value.length || hasInvalidFiles.value) return
   emit('submit', pendingFiles.value.map((item) => item.file))
 }
 
+/** 弹窗开关处理：上传进行中时禁止关闭 */
 function handleOpenChange(open: boolean) {
   if (!open && props.running) return
   emit('update:open', open)
 }
 
+/** 主动关闭弹窗 */
 function close() {
   handleOpenChange(false)
 }
 
+/** 列表行状态文案：文件大小 · 阶段或错误信息 */
 function statusDetail(item: UploadDialogRow) {
   return `${item.sizeLabel} · ${item.error || item.stage}`
 }
 
+/** 把字节数格式化为 KB/MB */
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return `${Math.max(1, Math.round(bytes / 1024))} KB`

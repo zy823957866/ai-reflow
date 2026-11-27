@@ -41,14 +41,6 @@
 
 <script setup lang="ts">
 import { LoaderCircle } from 'lucide-vue-next'
-import {
-  Button,
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-} from '@ai-reflow/ui'
 import type { KnowledgeDocument } from '../types'
 
 defineProps<{

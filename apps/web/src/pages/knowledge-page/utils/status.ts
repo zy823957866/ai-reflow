@@ -1,3 +1,4 @@
+/** 仍在 ingest 流水线中、需要继续轮询的状态 */
 const activeStatuses = new Set([
   'queued',
   'parsing',
@@ -5,6 +6,7 @@ const activeStatuses = new Set([
   'embedding',
 ])
 
+/** ingest 状态对应的中文阶段文案 */
 const stageLabels: Record<string, string> = {
   queued: '排队中',
   parsing: '解析中',
@@ -14,6 +16,7 @@ const stageLabels: Record<string, string> = {
   failed: '索引失败',
 }
 
+/** 无服务端进度时各阶段的估算进度百分比 */
 const stageProgress: Record<string, number> = {
   queued: 8,
   parsing: 30,
@@ -23,6 +26,7 @@ const stageProgress: Record<string, number> = {
   failed: 0,
 }
 
+/** 失败阶段码对应的中文文案 */
 const errorStageLabels: Record<string, string> = {
   parse: '解析失败',
   normalize: '规范化失败',
@@ -84,9 +88,11 @@ export function retrievalWarningLabel(warning: string) {
   const separator = warning.indexOf(':')
   const code = separator >= 0 ? warning.slice(0, separator) : warning
   const message = separator >= 0 ? warning.slice(separator + 1).trim() : ''
+  // 已知警告码到中文降级说明的映射
   const labels: Record<string, string> = {
     EMBEDDING_UNAVAILABLE: '向量检索不可用，已降级为全文检索。',
     RERANK_NOT_CONFIGURED: 'Rerank 未配置，已降级为原始排序。',
+    RERANK_FAILED: 'Rerank 调用失败，已降级为原始排序。',
     CONTEXT_TRUNCATED: '检索上下文已按预算截断。',
   }
   return message && !labels[code] ? message : (labels[code] ?? warning)

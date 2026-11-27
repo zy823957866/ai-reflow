@@ -33,23 +33,14 @@ export function createKnowledgeSearchService(
         topK: input.topK ?? 5,
         scoreThreshold: input.scoreThreshold ?? 0,
         retrievalMode: input.retrievalMode ?? 'keyword',
+        rerank: input.rerank,
       })
-      return toKnowledgeSearchResponse(retrieved, input.rerank?.enabled ?? false)
+      return toKnowledgeSearchResponse(retrieved)
     },
   }
 }
 
-function toKnowledgeSearchResponse(
-  result: KnowledgeRetrievalResult,
-  rerankEnabled: boolean,
-) {
-  const warnings = [...result.warnings]
-  if (
-    rerankEnabled &&
-    !warnings.some((warning) => warning.startsWith('RERANK_NOT_CONFIGURED'))
-  ) {
-    warnings.push('RERANK_NOT_CONFIGURED: 已降级为原始检索排序。')
-  }
+function toKnowledgeSearchResponse(result: KnowledgeRetrievalResult) {
   const chunks = result.chunks.map((chunk) => ({
     id: chunk.id,
     citationId: chunk.citationId,
@@ -61,6 +52,7 @@ function toKnowledgeSearchResponse(
     score: chunk.score,
     fulltextScore: chunk.fulltextScore,
     vectorScore: chunk.vectorScore,
+    rerankScore: chunk.rerankScore,
     metadata: chunk.metadata,
   }))
   return {
@@ -68,7 +60,8 @@ function toKnowledgeSearchResponse(
     citations: result.citations,
     context: result.context,
     total: result.total,
-    rerankApplied: false,
-    warnings,
+    rerankApplied: result.rerankApplied,
+    rerankModel: result.rerankModel,
+    warnings: result.warnings,
   }
 }

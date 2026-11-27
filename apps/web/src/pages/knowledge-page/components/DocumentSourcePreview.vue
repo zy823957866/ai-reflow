@@ -79,16 +79,18 @@
 
       <div v-else-if="kind === 'xlsx'" class="flex min-h-full flex-col bg-white">
         <div class="flex shrink-0 gap-1 overflow-x-auto border-b border-line bg-[var(--surface-2)] px-2 pt-2">
-          <button
+          <Button
             v-for="sheet in sheets"
             :key="sheet.name"
             type="button"
-            class="shrink-0 border-0 border-b-2 bg-transparent px-3 py-2 text-[12px]"
+            variant="ghost"
+            size="xs"
+            class="shrink-0 rounded-none border-0 border-b-2 bg-transparent px-3 py-2 text-[12px]"
             :class="activeSheetName === sheet.name ? 'border-primary font-600 text-primary' : 'border-transparent text-subtle hover:text-muted'"
             @click="activeSheetName = sheet.name"
           >
             {{ sheet.name }}
-          </button>
+          </Button>
         </div>
         <div class="min-h-0 flex-1 overflow-auto p-3">
           <table class="w-full border-collapse text-left text-[12px]">
@@ -126,17 +128,15 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import DOMPurify from 'dompurify'
 import { CircleAlert, FileQuestion, LoaderCircle } from 'lucide-vue-next'
-import { Button } from '@ai-reflow/ui'
 import { getKnowledgeSource } from '@/services/reflowApi'
 import { renderAgentMarkdown } from '@/pages/agents-page/markdown'
 import type { KnowledgeDocument } from '../types'
 import {
   knowledgeSourcePreviewKind,
   parseCsvPreview,
-} from '../sourcePreview'
+} from '../utils/sourcePreview'
 
 interface PreviewSheet {
   name: string
@@ -147,25 +147,39 @@ const props = defineProps<{
   document: KnowledgeDocument
 }>()
 
+/** Excel 单个 sheet 最多渲染的行数 */
 const maxSheetRows = 2000
+/** 原件加载中 */
 const loading = ref(false)
+/** 原件加载失败的错误信息 */
 const error = ref('')
+/** 纯文本类原件的文本内容 */
 const textContent = ref('')
+/** docx/markdown 渲染出的 HTML */
 const articleHtml = ref('')
+/** HTML 原件清洗后的完整文档（供沙箱 iframe srcdoc 使用） */
 const htmlFrame = ref('')
+/** CSV 原件解析出的行列数据 */
 const csvRows = ref<string[][]>([])
+/** Excel 原件解析出的全部 sheet */
 const sheets = ref<PreviewSheet[]>([])
+/** 当前选中的 sheet 名 */
 const activeSheetName = ref('')
+/** PDF 原件的 blob URL */
 const pdfUrl = ref('')
+/** 加载序号，用于丢弃切换文档后的过期响应 */
 let loadSequence = 0
 
+/** 根据扩展名判定的预览类型 */
 const kind = computed(() =>
   knowledgeSourcePreviewKind(props.document.extension),
 )
+/** 当前选中的 sheet 对象 */
 const activeSheet = computed(() =>
   sheets.value.find((sheet) => sheet.name === activeSheetName.value),
 )
 
+// 切换文档时重新加载原件
 watch(
   () => props.document.id,
   () => {
@@ -174,6 +188,7 @@ watch(
   { immediate: true },
 )
 
+// 卸载时释放 PDF blob URL
 onBeforeUnmount(() => {
   revokePdfUrl()
 })
@@ -243,6 +258,7 @@ async function loadSource() {
   }
 }
 
+/** 清洗 docx 转换出的 HTML，剔除脚本等危险标签与属性 */
 function sanitizeArticleHtml(source: string) {
   return DOMPurify.sanitize(source, {
     USE_PROFILES: { html: true },
@@ -251,6 +267,7 @@ function sanitizeArticleHtml(source: string) {
   })
 }
 
+/** 清洗整份 HTML 原件并注入 CSP 策略，供沙箱 iframe 使用 */
 function sanitizeHtmlDocument(source: string) {
   const sanitized = DOMPurify.sanitize(source, {
     WHOLE_DOCUMENT: true,
@@ -267,6 +284,7 @@ function sanitizeHtmlDocument(source: string) {
     : `${policy}${sanitized}`
 }
 
+/** 释放当前 PDF blob URL */
 function revokePdfUrl() {
   if (!pdfUrl.value) return
   URL.revokeObjectURL(pdfUrl.value)

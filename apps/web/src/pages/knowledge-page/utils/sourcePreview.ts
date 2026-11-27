@@ -1,3 +1,4 @@
+/** 原件预览类型：按附件格式决定预览渲染方式 */
 export type KnowledgeSourcePreviewKind =
   | 'pdf'
   | 'docx'
@@ -8,6 +9,7 @@ export type KnowledgeSourcePreviewKind =
   | 'text'
   | 'unsupported'
 
+/** 扩展名到预览类型的映射 */
 const previewKinds: Record<string, KnowledgeSourcePreviewKind> = {
   pdf: 'pdf',
   docx: 'docx',
@@ -20,6 +22,7 @@ const previewKinds: Record<string, KnowledgeSourcePreviewKind> = {
   txt: 'text',
 }
 
+/** 表格预览的最大渲染行数 */
 const MAX_PREVIEW_ROWS = 2000
 
 /**
@@ -42,11 +45,16 @@ export function knowledgeSourcePreviewKind(
  * @returns 二维单元格数组。
  */
 export function parseCsvPreview(source: string, limit = MAX_PREVIEW_ROWS) {
+  /** 解析结果行 */
   const rows: string[][] = []
+  /** 当前行已收集的单元格 */
   let row: string[] = []
+  /** 当前正在累积的单元格文本 */
   let cell = ''
+  /** 是否处于双引号包裹内 */
   let quoted = false
 
+  /** 将当前单元格收尾并写入结果行 */
   const flushRow = () => {
     row.push(cell)
     rows.push(row)

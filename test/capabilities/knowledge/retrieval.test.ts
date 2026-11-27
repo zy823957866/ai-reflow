@@ -136,6 +136,156 @@ test('retrieval drops chunks outside the requested knowledge bases', async () =>
   assert.deepEqual(result.chunks.map((item) => item.id), ['allowed'])
 })
 
+test('rerank reorders the candidate pool before topK is applied', async () => {
+  const store: KnowledgeRetrievalStore = {
+    async keyword() {
+      return [
+        chunk('chunk_strong', 0.9),
+        chunk('chunk_mid', 0.7),
+        chunk('chunk_weak', 0.3),
+      ]
+    },
+    async vector() {
+      return []
+    },
+  }
+
+  const result = await retrieveKnowledge({
+    knowledgeBaseIds: ['kb_1'],
+    query: '退款',
+    topK: 2,
+    scoreThreshold: 0,
+    retrievalMode: 'keyword',
+    rerank: { enabled: true },
+  }, {
+    store,
+    reranker: {
+      model: 'test-reranker',
+      async rerank(input) {
+        assert.equal(input.query, '退款')
+        assert.deepEqual(
+          input.candidates.map((candidate) => candidate.id),
+          ['chunk_strong', 'chunk_mid', 'chunk_weak'],
+        )
+        return [
+          { id: 'chunk_strong', score: 0.2 },
+          { id: 'chunk_mid', score: 0.95 },
+          { id: 'chunk_weak', score: 0.8 },
+        ]
+      },
+    },
+  })
+
+  assert.deepEqual(
+    result.chunks.map((item) => item.id),
+    ['chunk_mid', 'chunk_weak'],
+  )
+  assert.equal(result.chunks[0].rerankScore, 0.95)
+  assert.equal(result.rerankApplied, true)
+  assert.equal(result.rerankModel, 'test-reranker')
+  assert.deepEqual(
+    result.citations.map((citation) => citation.rerankScore),
+    [0.95, 0.8],
+  )
+})
+
+test('rerank failure falls back to retrieval order with a warning', async () => {
+  const store: KnowledgeRetrievalStore = {
+    async keyword() {
+      return [
+        chunk('chunk_high', 0.9),
+        chunk('chunk_low', 0.4),
+      ]
+    },
+    async vector() {
+      return []
+    },
+  }
+
+  const result = await retrieveKnowledge({
+    knowledgeBaseIds: ['kb_1'],
+    query: '退款',
+    topK: 2,
+    scoreThreshold: 0,
+    retrievalMode: 'keyword',
+    rerank: { enabled: true },
+  }, {
+    store,
+    reranker: {
+      model: 'test-reranker',
+      async rerank() {
+        throw new Error('reranker offline')
+      },
+    },
+  })
+
+  assert.deepEqual(
+    result.chunks.map((item) => item.id),
+    ['chunk_high', 'chunk_low'],
+  )
+  assert.equal(result.rerankApplied, false)
+  assert.match(result.warnings.at(-1) ?? '', /RERANK_FAILED/)
+})
+
+test('rerank is skipped when the request does not enable it', async () => {
+  let called = 0
+  const store: KnowledgeRetrievalStore = {
+    async keyword() {
+      return [chunk('chunk_high', 0.9)]
+    },
+    async vector() {
+      return []
+    },
+  }
+
+  const result = await retrieveKnowledge({
+    knowledgeBaseIds: ['kb_1'],
+    query: '退款',
+    topK: 1,
+    scoreThreshold: 0,
+    retrievalMode: 'keyword',
+    rerank: { enabled: false },
+  }, {
+    store,
+    reranker: {
+      model: 'test-reranker',
+      async rerank() {
+        called += 1
+        return []
+      },
+    },
+  })
+
+  assert.equal(called, 0)
+  assert.equal(result.rerankApplied, false)
+})
+
+test('rerank without a configured provider keeps retrieval order and warns', async () => {
+  const store: KnowledgeRetrievalStore = {
+    async keyword() {
+      return [chunk('chunk_high', 0.9)]
+    },
+    async vector() {
+      return []
+    },
+  }
+
+  const result = await retrieveKnowledge({
+    knowledgeBaseIds: ['kb_1'],
+    query: '退款',
+    topK: 1,
+    scoreThreshold: 0,
+    retrievalMode: 'keyword',
+    rerank: { enabled: true },
+  }, {
+    store,
+  })
+
+  assert.deepEqual(result.chunks.map((item) => item.id), ['chunk_high'])
+  assert.equal(result.rerankApplied, false)
+  assert.match(result.warnings.at(-1) ?? '', /RERANK_NOT_CONFIGURED/)
+})
+
 function chunk(id: string, score: number): RetrievedKnowledgeChunk {
   return {
     id,

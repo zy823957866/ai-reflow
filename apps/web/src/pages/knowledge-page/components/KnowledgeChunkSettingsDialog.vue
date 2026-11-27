@@ -56,18 +56,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import {
-  Button,
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogTitle,
-  Input,
-  Label,
-} from '@ai-reflow/ui'
 import type { KnowledgeBaseItem } from '../types'
 
 const props = defineProps<{
@@ -85,11 +73,16 @@ const emit = defineEmits<{
   }]
 }>()
 
+/** 切片大小（字符数），范围 40 - 4000 */
 const chunkSize = ref(800)
+/** 相邻切片的重叠字符数，必须小于 chunkSize */
 const overlapSize = ref(120)
+/** 切片分隔符（支持 \n、\r、\t 转义写法） */
 const separator = ref('\\n\\n')
+/** overlapSize 输入框的动态上限（chunkSize - 1） */
 const maxOverlap = computed(() => Math.max(0, chunkSize.value - 1))
 
+/** 表单整体校验结果：范围、整数与非空分隔符 */
 const valid = computed(
   () =>
     Number.isInteger(chunkSize.value) &&
@@ -101,6 +94,7 @@ const valid = computed(
     Boolean(separator.value.trim()),
 )
 
+// 打开弹窗时用知识库当前切片参数回填表单
 watch(
   () => [props.open, props.knowledgeBase] as const,
   ([open, knowledgeBase]) => {
@@ -112,12 +106,14 @@ watch(
   { immediate: true },
 )
 
+// chunkSize 调小到不大于 overlapSize 时，自动下调 overlapSize
 watch(chunkSize, (value) => {
   if (Number.isFinite(value) && overlapSize.value >= value) {
     overlapSize.value = Math.max(0, Math.round(value) - 1)
   }
 })
 
+/** 提交切片设置（校验通过且非保存中才 emit） */
 function submit() {
   if (!valid.value || props.saving) return
   emit('submit', {

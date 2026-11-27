@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Reflow 知识库架构审查链路</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --subtle: #667085;
+      --line: #d9dee7;
+      --surface: #ffffff;
+      --surface-2: #f5f7fa;
+      --accent: #1668a2;
+      --accent-soft: #e7f2f9;
+      --ok: #14795f;
+      --ok-soft: #e8f5f0;
+      --warn: #a25c00;
+      --warn-soft: #fff3e2;
+      --danger: #a52f2f;
+      --danger-soft: #fdecec;
+      --code: #eef2f6;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #fbfcfe;
+      color: var(--ink);
+      font: 14px/1.65 "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .shell {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 28px 80px;
+    }
+
+    header.page {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 18px;
+    }
+
+    header.page h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    header.page p {
+      margin: 6px 0 0;
+      color: var(--subtle);
+      max-width: 720px;
+    }
+
+    header.page .meta {
+      color: var(--subtle);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    section {
+      margin-top: 34px;
+      scroll-margin-top: 24px;
+    }
+
+    section > h2 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.3;
+    }
+
+    section > p.note {
+      margin: 0 0 14px;
+      color: var(--subtle);
+      max-width: 880px;
+    }
+
+    nav.toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    nav.toc a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface);
+      padding: 5px 10px;
+      font-size: 12px;
+      color: var(--ink);
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .summary {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 14px;
+    }
+
+    .summary strong {
+      display: block;
+      font-size: 12px;
+      color: var(--subtle);
+      font-weight: 600;
+    }
+
+    .summary span {
+      display: block;
+      margin-top: 3px;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(120px, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .stage {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 12px;
+      min-height: 112px;
+    }
+
+    .stage strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .stage span {
+      display: block;
+      color: var(--subtle);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .stage:not(:last-child)::after {
+      content: "→";
+      position: absolute;
+      right: -9px;
+      top: 46%;
+      color: var(--subtle);
+      font-size: 14px;
+      z-index: 2;
+    }
+
+    .tag {
+      display: inline-block;
+      margin: 0 4px 5px 0;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+
+    .tag.web { background: var(--accent-soft); color: var(--accent); }
+    .tag.api { background: #edf2ff; color: #33549c; }
+    .tag.db { background: #f3efff; color: #5f4bbd; }
+    .tag.worker { background: var(--ok-soft); color: var(--ok); }
+    .tag.capability { background: var(--warn-soft); color: var(--warn); }
+    .tag.test { background: #eefaf4; color: #1f7856; }
+    .tag.state-ok { background: var(--ok-soft); color: var(--ok); }
+    .tag.state-warn { background: var(--warn-soft); color: var(--warn); }
+    .tag.state-no { background: var(--danger-soft); color: var(--danger); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 7px;
+      overflow: hidden;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--surface-2);
+      font-size: 12px;
+      color: var(--subtle);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    td {
+      font-size: 13px;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    code {
+      font-family: Consolas, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      background: var(--code);
+      border-radius: 4px;
+      padding: 1px 4px;
+      color: #26344a;
+      word-break: break-all;
+    }
+
+    pre {
+      margin: 0;
+      padding: 14px;
+      background: #182435;
+      color: #e9f1fb;
+      border-radius: 7px;
+      overflow-x: auto;
+      font-family: Consolas, "SF Mono", Menlo, monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+
+    ul.clean {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    ul.clean li { margin: 3px 0; }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .callout {
+      border: 1px solid var(--line);
+      border-left: 4px solid var(--accent);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 12px 14px;
+    }
+
+    .callout.warn { border-left-color: var(--warn); }
+    .callout.danger { border-left-color: var(--danger); }
+
+    .callout strong { display: block; margin-bottom: 3px; }
+
+    .status-list {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .status-card {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      padding: 12px;
+    }
+
+    .status-card strong { display: block; margin-bottom: 4px; }
+    .status-card span { display: block; color: var(--subtle); font-size: 12px; }
+
+    footer {
+      margin-top: 48px;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+      color: var(--subtle);
+      font-size: 12px;
+    }
+
+    @media (max-width: 1000px) {
+      .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .pipeline { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .stage:not(:last-child)::after { display: none; }
+      .split { grid-template-columns: 1fr; }
+      .status-list { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 24px 16px 60px; }
+      header.page h1 { font-size: 24px; }
+      .summary-grid { grid-template-columns: 1fr; }
+      .pipeline { grid-template-columns: 1fr; }
+      th, td { padding: 8px; }
+      table { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header class="page">
+    <div>
+      <h1>AI Reflow 知识库架构审查链路</h1>
+      <p>把前端页面、REST API、数据库、对象存储、worker、解析、分块、向量化、检索和 Agent 集成串成一条可逐文件审查的链路。所有路径均相对本文件所在 <code>docs/</code> 目录。</p>
+    </div>
+    <div class="meta">生成时间：2026-11-27</div>
+  </header>
+
+  <nav class="toc" aria-label="目录">
+    <a href="#overview">概览</a>
+    <a href="#chain">核心链路</a>
+    <a href="#web">前端</a>
+    <a href="#api">API 层</a>
+    <a href="#storage">数据与存储</a>
+    <a href="#worker">Worker</a>
+    <a href="#capabilities">能力层</a>
+    <a href="#retrieval">检索与 Agent</a>
+    <a href="#state">状态机</a>
+    <a href="#tests">测试</a>
+    <a href="#audit">审查重点</a>
+    <a href="#files">文件索引</a>
+  </nav>
+
+  <section id="overview">
+    <h2>概览</h2>
+    <div class="summary-grid">
+      <div class="summary"><strong>主链路</strong><span>上传 → 解析 → 分块 → 向量化 → 检索</span></div>
+      <div class="summary"><strong>核心表</strong><span>4 张主表</span></div>
+      <div class="summary"><strong>运行角色</strong><span>workflow / agent / ingest</span></div>
+      <div class="summary"><strong>默认 embedding</strong><span>ollama · 768 维</span></div>
+    </div>
+    <p class="note" style="margin-top:14px;">
+      知识库目前是一个真实闭环，不是纯 mock：前端有真实页面与轮询，服务端有 REST 与仓库，worker 有独立 ingest 角色，能力层负责解析、分块、embedding 和检索。设计来源为
+      <a href="需求拆解/06-knowledge-base.md">06-knowledge-base.md</a> 和
+      <a href="需求拆解/14-agent-runtime-conversation-and-knowledge.md">14-agent-runtime-conversation-and-knowledge.md</a>。
+    </p>
+  </section>
+
+  <section id="chain">
+    <h2>核心链路</h2>
+    <p class="note">从用户动作到 Agent 使用的完整链路，每个节点都有明确代码归属。</p>
+    <div class="pipeline">
+      <div class="stage"><strong>Web 页面</strong><span>上传、状态、轮询、检索测试与引用展示</span><a class="tag web" href="../apps/web/src/pages/knowledge-page/index.vue">前端入口</a></div>
+      <div class="stage"><strong>REST API</strong><span>校验请求、创建文档、返回作业与检索结果</span><a class="tag api" href="../apps/server/src/main.ts">服务端</a></div>
+      <div class="stage"><strong>对象存储</strong><span>保存原始文件，DB 只存 storage key</span><a class="tag capability" href="../packages/platform/src/storage/object-storage.ts">对象存储</a></div>
+      <div class="stage"><strong>入库队列</strong><span>queued → parse → normalize → chunk → embedding → index</span><a class="tag db" href="../packages/platform/src/db/repositories/knowledge-ingest-repository.ts">队列</a></div>
+      <div class="stage"><strong>Worker</strong><span>领取任务、心跳、阶段推进、失败重试</span><a class="tag worker" href="../apps/worker/src/roles/ingest-role.ts">Worker</a></div>
+      <div class="stage"><strong>能力层</strong><span>解析、结构化分块、向量化、检索算法</span><a class="tag capability" href="../packages/capabilities/src/knowledge/index.ts">能力</a></div>
+      <div class="stage"><strong>Agent</strong><span>通过 runtime services 调用检索并带引用输出</span><a class="tag worker" href="../apps/worker/src/runtime-services.ts">Agent</a></div>
+    </div>
+  </section>
+
+  <section id="web">
+    <h2>前端链路</h2>
+    <p class="note">知识库页面本身没有业务 SQL，所有数据都来自 REST；页面负责状态展示、上传队列、阶段轮询和错误重试。</p>
+    <table>
+      <thead>
+        <tr>
+          <th>环节</th>
+          <th>文件</th>
+          <th>关键位置</th>
+          <th>审查要点</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>路由入口</td>
+          <td><a href="../apps/web/src/router/index.ts">apps/web/src/router/index.ts</a></td>
+          <td><code>24</code></td>
+          <td>确认 <code>/knowledge</code> 是否挂到标准布局，且无权限绕行。</td>
+        </tr>
+        <tr>
+          <td>页面状态</td>
+          <td><a href="../apps/web/src/pages/knowledge-page/index.vue">apps/web/src/pages/knowledge-page/index.vue</a></td>
+          <td><code>337, 358, 538, 559, 679</code></td>
+          <td>看列表加载、文档轮询、上传、重试、重建与检索的请求边界。</td>
+        </tr>
+        <tr>
+          <td>上传批次</td>
+          <td><a href="../apps/web/src/pages/knowledge-page/uploadBatch.ts">apps/web/src/pages/knowledge-page/uploadBatch.ts</a></td>
+          <td><code>28, 54, 74</code></td>
+          <td>关注前端校验、失败收集、与 documentId 的状态同步。</td>
+        </tr>
+        <tr>
+          <td>API 封装</td>
+          <td><a href="../apps/web/src/services/reflowApi.ts">apps/web/src/services/reflowApi.ts</a></td>
+          <td><code>907-1127</code></td>
+          <td>核对每个 REST 路径与响应 DTO，避免页面自行拼接 URL。</td>
+        </tr>
+        <tr>
+          <td>页面组件</td>
+          <td><a href="../apps/web/src/pages/knowledge-page/components">apps/web/src/pages/knowledge-page/components</a></td>
+          <td>整目录</td>
+          <td>检查空态、失败态、重试按钮、引用复制和移动端布局。</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="api">
+    <h2>API 层</h2>
+    <p class="note">服务端入口集中在 NestJS 控制器，上传校验和业务编排在 AgentApiOperations，检索响应由独立 search service 转换。</p>
+    <table>
+      <thead>
+        <tr>
+          <th>能力</th>
+          <th>方法与路径</th>
+          <th>代码位置</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>知识库 CRUD</td><td><code>GET/POST /api/knowledge-bases</code><br><code>GET/PATCH/DELETE /api/knowledge-bases/:id</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>927-987</code></td><td>列表、创建、更新、删除，均带 workspace 隔离。</td></tr>
+        <tr><td>文档列表</td><td><code>GET /api/knowledge-bases/:id/documents</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>988-1004</code></td><td>支持状态、类型和名称筛选。</td></tr>
+        <tr><td>文档上传</td><td><code>POST /api/knowledge-bases/:id/documents</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1005-1038</code></td><td>multipart 上传，50 MB 上限。</td></tr>
+        <tr><td>检索测试</td><td><code>POST /api/knowledge-bases/:id/search</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1039-1053</code></td><td>进入 vector / keyword / hybrid 检索。</td></tr>
+        <tr><td>统计</td><td><code>GET /api/knowledge-bases/:id/stats</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1054-1063</code></td><td>文档、ready、failed、chunks 等统计。</td></tr>
+        <tr><td>文档详情</td><td><code>GET /api/documents/:id</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1076-1083</code></td><td>单个文档状态与错误阶段。</td></tr>
+        <tr><td>原始文件</td><td><code>GET /api/documents/:id/source</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1084-1122</code></td><td>从对象存储读取，设置安全响应头。</td></tr>
+        <tr><td>删除 / 重试 / 重建</td><td><code>DELETE /api/documents/:id</code><br><code>POST /api/documents/:id/retry</code><br><code>POST /api/documents/:id/reindex</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1123-1153</code></td><td>删除清理切片，重试从失败阶段继续，重建从 parse 开始。</td></tr>
+        <tr><td>入库作业</td><td><code>GET /api/knowledge-ingest-jobs/:id</code><br><code>POST /api/knowledge-ingest-jobs/:id/cancel</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1154-1180</code></td><td>作业阶段、尝试次数、错误与取消。</td></tr>
+        <tr><td>切片与预览</td><td><code>GET /api/documents/:id/chunks</code><br><code>GET /api/documents/:id/preview</code></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a> <code>1181-1206</code></td><td>切片分页与预览状态。</td></tr>
+        <tr><td>上传校验</td><td><code>AgentApiOperations.uploadDocument</code></td><td><a href="../apps/server/src/agent-api.ts">apps/server/src/agent-api.ts</a> <code>166-220</code></td><td>扩展名、MIME、大小、空文件、旧 Office 拒绝。</td></tr>
+        <tr><td>检索适配</td><td><code>createKnowledgeSearchService</code></td><td><a href="../apps/server/src/knowledge-search.ts">apps/server/src/knowledge-search.ts</a> <code>22-76</code></td><td>把能力层结果转成 HTTP 契约，保留 rerank 降级提示。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="storage">
+    <h2>数据与对象存储</h2>
+    <div class="split">
+      <div>
+        <table>
+          <thead>
+            <tr>
+              <th>表 / 组件</th>
+              <th>文件</th>
+              <th>关键字段</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>knowledge_bases</code></td><td><a href="../packages/platform/src/db/schema.ts">packages/platform/src/db/schema.ts</a> <code>159</code></td><td><code>embedding_provider</code>、<code>embedding_model</code>、<code>embedding_dimension</code>、<code>metadata</code></td></tr>
+            <tr><td><code>documents</code></td><td><a href="../packages/platform/src/db/schema.ts">packages/platform/src/db/schema.ts</a> <code>175</code></td><td><code>storage_key</code>、<code>sha256</code>、<code>status</code>、<code>preview_status</code>、<code>stage_error</code></td></tr>
+            <tr><td><code>document_chunks</code></td><td><a href="../packages/platform/src/db/schema.ts">packages/platform/src/db/schema.ts</a> <code>195</code></td><td><code>content</code>、<code>metadata</code>、<code>embedding</code>、<code>embedding_status</code></td></tr>
+            <tr><td><code>knowledge_ingest_jobs</code></td><td><a href="../packages/platform/src/db/schema.ts">packages/platform/src/db/schema.ts</a> <code>346</code></td><td><code>stage</code>、<code>attempt</code>、<code>worker_id</code>、<code>lease_expires_at</code></td></tr>
+            <tr><td>本地对象存储</td><td><a href="../packages/platform/src/storage/object-storage.ts">packages/platform/src/storage/object-storage.ts</a> <code>19</code></td><td><code>put/get/delete</code>，默认目录 <code>.data/object-storage</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout warn">
+        <strong>存储边界</strong>
+        DB 不保存文件内容，只保存 <code>storage_key</code>。本地对象存储默认目录可用 <code>OBJECT_STORAGE_PATH</code> 覆盖；实现里做了路径穿越校验，不允许绝对路径、<code>..</code> 或跳出根目录。
+      </div>
+    </div>
+  </section>
+
+  <section id="worker">
+    <h2>Worker 与入库流水线</h2>
+    <p class="note">worker 按 role 分离，ingest 是独立消费循环，不阻塞 workflow 和 agent。</p>
+    <pre>upload
+  → KnowledgeRepository.upload()
+  → ObjectStorage.put()
+  → documents(status=queued)
+  → KnowledgeIngestRepository.createJob(kind=ingest)
+  → worker claimNext()
+  → parse
+  → normalize
+  → chunk
+  → replaceDocumentChunks()
+  → embedding
+  → updateChunkEmbedding()
+  → index
+  → complete()</pre>
+    <table>
+      <thead>
+        <tr>
+          <th>文件</th>
+          <th>关键位置</th>
+          <th>职责</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><a href="../apps/worker/src/main.ts">apps/worker/src/main.ts</a></td><td><code>221-259</code></td><td>启动 ingest role，创建对象存储、仓库和 embedding provider。</td></tr>
+        <tr><td><a href="../apps/worker/src/roles/ingest-role.ts">apps/worker/src/roles/ingest-role.ts</a></td><td><code>73-169</code></td><td>真实处理器：读取对象、解析、分块、替换切片、向量化、更新状态。</td></tr>
+        <tr><td><a href="../apps/worker/src/roles/ingest-role.ts">apps/worker/src/roles/ingest-role.ts</a></td><td><code>170-237</code></td><td>租约、心跳、取消、失败归一化和完成。</td></tr>
+        <tr><td><a href="../packages/platform/src/db/repositories/knowledge-ingest-repository.ts">packages/platform/src/db/repositories/knowledge-ingest-repository.ts</a></td><td><code>112-548</code></td><td>创建作业、领取、心跳、阶段更新、完成、失败、取消。</td></tr>
+        <tr><td><a href="../packages/platform/src/db/repositories/knowledge-repository.ts">packages/platform/src/db/repositories/knowledge-repository.ts</a></td><td><code>392-477</code></td><td>上传幂等、storage key、documents 插入、ingest job 创建。</td></tr>
+        <tr><td><a href="../packages/platform/src/db/repositories/knowledge-repository.ts">packages/platform/src/db/repositories/knowledge-repository.ts</a></td><td><code>816-934</code></td><td>切片替换、pending 查询、向量写入。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="capabilities">
+    <h2>能力层</h2>
+    <p class="note">解析、分块、embedding 和检索算法都在 <code>packages/capabilities/src/knowledge</code>，可独立测试，不依赖 HTTP 或数据库。</p>
+    <table>
+      <thead>
+        <tr>
+          <th>模块</th>
+          <th>文件</th>
+          <th>关键位置</th>
+          <th>说明</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>解析器</td><td><a href="../packages/capabilities/src/knowledge/parser.ts">packages/capabilities/src/knowledge/parser.ts</a></td><td><code>7-128</code></td><td>识别格式、解析文本、DOCX、XLSX、CSV、HTML、Markdown、PDF。</td></tr>
+        <tr><td>结构化分块</td><td><a href="../packages/capabilities/src/knowledge/chunker.ts">packages/capabilities/src/knowledge/chunker.ts</a></td><td><code>35-184</code></td><td>按标题、段落、列表、代码块和行区间切块，保留 overlap。</td></tr>
+        <tr><td>Embedding</td><td><a href="../packages/capabilities/src/knowledge/embeddings.ts">packages/capabilities/src/knowledge/embeddings.ts</a></td><td><code>52-108</code></td><td>批量调用、维度校验、指数退避和稳定错误。</td></tr>
+        <tr><td>Provider</td><td><a href="../packages/capabilities/src/knowledge/embeddings.ts">packages/capabilities/src/knowledge/embeddings.ts</a></td><td><code>109-166</code></td><td>支持 Ollama 与 OpenAI 兼容 Provider。</td></tr>
+        <tr><td>检索算法</td><td><a href="../packages/capabilities/src/knowledge/retrieval.ts">packages/capabilities/src/knowledge/retrieval.ts</a></td><td><code>76-196</code></td><td>keyword / vector / hybrid、阈值、topK、上下文截断、引用。</td></tr>
+        <tr><td>检索服务</td><td><a href="../packages/capabilities/src/knowledge/retrieval-service.ts">packages/capabilities/src/knowledge/retrieval-service.ts</a></td><td><code>46-103</code></td><td>把仓库端口与 embedding Provider 组合成可复用服务。</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="retrieval">
+    <h2>检索与 Agent 集成</h2>
+    <div class="split">
+      <div>
+        <pre>KnowledgeSearchPanel
+  → searchKnowledge()
+  → POST /api/knowledge-bases/:id/search
+  → createKnowledgeSearchService()
+  → createKnowledgeRetriever()
+  → retrieveKnowledge()
+  → keywordSearch() / vectorSearch()
+  → merge + threshold + topK
+  → chunks + citations + context</pre>
+      </div>
+      <div class="callout">
+        <strong>Agent 调用</strong>
+        worker 在 <a href="../apps/worker/src/runtime-services.ts">apps/worker/src/runtime-services.ts</a> <code>224-240</code> 暴露 <code>services.knowledge.retrieve</code>，Agent Runtime 通过这个端口获取切片和引用，不直接写 SQL。
+      </div>
+    </div>
+  </section>
+
+  <section id="state">
+    <h2>状态机与边界</h2>
+    <div class="status-list">
+      <div class="status-card"><strong>文档状态</strong><span><code>queued → parsing → chunking → embedding → ready / failed</code></span></div>
+      <div class="status-card"><strong>作业阶段</strong><span><code>parse → normalize → chunk → embedding → index</code></span></div>
+      <div class="status-card"><strong>支持格式</strong><span><code>txt / md / html / htm / csv / pdf / docx / xlsx</code></span></div>
+      <div class="status-card"><strong>明确不支持</strong><span><code>doc / xls</code>、扫描件 OCR、多 embedding 维度混存</span></div>
+      <div class="status-card"><strong>硬上限</strong><span>单文件 50 MB；单文档 5000 个 chunk</span></div>
+      <div class="status-card"><strong>默认模型</strong><span><code>ollama / nomic-embed-text / 768</code></span></div>
+    </div>
+  </section>
+
+  <section id="tests">
+    <h2>测试与验证</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>层级</th>
+          <th>文件</th>
+          <th>关注点</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>解析器</td><td><a href="../test/capabilities/knowledge/parser.test.ts">test/capabilities/knowledge/parser.test.ts</a></td><td>格式识别、空文件、不支持类型、文本提取。</td></tr>
+        <tr><td>分块</td><td><a href="../test/capabilities/knowledge/chunker.test.ts">test/capabilities/knowledge/chunker.test.ts</a></td><td>结构边界、overlap、超限。</td></tr>
+        <tr><td>Embedding</td><td><a href="../test/capabilities/knowledge/embeddings.test.ts">test/capabilities/knowledge/embeddings.test.ts</a></td><td>批量、维度、错误重试。</td></tr>
+        <tr><td>检索</td><td><a href="../test/capabilities/knowledge/retrieval.test.ts">test/capabilities/knowledge/retrieval.test.ts</a></td><td>模式、阈值、知识库隔离、引用。</td></tr>
+        <tr><td>服务端</td><td><a href="../test/server/knowledge-search.test.ts">test/server/knowledge-search.test.ts</a></td><td>HTTP 响应契约和检索模式。</td></tr>
+        <tr><td>仓库</td><td><a href="../test/platform/db/repositories/knowledge-search.test.ts">test/platform/db/repositories/knowledge-search.test.ts</a></td><td>SQL、workspace、知识库过滤、chunk 设置。</td></tr>
+        <tr><td>Worker</td><td><a href="../test/worker/roles/knowledge-ingest.test.ts">test/worker/roles/knowledge-ingest.test.ts</a><br><a href="../test/worker/roles/ingest-role.test.ts">test/worker/roles/ingest-role.test.ts</a></td><td>阶段推进、心跳、失败、重试。</td></tr>
+        <tr><td>E2E</td><td><a href="../test/e2e/knowledge-embedding-e2e.mjs">test/e2e/knowledge-embedding-e2e.mjs</a></td><td>上传 → ingest → 检索闭环。</td></tr>
+      </tbody>
+    </table>
+    <p class="note">建议审查时至少跑：<code>pnpm test</code>、<code>pnpm test:knowledge-embedding</code>、<code>pnpm typecheck</code>、<code>pnpm typecheck:server</code>、<code>pnpm typecheck:worker</code>。</p>
+  </section>
+
+  <section id="audit">
+    <h2>审查重点</h2>
+    <div class="split">
+      <div>
+        <ul class="clean">
+          <li><strong>workspace 隔离</strong>：所有查询和写入必须带 <code>workspace_id</code>，尤其检索、文档详情、source、重试和取消。</li>
+          <li><strong>上传安全</strong>：扩展名 / MIME / 大小 / 空文件 / 旧 Office 的稳定错误码是否覆盖完整。</li>
+          <li><strong>对象存储</strong>：路径穿越、重复 sha256、storage key 泄漏、失败回滚。</li>
+          <li><strong>幂等与并发</strong>：同一 sha256、同一 document 活动任务、重建与重试是否会重复写切片。</li>
+          <li><strong>向量一致性</strong>：768 维固定、维度校验、embedding model 记录、重建索引。</li>
+          <li><strong>检索正确性</strong>：topK clamp、阈值、hybrid 合并、citation 顺序、上下文截断。</li>
+          <li><strong>失败恢复</strong>：attempt / max_attempts、next_retry_at、heartbeat、lease、取消后不覆盖状态。</li>
+          <li><strong>预览安全</strong>：CSP、nosniff、Range、HTML 消毒、签名 URL 与对象存储 key 不外泄。</li>
+          <li><strong>Agent 边界</strong>：Agent 只通过 runtime services 检索，不绕过仓库或直接拼 SQL。</li>
+        </ul>
+      </div>
+      <div class="callout danger">
+        <strong>最容易出错的四个位置</strong>
+        <ul class="clean">
+          <li><code>KnowledgeRepository.upload()</code> 的对象存储与 DB 事务边界。</li>
+          <li><code>replaceDocumentChunks()</code> 的原子替换与并发任务。</li>
+          <li><code>vectorSearch()</code> 的 workspace、KB 和 embedding 过滤。</li>
+          <li><code>retrieveKnowledge()</code> 的降级与 hybrid 合并分数。</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="files">
+    <h2>文件索引</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>分类</th>
+          <th>路径</th>
+          <th>角色</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="tag web">Web</span></td><td><a href="../apps/web/src/router/index.ts">apps/web/src/router/index.ts</a></td><td>路由入口</td></tr>
+        <tr><td><span class="tag web">Web</span></td><td><a href="../apps/web/src/pages/knowledge-page/index.vue">apps/web/src/pages/knowledge-page/index.vue</a></td><td>知识库页面状态机</td></tr>
+        <tr><td><span class="tag web">Web</span></td><td><a href="../apps/web/src/pages/knowledge-page/uploadBatch.ts">apps/web/src/pages/knowledge-page/uploadBatch.ts</a></td><td>上传批次状态</td></tr>
+        <tr><td><span class="tag web">Web</span></td><td><a href="../apps/web/src/services/reflowApi.ts">apps/web/src/services/reflowApi.ts</a></td><td>API 客户端</td></tr>
+        <tr><td><span class="tag api">API</span></td><td><a href="../apps/server/src/main.ts">apps/server/src/main.ts</a></td><td>REST 控制器</td></tr>
+        <tr><td><span class="tag api">API</span></td><td><a href="../apps/server/src/agent-api.ts">apps/server/src/agent-api.ts</a></td><td>上传校验与编排</td></tr>
+        <tr><td><span class="tag api">API</span></td><td><a href="../apps/server/src/knowledge-search.ts">apps/server/src/knowledge-search.ts</a></td><td>检索响应适配</td></tr>
+        <tr><td><span class="tag db">DB</span></td><td><a href="../packages/platform/src/db/schema.ts">packages/platform/src/db/schema.ts</a></td><td>核心表结构</td></tr>
+        <tr><td><span class="tag db">DB</span></td><td><a href="../packages/platform/src/db/repositories/knowledge-repository.ts">packages/platform/src/db/repositories/knowledge-repository.ts</a></td><td>知识库 / 文档 / 切片仓库</td></tr>
+        <tr><td><span class="tag db">DB</span></td><td><a href="../packages/platform/src/db/repositories/knowledge-ingest-repository.ts">packages/platform/src/db/repositories/knowledge-ingest-repository.ts</a></td><td>入库作业队列</td></tr>
+        <tr><td><span class="tag capability">Storage</span></td><td><a href="../packages/platform/src/storage/object-storage.ts">packages/platform/src/storage/object-storage.ts</a></td><td>对象存储适配</td></tr>
+        <tr><td><span class="tag capability">Storage</span></td><td><a href="../packages/platform/src/storage/filename.ts">packages/platform/src/storage/filename.ts</a></td><td>文件名编码规范化</td></tr>
+        <tr><td><span class="tag worker">Worker</span></td><td><a href="../apps/worker/src/main.ts">apps/worker/src/main.ts</a></td><td>角色启动</td></tr>
+        <tr><td><span class="tag worker">Worker</span></td><td><a href="../apps/worker/src/roles/ingest-role.ts">apps/worker/src/roles/ingest-role.ts</a></td><td>ingest 处理与心跳</td></tr>
+        <tr><td><span class="tag worker">Worker</span></td><td><a href="../apps/worker/src/runtime-services.ts">apps/worker/src/runtime-services.ts</a></td><td>Agent / 节点服务端口</td></tr>
+        <tr><td><span class="tag capability">Capability</span></td><td><a href="../packages/capabilities/src/knowledge/parser.ts">packages/capabilities/src/knowledge/parser.ts</a></td><td>格式解析</td></tr>
+        <tr><td><span class="tag capability">Capability</span></td><td><a href="../packages/capabilities/src/knowledge/chunker.ts">packages/capabilities/src/knowledge/chunker.ts</a></td><td>结构化分块</td></tr>
+        <tr><td><span class="tag capability">Capability</span></td><td><a href="../packages/capabilities/src/knowledge/embeddings.ts">packages/capabilities/src/knowledge/embeddings.ts</a></td><td>向量化</td></tr>
+        <tr><td><span class="tag capability">Capability</span></td><td><a href="../packages/capabilities/src/knowledge/retrieval.ts">packages/capabilities/src/knowledge/retrieval.ts</a></td><td>检索算法</td></tr>
+        <tr><td><span class="tag test">Test</span></td><td><a href="../test/e2e/knowledge-embedding-e2e.mjs">test/e2e/knowledge-embedding-e2e.mjs</a></td><td>端到端闭环</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    本文档基于当前仓库代码生成，用于知识库架构审查；行号为生成时的定位参考，后续代码变动后请以文件内容为准。
+  </footer>
+</main>
+</body>
+</html>

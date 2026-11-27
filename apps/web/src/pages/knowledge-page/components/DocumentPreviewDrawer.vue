@@ -121,16 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import { FileSearch, LoaderCircle, X } from 'lucide-vue-next'
-import {
-  Button,
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerTitle,
-} from '@ai-reflow/ui'
 import StatusBadge from '@/components/StatusBadge.vue'
 import type { DocumentChunkDto } from '@/services/reflowApi'
 import type { KnowledgeDocument } from '../types'
@@ -150,16 +141,23 @@ const emit = defineEmits<{
   showError: [document: KnowledgeDocument]
 }>()
 
+/** 最近一次查看的文档，关闭抽屉后仍保留，避免收起动画期间内容闪空 */
 const lastDocument = ref<KnowledgeDocument>()
+/** 最近一次展示的切片，作用同上 */
 const lastChunks = ref<DocumentChunkDto[]>([])
+/** 当前选中的切片 id */
 const selectedChunkId = ref('')
 
+/** 抽屉实际可见状态：open 为真且传入了文档 */
 const isOpen = computed(() => props.open && Boolean(props.document))
+/** 当前展示的文档：优先取 props，关闭后回退到最近一次缓存 */
 const activeDocument = computed(() => props.document ?? lastDocument.value)
+/** 打开时取父级最新切片，关闭时用缓存（保证退出动画有内容可展示） */
 const visibleDocumentChunks = computed(() =>
   props.open ? props.documentChunks : lastChunks.value,
 )
 
+/** 切片渲染行：把切片 DTO 映射为展示所需字段 */
 const chunks = computed(() => visibleDocumentChunks.value.map((chunk) => ({
   id: chunk.id,
   title: String(chunk.metadata.title ?? `切片 ${chunk.chunkIndex + 1}`),
@@ -168,10 +166,12 @@ const chunks = computed(() => visibleDocumentChunks.value.map((chunk) => ({
   tokens: chunk.tokenCount ?? 0,
   embeddingStatus: chunk.embeddingStatus,
 })))
+/** 选中的切片详情；未选中或选中项失效时默认取第一条 */
 const selectedChunk = computed(() =>
   chunks.value.find((chunk) => chunk.id === selectedChunkId.value) ?? chunks.value[0],
 )
 
+// 记录最近一次传入的文档
 watch(
   () => props.document,
   (document) => {
@@ -180,6 +180,7 @@ watch(
   { immediate: true },
 )
 
+// 打开期间记录最新切片，并保证选中项存在于新列表中
 watch(
   () => props.documentChunks,
   (chunksValue) => {
@@ -192,10 +193,12 @@ watch(
   { immediate: true },
 )
 
+/** 抽屉开关变化：用户关闭时通知父组件 */
 function handleOpenChange(open: boolean) {
   if (!open) emit('close')
 }
 
+/** 关闭动画结束后清空缓存，为下一次打开做准备 */
 function handleAnimationEnd(open: boolean) {
   if (open) return
   lastDocument.value = undefined
@@ -203,6 +206,7 @@ function handleAnimationEnd(open: boolean) {
   selectedChunkId.value = ''
 }
 
+/** 文档状态映射为状态徽标的三态展示 */
 function documentBadgeStatus(document: KnowledgeDocument) {
   if (document.status === 'ready') return 'ready'
   if (document.status === 'failed') return 'failed'

@@ -5,7 +5,7 @@ import {
   getUploadValidationError,
   isUploadBatchSettled,
   syncUploadBatchFromDocuments,
-} from '../../../apps/web/src/pages/knowledge-page/uploadBatch'
+} from '../../../apps/web/src/pages/knowledge-page/utils/uploadBatch'
 
 test('sync keeps ready uploads visible while updating their status', () => {
   const upload = {
