@@ -126,6 +126,20 @@ export function apiGet<T>(path: string, query?: Query) {
 }
 
 /**
+ * 下载二进制响应并保留统一的 HTTP 错误处理。
+ *
+ * @param path API 路径。
+ * @returns 响应 Blob。
+ */
+export async function apiGetBlob(path: string) {
+  const response = await fetch(path, {
+    headers: { Accept: '*/*' },
+  })
+  if (!response.ok) return throwResponseError(response)
+  return response.blob()
+}
+
+/**
  * 提交 POST JSON API。
  *
  * @param path API 路径。

@@ -9,6 +9,7 @@ export {
   createObjectStorage,
   type ObjectStorage,
 } from './storage/object-storage'
+export { normalizeFilenameEncoding } from './storage/filename'
 export { createDatabase } from './db/client'
 export type { DatabaseClient } from './db/client'
 export { schema } from './db/schema'
@@ -34,6 +35,12 @@ export {
   type KnowledgeDocumentQuery,
   type KnowledgeListQuery,
 } from './db/repositories/knowledge-repository'
+export {
+  DEFAULT_KNOWLEDGE_CHUNK_SETTINGS,
+  knowledgeChunkStrategyLabel,
+  normalizeKnowledgeChunkSettings,
+  type KnowledgeChunkSettings,
+} from './db/repositories/knowledge-chunk-settings'
 export {
   AgentRepository,
   AgentConversationRepository,

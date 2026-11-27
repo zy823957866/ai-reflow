@@ -4,9 +4,15 @@ import {
   createObjectStorage,
   type ObjectStorage,
 } from '../../storage/object-storage'
+import { normalizeFilenameEncoding } from '../../storage/filename'
 import { iso } from './dto'
 import { jsonb, notFound, publicId } from './helpers'
 import { KnowledgeIngestRepository } from './knowledge-ingest-repository'
+import {
+  knowledgeChunkStrategyLabel,
+  normalizeKnowledgeChunkSettings,
+  type KnowledgeChunkSettings,
+} from './knowledge-chunk-settings'
 
 export interface KnowledgeListQuery {
   search?: string
@@ -98,13 +104,14 @@ export class KnowledgeRepository {
       status: string
       embedding_model: string
       embedding_dimension: number
+      metadata: Record<string, unknown>
       updated_at: Date
       documents: number
       chunks: number
     }>>`
       select
         kb.id, kb.public_id, kb.name, kb.description, kb.status,
-        kb.embedding_model, kb.embedding_dimension, kb.updated_at,
+        kb.embedding_model, kb.embedding_dimension, kb.metadata, kb.updated_at,
         count(distinct d.id)::int as documents,
         count(c.id)::int as chunks
       from knowledge_bases kb
@@ -138,13 +145,14 @@ export class KnowledgeRepository {
       status: string
       embedding_model: string
       embedding_dimension: number
+      metadata: Record<string, unknown>
       updated_at: Date
       documents: number
       chunks: number
     }>>`
       select
         kb.id, kb.public_id, kb.name, kb.description, kb.status,
-        kb.embedding_model, kb.embedding_dimension, kb.updated_at,
+        kb.embedding_model, kb.embedding_dimension, kb.metadata, kb.updated_at,
         count(distinct d.id)::int as documents,
         count(c.id)::int as chunks
       from knowledge_bases kb
@@ -173,17 +181,22 @@ export class KnowledgeRepository {
     embeddingProvider?: string
     embeddingModel?: string
     embeddingDimension?: number
+    chunkSize?: number
+    overlapSize?: number
+    separator?: string
   }) {
     const embedding = normalizeKnowledgeEmbeddingConfig(input)
+    const chunkSettings = normalizeKnowledgeChunkSettings(input)
     const [created] = await this.sql<Array<{ public_id: string }>>`
       insert into knowledge_bases (
         public_id, workspace_id, name, description, embedding_provider,
-        embedding_model, embedding_dimension, status
+        embedding_model, embedding_dimension, status, metadata
       )
       values (
         ${publicId('kb')}, ${this.workspaceId}, ${input.name},
         ${input.description ?? ''}, ${embedding.embeddingProvider},
-        ${embedding.embeddingModel}, ${embedding.embeddingDimension}, ${'ready'}
+        ${embedding.embeddingModel}, ${embedding.embeddingDimension}, ${'ready'},
+        ${jsonb(this.sql, { chunkSettings })}
       )
       returning public_id
     `
@@ -202,14 +215,23 @@ export class KnowledgeRepository {
     input: {
       name?: string
       description?: string
+      chunkSize?: number
+      overlapSize?: number
+      separator?: string
     },
   ) {
     const existing = await this.get(knowledgeBaseId)
+    const chunkSettings = normalizeKnowledgeChunkSettings({
+      chunkSize: input.chunkSize ?? existing.chunkSize,
+      overlapSize: input.overlapSize ?? existing.overlapSize,
+      separator: input.separator ?? existing.separator,
+    })
     await this.sql`
       update knowledge_bases
       set
         name = ${input.name ?? existing.name},
         description = ${input.description ?? existing.description},
+        metadata = metadata || ${jsonb(this.sql, { chunkSettings })},
         updated_at = now()
       where workspace_id = ${this.workspaceId}
         and public_id = ${knowledgeBaseId}
@@ -324,7 +346,7 @@ export class KnowledgeRepository {
     return rows.map((row) => ({
       id: row.public_id,
       kbId: kb.public_id,
-      name: row.name,
+      name: normalizeFilenameEncoding(row.name),
       extension: row.extension,
       mime: row.mime,
       size: formatBytes(row.size_bytes),
@@ -403,12 +425,18 @@ export class KnowledgeRepository {
       await this.sql`
         insert into documents (
           public_id, workspace_id, kb_id, name, mime, extension,
-          size_bytes, sha256, storage_key, status
+          size_bytes, sha256, storage_key, status, metadata
         )
         values (
           ${documentPublicId}, ${this.workspaceId}, ${kb.id},
           ${input.name}, ${input.mime}, ${input.extension},
-          ${input.sizeBytes}, ${input.sha256}, ${storageKey}, ${'queued'}
+          ${input.sizeBytes}, ${input.sha256}, ${storageKey}, ${'queued'},
+          ${jsonb(this.sql, {
+            chunkStrategy: knowledgeChunkStrategyLabel(kb.chunkSettings),
+            chunkSize: kb.chunkSettings.chunkSize,
+            overlapSize: kb.chunkSettings.overlapSize,
+            separator: kb.chunkSettings.separator,
+          })}
         )
       `
     } catch (error) {
@@ -472,7 +500,7 @@ export class KnowledgeRepository {
     return {
       id: row.public_id,
       kbId: row.kb_public_id,
-      name: row.name,
+      name: normalizeFilenameEncoding(row.name),
       extension: row.extension,
       mime: row.mime,
       size: formatBytes(row.size_bytes),
@@ -497,6 +525,50 @@ export class KnowledgeRepository {
           : undefined,
       metadata: row.metadata,
       updatedAt: iso(row.updated_at)!,
+    }
+  }
+
+  /**
+   * 读取知识库原始附件，严格限定当前 workspace。
+   *
+   * @param documentId 外部文档 ID。
+   * @returns 文件字节、名称和 MIME。
+   */
+  async source(documentId: string) {
+    const [row] = await this.sql<Array<{
+      public_id: string
+      name: string
+      extension: string
+      mime: string
+      size_bytes: number
+      storage_key: string
+    }>>`
+      select public_id, name, extension, mime, size_bytes, storage_key
+      from documents
+      where workspace_id = ${this.workspaceId}
+        and public_id = ${documentId}
+      limit 1
+    `
+    if (!row) throw notFound('文档')
+    let bytes: Buffer
+    try {
+      bytes = await this.storage.get(row.storage_key)
+    } catch (error) {
+      if (error instanceof AppError) throw error
+      throw new AppError({
+        code: 'KNOWLEDGE_SOURCE_UNAVAILABLE',
+        message: '原始附件暂时无法读取。',
+        status: 404,
+        retryable: true,
+      })
+    }
+    return {
+      id: row.public_id,
+      name: normalizeFilenameEncoding(row.name),
+      extension: row.extension,
+      mime: row.mime,
+      sizeBytes: row.size_bytes,
+      bytes,
     }
   }
 
@@ -572,6 +644,7 @@ export class KnowledgeRepository {
     topK: number,
   ): Promise<KnowledgeSearchChunk[]> {
     const kbs = await this.searchableKnowledgeBases(knowledgeBaseIds)
+    const terms = buildKeywordSearchTerms(query)
     const rows = await this.sql<Array<{
       id: string
       content: string
@@ -589,29 +662,29 @@ export class KnowledgeRepository {
         greatest(
           ts_rank(c.tsv, plainto_tsquery('simple', ${query}))::float,
           case
-            when exists (
-              select 1
-              from unnest(regexp_split_to_array(trim(${query}), '\\s+')) term
-              where c.content ilike ${'%'} || term || ${'%'}
-            )
-            then 0.5::float
+            when term_matches.matched_terms > 0
+            then (
+              0.5 + 0.5 * term_matches.matched_terms::float /
+              greatest(cardinality(${terms}::text[]), 1)
+            )::float
             else 0::float
           end
         ) as rank
       from document_chunks c
       join documents d on d.id = c.document_id
       join knowledge_bases kb on kb.id = d.kb_id
+      cross join lateral (
+        select count(*)::int as matched_terms
+        from unnest(${terms}::text[]) term
+        where c.content ilike ${'%'} || term || ${'%'}
+      ) term_matches
       where c.workspace_id = ${this.workspaceId}
         and d.workspace_id = ${this.workspaceId}
         and kb.workspace_id = ${this.workspaceId}
         and d.kb_id = any(${kbs.internalIds}::uuid[])
         and (
           c.tsv @@ plainto_tsquery('simple', ${query})
-          or exists (
-            select 1
-            from unnest(regexp_split_to_array(trim(${query}), '\\s+')) term
-            where c.content ilike ${'%'} || term || ${'%'}
-          )
+          or term_matches.matched_terms > 0
         )
       order by rank desc, c.chunk_index
       limit ${Math.min(100, Math.max(topK, topK * 3))}
@@ -619,7 +692,7 @@ export class KnowledgeRepository {
     return rows.map((row) => ({
       id: row.id,
       documentId: row.document_public_id,
-      documentName: row.document_name,
+      documentName: normalizeFilenameEncoding(row.document_name),
       chunkIndex: row.chunk_index,
       text: row.content,
       metadata: row.metadata,
@@ -680,7 +753,7 @@ export class KnowledgeRepository {
     return rows.map((row) => ({
       id: row.id,
       documentId: row.document_public_id,
-      documentName: row.document_name,
+      documentName: normalizeFilenameEncoding(row.document_name),
       chunkIndex: row.chunk_index,
       text: row.content,
       metadata: row.metadata,
@@ -1014,6 +1087,7 @@ export class KnowledgeRepository {
     const kb = await this.requireInternal(knowledgeBaseId)
     const topK = Math.min(20, Math.max(1, input.topK ?? 5))
     const threshold = input.scoreThreshold ?? 0
+    const terms = buildKeywordSearchTerms(input.query)
     const rows = await this.sql<Array<{
       id: string
       content: string
@@ -1029,26 +1103,26 @@ export class KnowledgeRepository {
         greatest(
           ts_rank(c.tsv, plainto_tsquery('simple', ${input.query}))::float,
           case
-            when exists (
-              select 1
-              from unnest(regexp_split_to_array(trim(${input.query}), '\\s+')) term
-              where c.content ilike ${'%'} || term || ${'%'}
-            )
-            then 0.5::float
+            when term_matches.matched_terms > 0
+            then (
+              0.5 + 0.5 * term_matches.matched_terms::float /
+              greatest(cardinality(${terms}::text[]), 1)
+            )::float
             else 0::float
           end
         ) as rank
       from document_chunks c
       join documents d on d.id = c.document_id
+      cross join lateral (
+        select count(*)::int as matched_terms
+        from unnest(${terms}::text[]) term
+        where c.content ilike ${'%'} || term || ${'%'}
+      ) term_matches
       where c.workspace_id = ${this.workspaceId}
         and d.kb_id = ${kb.id}
         and (
           c.tsv @@ plainto_tsquery('simple', ${input.query})
-          or exists (
-            select 1
-            from unnest(regexp_split_to_array(trim(${input.query}), '\\s+')) term
-            where c.content ilike ${'%'} || term || ${'%'}
-          )
+          or term_matches.matched_terms > 0
         )
       order by rank desc, c.chunk_index
       limit ${topK}
@@ -1059,7 +1133,7 @@ export class KnowledgeRepository {
         id: row.id,
         citationId: `c${index + 1}`,
         documentId: row.document_public_id,
-        documentName: row.document_name,
+        documentName: normalizeFilenameEncoding(row.document_name),
         chunkIndex: row.chunk_index,
         snippet: row.content,
         location: describeLocation(row.metadata),
@@ -1100,10 +1174,14 @@ export class KnowledgeRepository {
     status: string
     embedding_model: string
     embedding_dimension: number
+    metadata: Record<string, unknown>
     updated_at: Date
     documents: number
     chunks: number
   }) {
+    const chunkSettings = normalizeKnowledgeChunkSettings(
+      row.metadata?.chunkSettings,
+    )
     return {
       id: row.public_id,
       name: row.name,
@@ -1113,6 +1191,9 @@ export class KnowledgeRepository {
       status: row.status,
       embeddingModel: row.embedding_model,
       dimensions: row.embedding_dimension,
+      chunkSize: chunkSettings.chunkSize,
+      overlapSize: chunkSettings.overlapSize,
+      separator: chunkSettings.separator,
       updatedAt: iso(row.updated_at)!,
     }
   }
@@ -1131,16 +1212,23 @@ export class KnowledgeRepository {
       description: string
       embedding_model: string
       embedding_dimension: number
+      metadata: Record<string, unknown>
     }>>`
       select
-        id, public_id, name, description, embedding_model, embedding_dimension
+        id, public_id, name, description, embedding_model, embedding_dimension,
+        metadata
       from knowledge_bases
       where workspace_id = ${this.workspaceId}
         and public_id = ${knowledgeBaseId}
       limit 1
     `
     if (!kb) throw notFound('知识库')
-    return kb
+    return {
+      ...kb,
+      chunkSettings: normalizeKnowledgeChunkSettings(
+        kb.metadata?.chunkSettings,
+      ),
+    }
   }
 
   /**
@@ -1164,7 +1252,10 @@ export class KnowledgeRepository {
       limit 1
     `
     if (!document) throw notFound('文档')
-    return document
+    return {
+      ...document,
+      name: normalizeFilenameEncoding(document.name),
+    }
   }
 
   private async searchableKnowledgeBases(knowledgeBaseIds: string[]) {
@@ -1202,6 +1293,61 @@ export class KnowledgeRepository {
       job: existingJobs[0] ?? (await jobs.createJob(documentId, 'ingest')),
     }
   }
+}
+
+const CJK_STOP_TERMS = new Set([
+  '多少',
+  '什么',
+  '怎么',
+  '如何',
+  '请问',
+  '是否',
+  '哪些',
+  '哪个',
+  '哪里',
+  '为什么',
+  '一下',
+  '可以',
+  '的是',
+  '这个',
+  '那个',
+])
+
+/**
+ * 为中文问题生成可命中 PostgreSQL 全文检索的二元词。
+ *
+ * PostgreSQL simple parser 不会切分中文，因此“小红多少分”会被当成
+ * 一个 token；这里生成“小红 / 红多 / 多少 / 少分”等候选词，再由
+ * 数据库按命中数量排序。
+ *
+ * @param query 用户原始查询。
+ * @returns 去重后的候选检索词。
+ */
+export function buildKeywordSearchTerms(query: string) {
+  const normalized = query.normalize('NFKC').toLowerCase().trim()
+  if (!normalized) return []
+  const tokens =
+    normalized.match(/[\p{Script=Han}]+|[a-z0-9]+(?:[._-][a-z0-9]+)*/gu) ??
+    []
+  const terms = new Set<string>()
+
+  for (const token of tokens) {
+    if (/^\p{Script=Han}+$/u.test(token)) {
+      if (token.length <= 2) {
+        if (!CJK_STOP_TERMS.has(token)) terms.add(token)
+        continue
+      }
+      for (let index = 0; index < token.length - 1; index += 1) {
+        const term = token.slice(index, index + 2)
+        if (!CJK_STOP_TERMS.has(term)) terms.add(term)
+      }
+      continue
+    }
+    if (token.length >= 2) terms.add(token)
+  }
+
+  if (!terms.size) terms.add(normalized.slice(0, 64))
+  return [...terms].slice(0, 32)
 }
 
 /**

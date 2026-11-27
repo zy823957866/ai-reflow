@@ -108,6 +108,19 @@ interface MultipartFile {
 }
 
 /**
+ * 构造兼容中文文件名的 inline Content-Disposition。
+ *
+ * @param filename 原始文件名。
+ * @returns HTTP 头值。
+ */
+function inlineContentDisposition(filename: string) {
+  const fallback = filename
+    .replace(/[^\x20-\x7e]/g, '_')
+    .replace(/["\\]/g, '_')
+  return `inline; filename="${fallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+}
+
+/**
  * 管理单进程数据库连接和默认 workspace。
  */
 @Injectable()
@@ -994,6 +1007,7 @@ class ApiController {
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: 50 * 1024 * 1024 },
+      defParamCharset: 'utf8',
     }),
   )
   uploadKnowledgeDocument(
@@ -1068,6 +1082,34 @@ class ApiController {
   @Get('documents/:id')
   document(@Param('id') id: string) {
     return this.knowledge().document(id)
+  }
+
+  /**
+   * 返回文档原始附件，用于知识库预览。
+   *
+   * @param id 外部文档 ID。
+   * @param response 二进制响应。
+   * @returns 原始文件内容。
+   */
+  @Get('documents/:id/source')
+  async documentSource(
+    @Param('id') id: string,
+    @Res() response: ServerResponse,
+  ) {
+    const source = await this.knowledge().source(id)
+    response.setHeader('Content-Type', source.mime || 'application/octet-stream')
+    response.setHeader('Content-Length', String(source.bytes.byteLength))
+    response.setHeader(
+      'Content-Disposition',
+      inlineContentDisposition(source.name),
+    )
+    response.setHeader('Cache-Control', 'private, max-age=300')
+    response.setHeader('X-Content-Type-Options', 'nosniff')
+    response.setHeader(
+      'Content-Security-Policy',
+      "sandbox; default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'",
+    )
+    response.end(source.bytes)
   }
 
   /**

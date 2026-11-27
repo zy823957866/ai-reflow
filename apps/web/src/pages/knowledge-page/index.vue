@@ -21,15 +21,11 @@
         :documents="activeDocuments"
         :chunk-count="activeChunkCount"
         :loading="documentsLoading"
-        :upload-queue="uploadQueue"
-        @edit="openEditKnowledgeBase"
-        @remove="removeKnowledgeBase"
-        @files="queueFiles"
-        @retry-upload="retryUpload"
-        @remove-upload="removeUpload"
+        @settings="openChunkSettings"
+        @upload="openUploadDialog"
         @open-document="openDocument"
         @retry-document="retryDocument"
-        @reindex-document="rebuildDocument"
+        @reindex-document="requestRebuildDocument"
         @remove-document="deleteDocument"
         @show-document-error="showDocumentError"
       />
@@ -67,15 +63,11 @@
           :documents="activeDocuments"
           :chunk-count="activeChunkCount"
           :loading="documentsLoading"
-          :upload-queue="uploadQueue"
-          @edit="openEditKnowledgeBase"
-          @remove="removeKnowledgeBase"
-          @files="queueFiles"
-          @retry-upload="retryUpload"
-          @remove-upload="removeUpload"
+          @settings="openChunkSettings"
+          @upload="openUploadDialog"
           @open-document="openDocument"
           @retry-document="retryDocument"
-          @reindex-document="rebuildDocument"
+          @reindex-document="requestRebuildDocument"
           @remove-document="deleteDocument"
           @show-document-error="showDocumentError"
         />
@@ -126,15 +118,11 @@
           :documents="activeDocuments"
           :chunk-count="activeChunkCount"
           :loading="documentsLoading"
-          :upload-queue="uploadQueue"
-          @edit="openEditKnowledgeBase"
-          @remove="removeKnowledgeBase"
-          @files="queueFiles"
-          @retry-upload="retryUpload"
-          @remove-upload="removeUpload"
+          @settings="openChunkSettings"
+          @upload="openUploadDialog"
           @open-document="openDocument"
           @retry-document="retryDocument"
-          @reindex-document="rebuildDocument"
+          @reindex-document="requestRebuildDocument"
           @remove-document="deleteDocument"
           @show-document-error="showDocumentError"
         />
@@ -158,16 +146,36 @@
       @update:open="createOpen = $event"
       @submit="saveKnowledgeBase"
     />
+    <KnowledgeChunkSettingsDialog
+      :open="chunkSettingsOpen"
+      :knowledge-base="chunkSettingsKb"
+      :saving="savingChunkSettings"
+      @update:open="chunkSettingsOpen = $event"
+      @submit="saveChunkSettings"
+    />
+    <KnowledgeUploadDialog
+      :open="uploadDialogOpen"
+      :knowledge-base="activeKb"
+      :items="uploadDialogItems"
+      :running="uploadDialogRunning"
+      @update:open="updateUploadDialogOpen"
+      @submit="startUploadDialog"
+    />
+    <KnowledgeReindexDialog
+      :open="reindexDialogOpen"
+      :document="reindexTarget"
+      :running="reindexRunning"
+      @update:open="updateReindexDialogOpen"
+      @confirm="submitReindex"
+    />
     <DocumentPreviewDrawer
       :open="documentDrawerOpen"
       :document="selectedDocument"
       :document-chunks="documentChunks"
       :chunks-loading="chunksLoading"
-      :preview="selectedPreview"
-      :embedding-model="activeKb?.embeddingModel"
       @close="closeDocumentPreview"
       @retry="retryDocument"
-      @rebuild="rebuildDocument"
+      @rebuild="requestRebuildDocument"
       @show-error="showDocumentError"
     />
   </div>
@@ -181,7 +189,6 @@ import {
   createKnowledgeBase,
   deleteKnowledgeBase,
   deleteKnowledgeDocument,
-  getKnowledgePreview,
   getKnowledgeStats,
   listDocumentChunks,
   listKnowledgeBases,
@@ -192,10 +199,9 @@ import {
   updateKnowledgeBase,
   uploadKnowledgeDocument,
   type DocumentChunkDto,
-  type KnowledgePreviewDto,
   type KnowledgeStatsDto,
 } from '@/services/reflowApi'
-import { notifyError } from '@/shared/toast'
+import { notifyError, notifyInfo, notifySuccess } from '@/shared/toast'
 import type {
   KnowledgeBaseItem,
   KnowledgeDocument,
@@ -205,21 +211,27 @@ import type {
 } from './types'
 import {
   ingestErrorStageLabel,
-  ingestProgress,
-  ingestStageLabel,
   isActiveIngestStatus,
 } from './status'
 import DocumentPreviewDrawer from './components/DocumentPreviewDrawer.vue'
 import KnowledgeBaseDialog from './components/KnowledgeBaseDialog.vue'
+import KnowledgeChunkSettingsDialog from './components/KnowledgeChunkSettingsDialog.vue'
 import KnowledgeDocumentPanel from './components/KnowledgeDocumentPanel.vue'
 import KnowledgeGroupPanel from './components/KnowledgeGroupPanel.vue'
+import KnowledgeReindexDialog from './components/KnowledgeReindexDialog.vue'
 import KnowledgeSearchPanel from './components/KnowledgeSearchPanel.vue'
+import KnowledgeUploadDialog from './components/KnowledgeUploadDialog.vue'
+import {
+  applyIngestDocument,
+  getUploadValidationError,
+  isUploadBatchSettled,
+  syncUploadBatchFromDocuments,
+} from './uploadBatch'
 
 type MobilePane = 'groups' | 'documents' | 'search'
 
 const kbList = ref<KnowledgeBaseItem[]>([])
 const documents = ref<KnowledgeDocument[]>([])
-const uploadQueue = ref<UploadItem[]>([])
 const activeKbId = ref('')
 const kbQuery = ref('')
 const kbStatusFilter = ref('all')
@@ -227,6 +239,15 @@ const mobilePane = ref<MobilePane>('groups')
 const createOpen = ref(false)
 const editingKbId = ref('')
 const saving = ref(false)
+const chunkSettingsOpen = ref(false)
+const chunkSettingsKbId = ref('')
+const savingChunkSettings = ref(false)
+const uploadDialogOpen = ref(false)
+const uploadDialogItems = ref<UploadItem[]>([])
+const uploadDialogRunning = ref(false)
+const reindexDialogOpen = ref(false)
+const reindexTarget = ref<KnowledgeDocument>()
+const reindexRunning = ref(false)
 const kbLoading = ref(false)
 const documentsLoading = ref(false)
 const testLoading = ref(false)
@@ -237,7 +258,6 @@ const lastSearchDuration = ref(0)
 const documentDrawerOpen = ref(false)
 const selectedDocumentId = ref('')
 const documentChunks = ref<DocumentChunkDto[]>([])
-const selectedPreview = ref<KnowledgePreviewDto>()
 const activeStats = ref<KnowledgeStatsDto>()
 const chunksLoading = ref(false)
 let filterTimer: number | undefined
@@ -251,6 +271,7 @@ const mobilePanes: Array<{ value: MobilePane; label: string }> = [
 ]
 const activeKb = computed(() => kbList.value.find((item) => item.id === activeKbId.value))
 const editingKb = computed(() => kbList.value.find((item) => item.id === editingKbId.value))
+const chunkSettingsKb = computed(() => kbList.value.find((item) => item.id === chunkSettingsKbId.value))
 const activeDocuments = computed(() => documents.value.filter((document) => document.kbId === activeKbId.value))
 const activeChunkCount = computed(
   () => activeStats.value?.chunks ?? activeDocuments.value.reduce((total, item) => total + item.chunks, 0),
@@ -278,6 +299,33 @@ watch(activeKbId, async (id) => {
   }
   await loadActiveKnowledge()
 })
+
+watch(
+  () => uploadDialogItems.value.map((item) => item.status).join('|'),
+  () => {
+    if (
+      !uploadDialogRunning.value ||
+      !uploadDialogItems.value.length ||
+      !isUploadBatchSettled(uploadDialogItems.value)
+    ) {
+      return
+    }
+    const failedCount = uploadDialogItems.value.filter(
+      (item) => item.status === 'failed',
+    ).length
+    uploadDialogRunning.value = false
+    uploadDialogOpen.value = false
+    uploadDialogItems.value = []
+    if (failedCount) {
+      notifyInfo(
+        '知识库录入结束',
+        `${failedCount} 个附件录入失败，可在文档列表查看并重试。`,
+      )
+      return
+    }
+    notifySuccess('知识库录入完成', '所有附件已完成解析并建立索引。')
+  },
+)
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) {
@@ -332,7 +380,12 @@ async function loadActiveKnowledge(silent = false) {
         : undefined,
     }))
     activeStats.value = stats
-    syncUploadQueueFromDocuments()
+    if (uploadDialogRunning.value) {
+      uploadDialogItems.value = syncUploadBatchFromDocuments(
+        uploadDialogItems.value,
+        documents.value,
+      )
+    }
     if (!silent) scheduleKnowledgePoll()
   } catch (error) {
     if (!silent) {
@@ -361,18 +414,13 @@ function scheduleKnowledgePoll() {
 }
 
 /**
- * 判断当前知识库或上传队列是否仍有活动任务。
+ * 判断当前知识库是否仍有活动任务。
  *
  * @returns 是否需要继续轮询。
  */
 function hasActiveIngest() {
-  return (
-    activeDocuments.value.some((document) =>
-      isActiveIngestStatus(document.status),
-    ) ||
-    uploadQueue.value.some(
-      (item) => item.status === 'processing' && Boolean(item.documentId),
-    )
+  return activeDocuments.value.some((document) =>
+    isActiveIngestStatus(document.status),
   )
 }
 
@@ -388,52 +436,6 @@ async function pollActiveKnowledge() {
     pollInFlight = false
     if (hasActiveIngest()) scheduleKnowledgePoll()
   }
-}
-
-/**
- * 把文档列表中的最新 ingest 状态同步到上传队列。
- */
-function syncUploadQueueFromDocuments() {
-  const byId = new Map(documents.value.map((document) => [document.id, document]))
-  uploadQueue.value = uploadQueue.value.map((item) => {
-    const document = byId.get(item.documentId ?? '')
-    return document ? applyIngestDocument(item, document) : item
-  })
-}
-
-/**
- * 将文档状态投影到上传队列项。
- *
- * @param item 上传队列项。
- * @param document 最新文档 DTO。
- * @returns 更新后的队列项。
- */
-function applyIngestDocument(
-  item: UploadItem,
-  document: KnowledgeDocument,
-) {
-  item.status =
-    document.status === 'ready'
-      ? 'ready'
-      : document.status === 'failed'
-        ? 'failed'
-        : 'processing'
-  item.stage =
-    document.status === 'failed' && document.errorStage
-      ? ingestErrorStageLabel(document.errorStage)
-      : ingestStageLabel(document.status)
-  item.progress = ingestProgress(document.status, document.progress)
-  item.error =
-    document.status === 'failed'
-      ? [
-          document.errorCode,
-          document.error ?? '索引失败，请重试或重建索引。',
-          document.errorRetryable === false ? '不可自动重试' : '',
-        ]
-          .filter(Boolean)
-          .join('：')
-      : undefined
-  return item
 }
 
 function selectKnowledgeBase(id: string) {
@@ -453,6 +455,32 @@ function openCreateKnowledgeBase() {
 function openEditKnowledgeBase(knowledgeBase: KnowledgeBaseItem) {
   editingKbId.value = knowledgeBase.id
   createOpen.value = true
+}
+
+function openChunkSettings(knowledgeBase: KnowledgeBaseItem) {
+  chunkSettingsKbId.value = knowledgeBase.id
+  chunkSettingsOpen.value = true
+}
+
+async function saveChunkSettings(value: {
+  chunkSize: number
+  overlapSize: number
+  separator: string
+}) {
+  if (savingChunkSettings.value || !chunkSettingsKbId.value) return
+  savingChunkSettings.value = true
+  try {
+    await updateKnowledgeBase(chunkSettingsKbId.value, value)
+    chunkSettingsOpen.value = false
+    await loadKnowledgeBases(true)
+  } catch (error) {
+    notifyError({
+      title: '保存切片设置失败',
+      description: errorText(error),
+    })
+  } finally {
+    savingChunkSettings.value = false
+  }
 }
 
 async function saveKnowledgeBase(value: { name: string; description: string }) {
@@ -494,38 +522,38 @@ async function removeKnowledgeBase(knowledgeBase: KnowledgeBaseItem) {
   }
 }
 
-async function queueFiles(files: File[]) {
-  const allowed = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'csv', 'md', 'markdown', 'txt', 'html']
-  await Promise.all(files.map(async (file) => {
-    const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
-    const item = reactive<UploadItem>({
+function openUploadDialog() {
+  if (!activeKb.value) return
+  uploadDialogItems.value = []
+  uploadDialogRunning.value = false
+  uploadDialogOpen.value = true
+}
+
+function updateUploadDialogOpen(open: boolean) {
+  if (!open && uploadDialogRunning.value) return
+  uploadDialogOpen.value = open
+  if (!open) uploadDialogItems.value = []
+}
+
+function startUploadDialog(files: File[]) {
+  if (uploadDialogRunning.value || !activeKb.value) return
+  const validFiles = files.filter((file) => !getUploadValidationError(file))
+  if (!validFiles.length) return
+  const items = validFiles.map((file) =>
+    reactive<UploadItem>({
       id: `upload_${Math.random().toString(36).slice(2, 7)}`,
       name: file.name,
       sizeLabel: formatFileSize(file.size),
       progress: 0,
-      stage: 'queued',
+      stage: '待上传',
       status: 'processing',
       file,
-    })
-    uploadQueue.value.unshift(item)
-    if (!allowed.includes(extension)) {
-      Object.assign(item, { status: 'failed', stage: '格式不支持', progress: 0 })
-      notifyError({
-        title: '文件格式不支持',
-        description: `${file.name} 不是支持的文档格式。`,
-      })
-      return
-    }
-    if (file.size > 50 * 1024 * 1024) {
-      Object.assign(item, { status: 'failed', stage: '超过 50 MB', progress: 0 })
-      notifyError({
-        title: '文件过大',
-        description: `${file.name} 超过 50 MB 单文件限制。`,
-      })
-      return
-    }
-    await uploadFile(item)
-  }))
+    }),
+  )
+  uploadDialogItems.value = items
+  uploadDialogRunning.value = true
+  notifyInfo('知识库录入中', '录入完成后弹框自动关闭。')
+  void Promise.all(items.map((item) => uploadFile(item)))
 }
 
 async function uploadFile(item: UploadItem) {
@@ -540,7 +568,6 @@ async function uploadFile(item: UploadItem) {
       item.file,
     )
     item.documentId = accepted.document.id
-    item.jobId = accepted.job.id
     applyIngestDocument(item, accepted.document)
     if (accepted.job.errorMessage) item.error = accepted.job.errorMessage
     await loadActiveKnowledge()
@@ -557,48 +584,9 @@ async function uploadFile(item: UploadItem) {
   }
 }
 
-async function retryUpload(item: UploadItem) {
-  if (!item.documentId) {
-    await uploadFile(item)
-    return
-  }
-  item.status = 'processing'
-  item.stage = '排队中'
-  item.error = undefined
-  item.progress = 8
-  try {
-    const job = await retryKnowledgeDocument(item.documentId)
-    item.jobId = job.id
-    await loadActiveKnowledge()
-  } catch (error) {
-    item.status = 'failed'
-    item.stage = '重试失败'
-    item.error = errorText(error)
-    notifyError({
-      title: '文档重试失败',
-      description: errorText(error),
-      retry: () => void retryUpload(item),
-    })
-  }
-}
-
-function removeUpload(item: UploadItem) {
-  uploadQueue.value = uploadQueue.value.filter((entry) => entry.id !== item.id)
-}
-
 async function retryDocument(document: KnowledgeDocument) {
   try {
-    const job = await retryKnowledgeDocument(document.id)
-    const item = uploadQueue.value.find(
-      (entry) => entry.documentId === document.id,
-    )
-    if (item) {
-      item.jobId = job.id
-      item.status = 'processing'
-      item.stage = '排队中'
-      item.error = undefined
-      item.progress = 8
-    }
+    await retryKnowledgeDocument(document.id)
     await loadActiveKnowledge()
   } catch (error) {
     notifyError({
@@ -609,33 +597,33 @@ async function retryDocument(document: KnowledgeDocument) {
   }
 }
 
-async function rebuildDocument(document: KnowledgeDocument) {
-  if (
-    !window.confirm(
-      `重建“${document.name}”的切片与向量索引？当前索引会先被清理。`,
-    )
-  ) {
-    return
-  }
+function requestRebuildDocument(document: KnowledgeDocument) {
+  reindexTarget.value = document
+  reindexDialogOpen.value = true
+}
+
+function updateReindexDialogOpen(open: boolean) {
+  if (!open && reindexRunning.value) return
+  reindexDialogOpen.value = open
+  if (!open) reindexTarget.value = undefined
+}
+
+async function submitReindex() {
+  if (reindexRunning.value || !reindexTarget.value) return
+  reindexRunning.value = true
   try {
-    const job = await reindexKnowledgeDocument(document.id)
-    const item = uploadQueue.value.find(
-      (entry) => entry.documentId === document.id,
-    )
-    if (item) {
-      item.jobId = job.id
-      item.status = 'processing'
-      item.stage = '排队中'
-      item.error = undefined
-      item.progress = 8
-    }
+    await reindexKnowledgeDocument(reindexTarget.value.id)
+    reindexDialogOpen.value = false
+    reindexTarget.value = undefined
     await loadActiveKnowledge()
   } catch (error) {
     notifyError({
       title: '重建索引失败',
       description: errorText(error),
-      retry: () => void rebuildDocument(document),
+      retry: () => void submitReindex(),
     })
+  } finally {
+    reindexRunning.value = false
   }
 }
 
@@ -656,23 +644,10 @@ async function deleteDocument(document: KnowledgeDocument) {
 async function openDocument(document: KnowledgeDocument) {
   selectedDocumentId.value = document.id
   documentChunks.value = []
-  selectedPreview.value = undefined
   documentDrawerOpen.value = true
   chunksLoading.value = true
   try {
-    const [chunksValue, previewValue] = await Promise.all([
-      listDocumentChunks(document.id),
-      getKnowledgePreview(document.id).catch((error: unknown) => {
-        notifyError({
-          title: '文档预览加载失败',
-          description: errorText(error),
-          retry: () => void openDocument(document),
-        })
-        return undefined
-      }),
-    ])
-    documentChunks.value = chunksValue
-    selectedPreview.value = previewValue
+    documentChunks.value = await listDocumentChunks(document.id)
   } catch (error) {
     notifyError({
       title: '文档切片加载失败',
@@ -688,7 +663,6 @@ function closeDocumentPreview() {
   documentDrawerOpen.value = false
   selectedDocumentId.value = ''
   documentChunks.value = []
-  selectedPreview.value = undefined
 }
 
 function showDocumentError(document: KnowledgeDocument) {

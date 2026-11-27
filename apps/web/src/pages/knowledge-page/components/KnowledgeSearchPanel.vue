@@ -150,7 +150,7 @@ const emit = defineEmits<{
   search: [request: SearchRequest]
 }>()
 
-const query = ref('企业版试用如何申请？需要准备哪些材料？')
+const query = ref('')
 const mode = ref<'hybrid' | 'vector' | 'keyword'>('hybrid')
 const topK = ref(5)
 const threshold = ref(0)

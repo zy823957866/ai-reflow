@@ -13,6 +13,7 @@ export interface KnowledgeChunk {
 export interface ChunkOptions {
   chunkSize?: number
   overlap?: number
+  separator?: string
   maxChunks?: number
 }
 
@@ -37,6 +38,7 @@ export function chunkParsedDocument(
 ): KnowledgeChunk[] {
   const chunkSize = Math.max(40, options.chunkSize ?? 800)
   const overlap = Math.max(0, Math.min(options.overlap ?? 120, chunkSize - 1))
+  const separator = normalizeSeparator(options.separator)
   const maxChunks = Math.max(1, options.maxChunks ?? 5000)
   const blocks = document.blocks.length
     ? document.blocks
@@ -78,7 +80,7 @@ export function chunkParsedDocument(
       push()
       continue
     }
-    const segments = splitBlock(block.text, chunkSize)
+    const segments = splitBlock(block.text, chunkSize, separator)
     for (const segment of segments) {
       const prefix =
         !current && previousChunk && overlap > 0
@@ -123,9 +125,9 @@ function blockMetadata(
   }
 }
 
-function splitBlock(text: string, size: number) {
+function splitBlock(text: string, size: number, separator: string) {
   const paragraphs = text
-    .split(/\n{2,}/)
+    .split(separator === '\n\n' ? /\n{2,}/ : separator)
     .map((item) => item.trim())
     .filter(Boolean)
   const segments: string[] = []
@@ -157,6 +159,15 @@ function splitBlock(text: string, size: number) {
     if (current) segments.push(current)
   }
   return segments
+}
+
+function normalizeSeparator(value: string | undefined) {
+  if (!value) return '\n\n'
+  const decoded = value
+    .replace(/\\r/g, '\r')
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+  return decoded || '\n\n'
 }
 
 function splitHard(text: string, size: number) {

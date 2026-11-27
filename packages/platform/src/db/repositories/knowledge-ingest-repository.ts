@@ -1,7 +1,9 @@
 import { AppError } from '@ai-reflow/core'
 import type { DatabaseClient } from '../client'
 import { iso } from './dto'
-import { jsonb, notFound, publicId } from './helpers'
+import { asRecord, jsonb, notFound, publicId } from './helpers'
+import { normalizeKnowledgeChunkSettings } from './knowledge-chunk-settings'
+import { normalizeFilenameEncoding } from '../../storage/filename'
 
 export interface KnowledgeIngestJobRow {
   id: string
@@ -46,6 +48,9 @@ export interface ClaimedIngestJob {
   embeddingProvider: string
   embeddingModel: string
   embeddingDimension: number
+  chunkSize: number
+  overlapSize: number
+  separator: string
 }
 
 /**
@@ -82,7 +87,9 @@ export function toKnowledgeIngestJobDto(row: KnowledgeIngestJobRow) {
   return {
     id: row.public_id,
     documentId: row.document_public_id,
-    documentName: row.document_name,
+    documentName: row.document_name
+      ? normalizeFilenameEncoding(row.document_name)
+      : undefined,
     documentStatus: row.document_status,
     kind: row.kind,
     status: row.status,
@@ -272,6 +279,7 @@ export class KnowledgeIngestRepository {
         embedding_provider: string
         embedding_model: string
         embedding_dimension: number
+        kb_metadata: Record<string, unknown>
       }>>`
         select
           j.*, d.public_id as document_public_id, d.name as document_name,
@@ -280,12 +288,15 @@ export class KnowledgeIngestRepository {
           d.storage_key,
           kb.id as kb_internal_id, kb.public_id as kb_public_id,
           kb.name as kb_name, kb.embedding_provider, kb.embedding_model,
-          kb.embedding_dimension
+          kb.embedding_dimension, kb.metadata as kb_metadata
         from knowledge_ingest_jobs j
         join documents d on d.id = j.document_id
         join knowledge_bases kb on kb.id = d.kb_id
         where j.id = ${candidate.id}
       `
+      const chunkSettings = normalizeKnowledgeChunkSettings(
+        asRecord(row.kb_metadata).chunkSettings,
+      )
       return {
         id: row.id,
         publicId: row.public_id,
@@ -295,7 +306,7 @@ export class KnowledgeIngestRepository {
         maxAttempts: row.max_attempts,
         documentId: row.document_id,
         documentPublicId: row.document_public_id,
-        documentName: row.document_name,
+        documentName: normalizeFilenameEncoding(row.document_name),
         documentMime: row.document_mime,
         documentExtension: row.document_extension,
         documentSizeBytes: Number(row.document_size_bytes),
@@ -307,6 +318,9 @@ export class KnowledgeIngestRepository {
         embeddingProvider: row.embedding_provider,
         embeddingModel: row.embedding_model,
         embeddingDimension: row.embedding_dimension,
+        chunkSize: chunkSettings.chunkSize,
+        overlapSize: chunkSettings.overlapSize,
+        separator: chunkSettings.separator,
       }
     })
   }

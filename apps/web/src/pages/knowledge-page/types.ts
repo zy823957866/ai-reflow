@@ -21,7 +21,6 @@ export interface UploadItem {
   status: 'processing' | 'ready' | 'failed'
   file?: File
   documentId?: string
-  jobId?: string
   error?: string
 }
 

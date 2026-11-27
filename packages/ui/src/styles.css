@@ -410,7 +410,7 @@
 :where(.ui-dialog-overlay) {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: 80;
   background: rgba(18, 20, 26, 0.32);
   backdrop-filter: blur(2px);
   animation: ui-fade-in 0.09s ease-out;
@@ -420,7 +420,7 @@
   position: fixed;
   left: 50%;
   top: 50%;
-  z-index: 61;
+  z-index: 81;
   display: grid;
   width: min(32rem, calc(100vw - 32px));
   max-height: calc(100vh - 48px);
@@ -488,6 +488,67 @@
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+:where(.ui-drawer-overlay) {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(18, 20, 26, 0.26);
+  animation: ui-fade-in 0.2s ease-out;
+}
+
+:where(.ui-drawer-content) {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 71;
+  display: flex;
+  width: max(85%, 1200px);
+  max-width: 100vw;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  outline: none;
+}
+
+.ui-drawer-content[data-vaul-drawer] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+:where(.ui-drawer-header) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+}
+
+:where(.ui-drawer-footer) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px;
+  border-top: 1px solid var(--border);
+}
+
+:where(.ui-drawer-title) {
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+:where(.ui-drawer-description) {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 @keyframes ui-fade-in {

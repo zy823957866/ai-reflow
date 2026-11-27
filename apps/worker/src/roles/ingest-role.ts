@@ -5,10 +5,11 @@ import {
   parseKnowledgeDocument,
   type EmbeddingProvider,
 } from '@ai-reflow/capabilities'
-import type {
-  ClaimedIngestJob,
-  KnowledgeIngestRepository,
-  ObjectStorage,
+import {
+  knowledgeChunkStrategyLabel,
+  type ClaimedIngestJob,
+  type KnowledgeIngestRepository,
+  type ObjectStorage,
 } from '@ai-reflow/platform'
 import { runRolePool } from './role-pool'
 
@@ -58,6 +59,7 @@ export interface KnowledgeIngestProcessorDependencies {
     | ((job: ClaimedIngestJob) => EmbeddingProvider)
   chunkSize?: number
   overlap?: number
+  separator?: string
   maxChunks?: number
   embeddingBatchSize?: number
   embeddingMaxRetries?: number
@@ -76,6 +78,9 @@ export function createKnowledgeIngestProcessor(
   ): Promise<IngestProcessResult> {
     const { job, signal } = context
     let chunkCount = 0
+    const chunkSize = job.chunkSize ?? dependencies.chunkSize ?? 800
+    const overlapSize = job.overlapSize ?? dependencies.overlap ?? 120
+    const separator = job.separator ?? dependencies.separator ?? '\\n\\n'
 
     if (['parse', 'normalize', 'chunk'].includes(job.stage)) {
       const bytes = await dependencies.storage.get(job.storageKey)
@@ -89,8 +94,9 @@ export function createKnowledgeIngestProcessor(
       signal.throwIfAborted()
       await context.setStage('chunk')
       const chunks = chunkParsedDocument(parsed, {
-        chunkSize: dependencies.chunkSize,
-        overlap: dependencies.overlap,
+        chunkSize,
+        overlap: overlapSize,
+        separator,
         maxChunks: dependencies.maxChunks,
       })
       chunkCount = await dependencies.chunks.replaceDocumentChunks(
@@ -143,6 +149,14 @@ export function createKnowledgeIngestProcessor(
         chunks: chunkCount,
         embeddingModel: job.embeddingModel,
         embeddingDimension: job.embeddingDimension,
+        chunkSize,
+        overlapSize,
+        separator,
+        chunkStrategy: knowledgeChunkStrategyLabel({
+          chunkSize,
+          overlapSize,
+          separator,
+        }),
         resumedFrom: job.stage,
       },
     }

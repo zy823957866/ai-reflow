@@ -111,11 +111,17 @@ export const createKnowledgeBaseSchema = z.object({
   embeddingProvider: z.string().trim().min(1).max(80).optional(),
   embeddingModel: z.string().trim().min(1).max(200).optional(),
   embeddingDimension: z.number().int().min(1).max(8192).optional(),
+  chunkSize: z.number().int().min(40).max(4000).optional(),
+  overlapSize: z.number().int().min(0).max(3999).optional(),
+  separator: z.string().max(64).optional(),
 })
 
 export const updateKnowledgeBaseSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   description: z.string().max(2000).optional(),
+  chunkSize: z.number().int().min(40).max(4000).optional(),
+  overlapSize: z.number().int().min(0).max(3999).optional(),
+  separator: z.string().max(64).optional(),
 })
 
 export const knowledgeSearchSchema = z.object({

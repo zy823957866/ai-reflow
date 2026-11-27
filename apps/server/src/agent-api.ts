@@ -10,12 +10,13 @@ import {
   updateAgentConversationSchema,
   updateAgentSchema,
 } from '@ai-reflow/core'
-import type {
-  AgentConversationRepository,
-  AgentInvocationRepository,
-  AgentRepository,
-  KnowledgeIngestRepository,
-  KnowledgeRepository,
+import {
+  normalizeFilenameEncoding,
+  type AgentConversationRepository,
+  type AgentInvocationRepository,
+  type AgentRepository,
+  type KnowledgeIngestRepository,
+  type KnowledgeRepository,
 } from '@ai-reflow/platform'
 import type { ZodType } from 'zod'
 
@@ -195,7 +196,7 @@ export class AgentApiOperations {
  * @returns 可写 documents 表的字段。
  */
 export function validateKnowledgeUpload(file: UploadedKnowledgeFile) {
-  const name = basename(file.filename)
+  const name = basename(normalizeFilenameEncoding(file.filename))
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .trim()
   if (!name) {

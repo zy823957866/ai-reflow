@@ -2,6 +2,7 @@ import {
   ApiError,
   apiDelete,
   apiGet,
+  apiGetBlob,
   apiPatch,
   apiPost,
   apiUpload,
@@ -82,6 +83,9 @@ export interface KnowledgeBaseDto {
   status: 'ready' | 'indexing' | 'failed'
   embeddingModel: string
   dimensions: number
+  chunkSize: number
+  overlapSize: number
+  separator: string
   updatedAt: string
 }
 
@@ -942,7 +946,13 @@ export function getKnowledgeBase(knowledgeBaseId: string) {
  */
 export function updateKnowledgeBase(
   knowledgeBaseId: string,
-  input: { name?: string; description?: string },
+  input: {
+    name?: string
+    description?: string
+    chunkSize?: number
+    overlapSize?: number
+    separator?: string
+  },
 ) {
   return apiPatch<KnowledgeBaseDto>(`/api/knowledge-bases/${knowledgeBaseId}`, input)
 }
@@ -1098,6 +1108,16 @@ export function getKnowledgeStats(knowledgeBaseId: string) {
  */
 export function getKnowledgePreview(documentId: string) {
   return apiGet<KnowledgePreviewDto>(`/api/documents/${documentId}/preview`)
+}
+
+/**
+ * 获取文档原始附件，用于原件预览。
+ *
+ * @param documentId 文档 ID。
+ * @returns 原始文件 Blob。
+ */
+export function getKnowledgeSource(documentId: string) {
+  return apiGetBlob(`/api/documents/${documentId}/source`)
 }
 
 /**
