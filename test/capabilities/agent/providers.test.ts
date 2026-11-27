@@ -6,7 +6,7 @@ import {
   type AgentChatModelLike,
   type AgentChatModelOptions,
   type AgentModelConnection,
-} from './providers'
+} from '../../../packages/capabilities/src/agent/providers'
 
 test('chat provider binds normalized tools to Ollama models', async () => {
   const model = new StubChatModel()

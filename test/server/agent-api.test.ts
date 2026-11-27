@@ -9,7 +9,7 @@ import {
   readAllInvocationEvents,
   sseFrame,
   validateKnowledgeUpload,
-} from './agent-api'
+} from '../../apps/server/src/agent-api'
 
 test('agent create rejects an invalid definition before touching repositories', async () => {
   let created = 0
@@ -186,6 +186,18 @@ test('upload validation accepts supported files and computes sha256', () => {
   assert.equal(result.name, '退款政策.pdf')
   assert.equal(result.sizeBytes, 9)
   assert.match(result.sha256, /^[a-f0-9]{64}$/)
+})
+
+test('upload validation repairs UTF-8 filenames decoded as latin1', () => {
+  const name = '退款政策.pdf'
+  const mojibake = Buffer.from(name, 'utf8').toString('latin1')
+  const result = validateKnowledgeUpload({
+    filename: mojibake,
+    mime: 'application/pdf',
+    bytes: Buffer.from('pdf-bytes'),
+  })
+
+  assert.equal(result.name, name)
 })
 
 function makeOperations(overrides: Record<string, unknown>) {

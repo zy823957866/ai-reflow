@@ -8,7 +8,7 @@
     "./*": "./src/*/index.ts"
   },
   "scripts": {
-    "test": "tsx --test --test-reporter spec \"src/**/*.test.ts\""
+    "test": "tsx --test --test-reporter spec \"../../test/capabilities/**/*.test.ts\""
   },
   "dependencies": {
     "@ai-reflow/core": "workspace:*",

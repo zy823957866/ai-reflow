@@ -7,7 +7,7 @@ import { AppError } from '@ai-reflow/core'
 import {
   LocalObjectStorage,
   defaultObjectStoragePath,
-} from './object-storage'
+} from '../../../packages/platform/src/storage/object-storage'
 
 test('local object storage round-trips bytes and blocks path traversal', async () => {
   const root = await mkdtemp(join(tmpdir(), 'ai-reflow-storage-'))

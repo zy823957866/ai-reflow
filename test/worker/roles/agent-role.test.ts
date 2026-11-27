@@ -13,7 +13,7 @@ import type {
 import {
   agentInvocationInput,
   executeAgentInvocation,
-} from './agent-role'
+} from '../../../apps/worker/src/roles/agent-role'
 
 test('agent invocation input separates message content and history', () => {
   const prepared = agentInvocationInput({

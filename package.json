@@ -14,12 +14,13 @@
     "typecheck:server": "pnpm --filter @ai-reflow/server typecheck",
     "typecheck:worker": "pnpm --filter @ai-reflow/worker typecheck",
     "preview": "pnpm --filter @ai-reflow/web preview",
-    "smoke": "node scripts/smoke.mjs",
-    "test:workspace": "node --test scripts/workspace-check.test.mjs",
+    "smoke": "node test/smoke/smoke.mjs",
+    "test": "pnpm --filter @ai-reflow/test test",
+    "test:workspace": "node --test test/workspace/workspace-check.test.mjs",
     "db:migrate": "tsx --env-file=.env packages/platform/src/db/migrate.ts",
     "db:seed": "tsx --env-file=.env packages/platform/src/db/seed.ts",
-    "test:api": "tsx --env-file=.env scripts/api-integration.mjs",
-    "test:knowledge-embedding": "node scripts/knowledge-embedding-e2e.mjs"
+    "test:api": "tsx --env-file=.env test/integration/api-integration.mjs",
+    "test:knowledge-embedding": "node test/e2e/knowledge-embedding-e2e.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.65.1",

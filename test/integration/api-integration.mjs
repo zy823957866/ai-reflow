@@ -6,7 +6,7 @@ import {
   KnowledgeRepository,
   createDatabase,
 } from '@ai-reflow/platform'
-import { createPostgresAgentCheckpointer } from '../apps/worker/src/agent-runtime-factory.ts'
+import { createPostgresAgentCheckpointer } from '../../apps/worker/src/agent-runtime-factory.ts'
 
 const apiBaseUrl = process.env.API_BASE_URL
   ?? `http://${process.env.API_HOST ?? '127.0.0.1'}:${process.env.API_PORT ?? '8787'}`

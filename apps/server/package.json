@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --tsconfig tsconfig.json --env-file=../../.env src/main.ts",
-    "test": "tsx --test --test-reporter spec \"src/**/*.test.ts\"",
+    "test": "tsx --test --test-reporter spec \"../../test/server/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

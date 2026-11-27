@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createKnowledgeSearchService } from './knowledge-search'
+import { createKnowledgeSearchService } from '../../apps/server/src/knowledge-search'
 
 test('knowledge search uses vector retrieval and keeps the snippet response contract', async () => {
   const calls = {

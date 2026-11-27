@@ -6,7 +6,7 @@ import type {
 import {
   createPostgresToolHistoryPort,
   shouldUseInvocationToolHistory,
-} from './agent-runtime-factory'
+} from '../../apps/worker/src/agent-runtime-factory'
 
 test('postgres tool history maps runtime records to repository calls', async () => {
   const started: Array<Record<string, unknown>> = []

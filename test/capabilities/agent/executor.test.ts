@@ -37,7 +37,7 @@ test('agent definition rejects maxSteps outside the P0 range', async () => {
 })
 
 test('workflow agent executor forwards the resolved runtime context', async () => {
-  const modulePath = './executor'
+  const modulePath = '../../../packages/capabilities/src/agent/executor'
   const module = (await import(modulePath).catch(() => ({}))) as {
     AgentExecutor?: new () => {
       execute(

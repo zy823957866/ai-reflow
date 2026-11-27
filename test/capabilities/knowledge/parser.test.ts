@@ -13,7 +13,7 @@ import * as XLSX from 'xlsx'
 import {
   KnowledgeIngestError,
   parseKnowledgeDocument,
-} from './parser'
+} from '../../../packages/capabilities/src/knowledge/parser'
 
 test('plain text decode failures expose a stable parse error', async () => {
   await assert.rejects(

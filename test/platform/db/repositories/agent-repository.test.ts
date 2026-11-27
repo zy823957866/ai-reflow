@@ -3,7 +3,7 @@ import test from 'node:test'
 import { AppError } from '@ai-reflow/core'
 
 test('only queued, running, and waiting invocations are active', async () => {
-  const module = await import('./agent-invocation-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/agent-invocation-repository')
 
   assert.equal(module.isActiveInvocationStatus('queued'), true)
   assert.equal(module.isActiveInvocationStatus('running'), true)
@@ -15,7 +15,7 @@ test('only queued, running, and waiting invocations are active', async () => {
 })
 
 test('cancelled agent results complete as cancelled invocations', async () => {
-  const module = await import('./agent-invocation-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/agent-invocation-repository')
   const terminal = module.invocationCompletion({
     text: '已经生成的部分回答',
     messages: [],
@@ -32,7 +32,7 @@ test('cancelled agent results complete as cancelled invocations', async () => {
 })
 
 test('agent row mapping preserves revision and snapshot config', async () => {
-  const module = await import('./agent-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/agent-repository')
   const updatedAt = new Date('2026-11-26T08:00:00.000Z')
   const dto = module.toAgentDto({
     id: '018f0000-0000-7000-8000-000000000001',
@@ -61,7 +61,7 @@ test('agent row mapping preserves revision and snapshot config', async () => {
 })
 
 test('agent message mapping exposes completed text and citations', async () => {
-  const module = await import('./agent-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/agent-repository')
   const createdAt = new Date('2026-11-26T08:01:00.000Z')
   const dto = module.toAgentMessageDto({
     id: '018f0000-0000-7000-8000-000000000003',
@@ -92,7 +92,7 @@ test('agent message mapping exposes completed text and citations', async () => {
 })
 
 test('ingest retries use bounded exponential backoff', async () => {
-  const module = await import('./knowledge-ingest-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/knowledge-ingest-repository')
 
   assert.equal(module.nextIngestRetryDelayMs(1), 5_000)
   assert.equal(module.nextIngestRetryDelayMs(2), 10_000)
@@ -101,7 +101,7 @@ test('ingest retries use bounded exponential backoff', async () => {
 })
 
 test('vector dimension guard rejects mixed embeddings', async () => {
-  const module = await import('./knowledge-ingest-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/knowledge-ingest-repository')
 
   assert.doesNotThrow(() => module.assertVectorDimension(768, 768))
   assert.throws(
@@ -114,7 +114,7 @@ test('vector dimension guard rejects mixed embeddings', async () => {
 })
 
 test('knowledge embedding configuration is fixed to the local 768d model', async () => {
-  const module = await import('./knowledge-repository')
+  const module = await import('../../../../packages/platform/src/db/repositories/knowledge-repository')
   assert.deepEqual(
     module.normalizeKnowledgeEmbeddingConfig({
       embeddingProvider: 'openai',
@@ -130,7 +130,7 @@ test('knowledge embedding configuration is fixed to the local 768d model', async
 })
 
 test('sendMessage replays the first invocation for the same idempotency key', async () => {
-  const { AgentConversationRepository } = await import('./agent-repository')
+  const { AgentConversationRepository } = await import('../../../../packages/platform/src/db/repositories/agent-repository')
   const createdAt = new Date('2026-11-26T08:02:00.000Z')
   let began = 0
   const sql = Object.assign(
@@ -213,7 +213,7 @@ test('sendMessage replays the first invocation for the same idempotency key', as
 })
 
 test('concurrent same-key send replays after acquiring the conversation lock', async () => {
-  const { AgentConversationRepository } = await import('./agent-repository')
+  const { AgentConversationRepository } = await import('../../../../packages/platform/src/db/repositories/agent-repository')
   const createdAt = new Date('2026-11-26T08:03:00.000Z')
   let busyChecks = 0
   const conversationRow = {

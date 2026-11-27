@@ -4,7 +4,7 @@ import {
   EmbeddingError,
   embedTexts,
   type EmbeddingProvider,
-} from './embeddings'
+} from '../../../packages/capabilities/src/knowledge/embeddings'
 
 test('embedding batches texts and preserves order', async () => {
   const batches: number[] = []

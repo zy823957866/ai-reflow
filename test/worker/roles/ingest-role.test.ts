@@ -4,7 +4,7 @@ import type {
   ClaimedIngestJob,
   KnowledgeIngestRepository,
 } from '@ai-reflow/platform'
-import { executeClaimedIngest } from './ingest-role'
+import { executeClaimedIngest } from '../../../apps/worker/src/roles/ingest-role'
 
 test('ingest role records a real failure instead of fake success', async () => {
   const failures: Array<Record<string, unknown>> = []

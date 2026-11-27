@@ -12,12 +12,12 @@ import type {
 import type {
   AgentChatProvider,
   AgentChatProviderInput,
-} from './providers'
-import { createAgentRuntime } from './runtime'
+} from '../../../packages/capabilities/src/agent/providers'
+import { createAgentRuntime } from '../../../packages/capabilities/src/agent/runtime'
 import {
   toolIdempotencyKey,
   type AgentToolHistoryPort,
-} from './tools'
+} from '../../../packages/capabilities/src/agent/tools'
 
 test('agent runtime streams a normal answer', async () => {
   const chat = new ScriptedChatProvider([

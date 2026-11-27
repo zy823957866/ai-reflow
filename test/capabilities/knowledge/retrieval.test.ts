@@ -4,7 +4,7 @@ import {
   retrieveKnowledge,
   type KnowledgeRetrievalStore,
   type RetrievedKnowledgeChunk,
-} from './retrieval'
+} from '../../../packages/capabilities/src/knowledge/retrieval'
 
 test('vector retrieval falls back to keyword with an explicit warning', async () => {
   const keywordCalls: string[][] = []

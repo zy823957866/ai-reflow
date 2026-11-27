@@ -9,7 +9,7 @@ import {
   createKnowledgeIngestProcessor,
   executeClaimedIngest,
   type IngestChunkStore,
-} from './ingest-role'
+} from '../../../apps/worker/src/roles/ingest-role'
 
 test('real ingest parses, chunks, embeds, and persists staged metadata', async () => {
   const stages: string[] = []

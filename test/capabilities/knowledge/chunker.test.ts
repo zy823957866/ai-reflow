@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chunkParsedDocument } from './chunker'
+import { chunkParsedDocument } from '../../../packages/capabilities/src/knowledge/chunker'
 import {
   KnowledgeIngestError,
   parseKnowledgeDocument,
-} from './parser'
+} from '../../../packages/capabilities/src/knowledge/parser'
 
 test('markdown fenced code is never split even when larger than the target size', async () => {
   const code = [
@@ -60,6 +60,29 @@ test('csv row ranges survive chunking', async () => {
 
   assert.ok(chunks.every((chunk) => chunk.metadata.sheet === 'CSV'))
   assert.equal(chunks[0].metadata.rowStart, 1)
+})
+
+test('custom separators control chunk boundaries', () => {
+  const first = 'a'.repeat(30)
+  const second = 'b'.repeat(30)
+  const chunks = chunkParsedDocument({
+    format: 'txt',
+    text: `${first}---${second}`,
+    metadata: {},
+    blocks: [{
+      text: `${first}---${second}`,
+      kind: 'paragraph',
+      metadata: {},
+    }],
+  }, {
+    chunkSize: 40,
+    overlap: 0,
+    separator: '---',
+  })
+
+  assert.equal(chunks.length, 2)
+  assert.equal(chunks[0].content, first)
+  assert.equal(chunks[1].content, second)
 })
 
 test('chunk count limit fails in the chunk stage', () => {

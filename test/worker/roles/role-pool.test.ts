@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { runRolePool } from './role-pool'
+import { runRolePool } from '../../../apps/worker/src/roles/role-pool'
 
 test('role pool honors concurrency and drains active jobs after abort', async () => {
   const controller = new AbortController()
